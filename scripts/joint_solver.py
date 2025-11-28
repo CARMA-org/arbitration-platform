@@ -43,27 +43,6 @@ except ImportError:
 def solve_joint_allocation(data):
     """
     Solve the joint multi-resource allocation problem.
-    
-    Input data format:
-    {
-        "n_agents": int,
-        "n_resources": int,
-        "preferences": [[w_ij, ...], ...],  # n_agents x n_resources
-        "priority_weights": [c_i, ...],      # n_agents
-        "capacities": [Q_j, ...],            # n_resources
-        "minimums": [[min_ij, ...], ...],    # n_agents x n_resources
-        "ideals": [[ideal_ij, ...], ...]     # n_agents x n_resources
-    }
-    
-    Returns:
-    {
-        "allocations": [[a_ij, ...], ...],
-        "objective": float,
-        "status": str,
-        "solver": str,
-        "utilities": [u_i, ...],
-        "welfare": float
-    }
     """
     n = data['n_agents']
     m = data['n_resources']
@@ -82,39 +61,49 @@ def solve_joint_allocation(data):
     assert mins.shape == (n, m), f"Minimums shape mismatch: {mins.shape} vs ({n}, {m})"
     assert ideals.shape == (n, m), f"Ideals shape mismatch: {ideals.shape} vs ({n}, {m})"
     
-    # Decision variables: allocation matrix A (n x m)
+    # Check feasibility: sum of minimums must not exceed capacity
+    min_totals = np.sum(mins, axis=0)
+    for j in range(m):
+        if min_totals[j] > Q[j]:
+            return {
+                "status": "infeasible",
+                "error": f"Resource {j}: sum of minimums ({min_totals[j]}) exceeds capacity ({Q[j]})",
+                "allocations": mins.tolist(),
+                "objective": float('-inf'),
+                "solver": "none"
+            }
+    
+    # Decision variables
     A = cp.Variable((n, m), nonneg=True)
     
-    # Utility for each agent: u_i = Σⱼ w_ij · a_ij
-    # We need utility to be strictly positive for log to be DCP-compliant
-    epsilon = 1e-6
-    utility = cp.sum(cp.multiply(W, A), axis=1)
+    # Utility variable (explicit for DCP compliance)
+    u = cp.Variable(n)
     
-    # Auxiliary variable for utility that is provably positive
-    u = cp.Variable(n, pos=True)
+    # Small epsilon to ensure strict positivity
+    epsilon = 1e-6
     
     # Objective: maximize Σᵢ cᵢ · log(uᵢ)
     objective = cp.Maximize(c @ cp.log(u))
     
     # Constraints
     constraints = [
+        # Link u to actual utility: u = Σⱼ wᵢⱼ · aᵢⱼ
+        u == cp.sum(cp.multiply(W, A), axis=1),
+        # Ensure utility is positive for log
+        u >= epsilon,
         # Resource capacity: Σᵢ aᵢⱼ ≤ Qⱼ
         cp.sum(A, axis=0) <= Q,
         # Minimum requirements
         A >= mins,
         # Maximum requests (ideals)
         A <= ideals,
-        # Link utility variable to actual utility (with floor for numerical stability)
-        u <= utility + epsilon,
-        u >= epsilon,
     ]
     
     # Solve
     problem = cp.Problem(objective, constraints)
     
-    # Try Clarabel first (best for exponential cones), fall back to others
-    solvers_to_try = ['CLARABEL', 'ECOS', 'SCS', 'OSQP']
-    result = None
+    # Try solvers in order
+    solvers_to_try = ['CLARABEL', 'ECOS', 'SCS']
     used_solver = None
     
     for solver_name in solvers_to_try:
@@ -126,7 +115,9 @@ def solve_joint_allocation(data):
             if problem.status in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
                 used_solver = solver_name
                 break
-        except Exception as e:
+        except cp.error.SolverError:
+            continue
+        except Exception:
             continue
     
     # Check solution status
@@ -134,14 +125,14 @@ def solve_joint_allocation(data):
         return {
             "status": "infeasible",
             "error": f"Problem status: {problem.status}",
-            "allocations": mins.tolist(),  # Fall back to minimums
+            "allocations": mins.tolist(),
             "objective": float('-inf'),
             "solver": used_solver or "none"
         }
     
     # Extract solution
     allocations = A.value
-    utilities = np.sum(W * allocations, axis=1)
+    utilities = u.value
     welfare = np.sum(c * np.log(utilities + epsilon))
     
     return {
