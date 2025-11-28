@@ -86,12 +86,15 @@ def solve_joint_allocation(data):
     A = cp.Variable((n, m), nonneg=True)
     
     # Utility for each agent: u_i = Σⱼ w_ij · a_ij
+    # We need utility to be strictly positive for log to be DCP-compliant
+    epsilon = 1e-6
     utility = cp.sum(cp.multiply(W, A), axis=1)
     
+    # Auxiliary variable for utility that is provably positive
+    u = cp.Variable(n, pos=True)
+    
     # Objective: maximize Σᵢ cᵢ · log(uᵢ)
-    # Note: cp.log requires positive argument, so we add small epsilon
-    epsilon = 1e-8
-    objective = cp.Maximize(c @ cp.log(utility + epsilon))
+    objective = cp.Maximize(c @ cp.log(u))
     
     # Constraints
     constraints = [
@@ -101,6 +104,9 @@ def solve_joint_allocation(data):
         A >= mins,
         # Maximum requests (ideals)
         A <= ideals,
+        # Link utility variable to actual utility (with floor for numerical stability)
+        u <= utility + epsilon,
+        u >= epsilon,
     ]
     
     # Solve
