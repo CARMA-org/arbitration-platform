@@ -259,7 +259,7 @@ MIT License - see LICENSE file for details.
 The following is the latest full demo run output as pasted (verbatim):
 
 ```text
-avyaycasheekar@Avyays-MacBook-Pro arbitration-platform % ./run.sh --full
+> ./run.sh --full
 Compiling...
 Running...
 
@@ -623,5 +623,4 @@ TRANSACTION MANAGER (atomic commit):
 ════════════════════════════════════════════════════════════════════════
    ALL DEMONSTRATIONS COMPLETE
 ════════════════════════════════════════════════════════════════════════
-avyaycasheekar@Avyays-MacBook-Pro arbitration-platform % 
 ```
