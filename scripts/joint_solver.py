@@ -73,14 +73,31 @@ def solve_joint_allocation(data):
                 "solver": "none"
             }
     
+    # FIX: Ensure minimums are not greater than ideals
+    mins = np.minimum(mins, ideals)
+    
+    # FIX: Ensure ideals don't exceed capacity per resource
+    for j in range(m):
+        if np.sum(mins[:, j]) > Q[j]:
+            # Scale down minimums proportionally if they exceed capacity
+            scale = Q[j] / np.sum(mins[:, j])
+            mins[:, j] = mins[:, j] * scale
+    
     # Decision variables
     A = cp.Variable((n, m), nonneg=True)
     
     # Utility variable (explicit for DCP compliance)
-    u = cp.Variable(n)
+    u = cp.Variable(n, nonneg=True)
     
     # Small epsilon to ensure strict positivity
     epsilon = 1e-6
+    
+    # FIX: Compute minimum achievable utility for each agent
+    # This ensures the log constraint is feasible
+    min_utilities = np.array([
+        max(epsilon, np.sum(W[i, :] * mins[i, :]))
+        for i in range(n)
+    ])
     
     # Objective: maximize Σᵢ cᵢ · log(uᵢ)
     objective = cp.Maximize(c @ cp.log(u))
@@ -89,8 +106,8 @@ def solve_joint_allocation(data):
     constraints = [
         # Link u to actual utility: u = Σⱼ wᵢⱼ · aᵢⱼ
         u == cp.sum(cp.multiply(W, A), axis=1),
-        # Ensure utility is positive for log
-        u >= epsilon,
+        # FIX: Ensure utility is at least the minimum achievable utility
+        u >= min_utilities,
         # Resource capacity: Σᵢ aᵢⱼ ≤ Qⱼ
         cp.sum(A, axis=0) <= Q,
         # Minimum requirements
@@ -105,6 +122,7 @@ def solve_joint_allocation(data):
     # Try solvers in order
     solvers_to_try = ['CLARABEL', 'ECOS', 'SCS']
     used_solver = None
+    solve_error = None
     
     for solver_name in solvers_to_try:
         try:
@@ -115,16 +133,21 @@ def solve_joint_allocation(data):
             if problem.status in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
                 used_solver = solver_name
                 break
-        except cp.error.SolverError:
+            else:
+                solve_error = f"{solver_name}: status={problem.status}"
+        except cp.error.SolverError as e:
+            solve_error = f"{solver_name}: {str(e)}"
             continue
-        except Exception:
+        except Exception as e:
+            solve_error = f"{solver_name}: {str(e)}"
             continue
     
     # Check solution status
     if problem.status not in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
+        # Return fallback solution with minimums
         return {
             "status": "infeasible",
-            "error": f"Problem status: {problem.status}",
+            "error": solve_error or f"Problem status: {problem.status}",
             "allocations": mins.tolist(),
             "objective": float('-inf'),
             "solver": used_solver or "none"
@@ -133,7 +156,12 @@ def solve_joint_allocation(data):
     # Extract solution
     allocations = A.value
     utilities = u.value
-    welfare = np.sum(c * np.log(utilities + epsilon))
+    
+    # Ensure allocations are non-negative (numerical precision)
+    allocations = np.maximum(allocations, 0)
+    
+    # Calculate welfare
+    welfare = np.sum(c * np.log(np.maximum(utilities, epsilon)))
     
     return {
         "status": "optimal",

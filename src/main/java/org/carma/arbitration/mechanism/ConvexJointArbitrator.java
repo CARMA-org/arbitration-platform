@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Joint arbitrator using convex optimization via Python + Clarabel.
@@ -40,6 +41,7 @@ public class ConvexJointArbitrator implements JointArbitrator {
     private final Path solverScriptPath;
     private final SequentialJointArbitrator fallback;
     private boolean useFallbackOnError;
+    private boolean debug = false;
 
     /**
      * Create with default Python command and script path.
@@ -68,6 +70,14 @@ public class ConvexJointArbitrator implements JointArbitrator {
      */
     public ConvexJointArbitrator setUseFallbackOnError(boolean useFallback) {
         this.useFallbackOnError = useFallback;
+        return this;
+    }
+
+    /**
+     * Enable debug output.
+     */
+    public ConvexJointArbitrator setDebug(boolean debug) {
+        this.debug = debug;
         return this;
     }
 
@@ -113,19 +123,45 @@ public class ConvexJointArbitrator implements JointArbitrator {
         
         long startTime = System.currentTimeMillis();
         
+        // CRITICAL FIX: Use SORTED resource list for deterministic ordering
+        // Sort by enum ordinal to guarantee same order every time
+        List<ResourceType> resources = pool.getTotalCapacity().keySet().stream()
+            .sorted(Comparator.comparingInt(ResourceType::ordinal))
+            .collect(Collectors.toList());
+        
+        if (debug) {
+            System.err.println("[DEBUG] Resources (sorted): " + resources);
+        }
+        
         try {
-            // Build input JSON
-            String inputJson = buildInputJson(agents, pool, currencyCommitments);
+            // Build input JSON (pass resources list for consistent ordering)
+            String inputJson = buildInputJson(agents, pool, currencyCommitments, resources);
+            
+            if (debug) {
+                System.err.println("[DEBUG] Input JSON: " + inputJson);
+            }
             
             // Call Python solver
             String outputJson = callPythonSolver(inputJson);
             
-            // Parse result
-            JointAllocationResult result = parseResult(outputJson, agents, currencyCommitments, startTime);
+            if (debug) {
+                System.err.println("[DEBUG] Output JSON: " + outputJson);
+            }
+            
+            // Parse result (pass resources list for consistent ordering)
+            JointAllocationResult result = parseResult(outputJson, agents, resources, currencyCommitments, startTime);
+            
+            if (debug) {
+                System.err.println("[DEBUG] Parsed result feasible: " + result.isFeasible());
+            }
             
             return result;
             
         } catch (Exception e) {
+            if (debug) {
+                System.err.println("[DEBUG] Exception: " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
             if (useFallbackOnError) {
                 System.err.println("ConvexJointArbitrator failed, using fallback: " + e.getMessage());
                 return fallback.arbitrate(agents, pool, currencyCommitments);
@@ -137,14 +173,15 @@ public class ConvexJointArbitrator implements JointArbitrator {
 
     /**
      * Build JSON input for the Python solver.
+     * Uses the provided resources list to ensure consistent ordering.
      */
     private String buildInputJson(
             List<Agent> agents,
             ResourcePool pool,
-            Map<String, BigDecimal> currencyCommitments) {
+            Map<String, BigDecimal> currencyCommitments,
+            List<ResourceType> resources) {
         
         int n = agents.size();
-        List<ResourceType> resources = new ArrayList<>(pool.getTotalCapacity().keySet());
         int m = resources.size();
         
         StringBuilder sb = new StringBuilder();
@@ -271,24 +308,30 @@ public class ConvexJointArbitrator implements JointArbitrator {
 
     /**
      * Parse the JSON result from Python solver.
+     * Uses the provided resources list to ensure consistent ordering with buildInputJson.
      */
     private JointAllocationResult parseResult(
             String json,
             List<Agent> agents,
+            List<ResourceType> resources,
             Map<String, BigDecimal> currencyCommitments,
             long startTime) {
         
-        // Simple JSON parsing (avoiding external dependencies)
+        // Result storage
         Map<String, Map<ResourceType, Long>> allocations = new HashMap<>();
         double objectiveValue = 0;
         boolean feasible = true;
         String message = "";
         
         try {
-            // Extract status
+            // Extract status - FIXED: handle whitespace in JSON
             String status = extractJsonString(json, "status");
             feasible = "optimal".equals(status);
             message = status;
+            
+            if (debug) {
+                System.err.println("[DEBUG] Parsed status: '" + status + "', feasible: " + feasible);
+            }
             
             // Extract objective
             objectiveValue = extractJsonDouble(json, "objective");
@@ -297,18 +340,10 @@ public class ConvexJointArbitrator implements JointArbitrator {
             String allocsJson = extractJsonArray(json, "allocations");
             List<List<Double>> allocMatrix = parseNestedDoubleArray(allocsJson);
             
-            // Map allocations to agents and resource types
-            List<ResourceType> resources = Arrays.asList(ResourceType.values());
-            // Filter to just the resources in use
-            Set<ResourceType> usedResources = new HashSet<>();
-            for (Agent agent : agents) {
-                for (ResourceType type : ResourceType.values()) {
-                    if (agent.getIdeal(type) > 0) {
-                        usedResources.add(type);
-                    }
-                }
+            if (debug) {
+                System.err.println("[DEBUG] Allocation matrix rows: " + allocMatrix.size());
+                System.err.println("[DEBUG] Resources count: " + resources.size());
             }
-            resources = new ArrayList<>(usedResources);
             
             for (int i = 0; i < agents.size() && i < allocMatrix.size(); i++) {
                 Agent agent = agents.get(i);
@@ -330,6 +365,10 @@ public class ConvexJointArbitrator implements JointArbitrator {
             }
             
         } catch (Exception e) {
+            if (debug) {
+                System.err.println("[DEBUG] Parse exception: " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
             feasible = false;
             message = "Parse error: " + e.getMessage();
         }
@@ -346,33 +385,76 @@ public class ConvexJointArbitrator implements JointArbitrator {
 
     // ========================================================================
     // Simple JSON Parsing Helpers (avoiding external dependencies)
+    // FIXED: Now handles whitespace after colons (standard JSON formatting)
     // ========================================================================
 
+    /**
+     * Extract a string value from JSON.
+     * Handles both "key":"value" and "key": "value" (with whitespace).
+     */
     private String extractJsonString(String json, String key) {
-        String pattern = "\"" + key + "\":\"";
-        int start = json.indexOf(pattern);
-        if (start < 0) return "";
-        start += pattern.length();
-        int end = json.indexOf("\"", start);
-        if (end < 0) return "";
-        return json.substring(start, end);
-    }
-
-    private double extractJsonDouble(String json, String key) {
-        String pattern = "\"" + key + "\":";
-        int start = json.indexOf(pattern);
-        if (start < 0) return 0;
-        start += pattern.length();
+        // Find the key
+        String keyPattern = "\"" + key + "\"";
+        int keyStart = json.indexOf(keyPattern);
+        if (keyStart < 0) return "";
         
-        // Find end of number
-        int end = start;
-        while (end < json.length()) {
-            char c = json.charAt(end);
-            if (c == ',' || c == '}' || c == ']') break;
-            end++;
+        // Find the colon after the key
+        int colonPos = json.indexOf(":", keyStart + keyPattern.length());
+        if (colonPos < 0) return "";
+        
+        // Skip whitespace after colon
+        int valueStart = colonPos + 1;
+        while (valueStart < json.length() && Character.isWhitespace(json.charAt(valueStart))) {
+            valueStart++;
         }
         
-        String numStr = json.substring(start, end).trim();
+        if (valueStart >= json.length()) return "";
+        
+        // Check if value is a quoted string
+        if (json.charAt(valueStart) == '"') {
+            valueStart++; // Skip opening quote
+            int valueEnd = json.indexOf("\"", valueStart);
+            if (valueEnd < 0) return "";
+            return json.substring(valueStart, valueEnd);
+        } else {
+            // Non-string value (number, boolean, null)
+            int valueEnd = valueStart;
+            while (valueEnd < json.length()) {
+                char c = json.charAt(valueEnd);
+                if (c == ',' || c == '}' || c == ']' || Character.isWhitespace(c)) break;
+                valueEnd++;
+            }
+            return json.substring(valueStart, valueEnd);
+        }
+    }
+
+    /**
+     * Extract a double value from JSON.
+     * Handles whitespace after colons.
+     */
+    private double extractJsonDouble(String json, String key) {
+        String keyPattern = "\"" + key + "\"";
+        int keyStart = json.indexOf(keyPattern);
+        if (keyStart < 0) return 0;
+        
+        int colonPos = json.indexOf(":", keyStart + keyPattern.length());
+        if (colonPos < 0) return 0;
+        
+        // Skip whitespace after colon
+        int valueStart = colonPos + 1;
+        while (valueStart < json.length() && Character.isWhitespace(json.charAt(valueStart))) {
+            valueStart++;
+        }
+        
+        // Find end of number
+        int valueEnd = valueStart;
+        while (valueEnd < json.length()) {
+            char c = json.charAt(valueEnd);
+            if (c == ',' || c == '}' || c == ']') break;
+            valueEnd++;
+        }
+        
+        String numStr = json.substring(valueStart, valueEnd).trim();
         try {
             return Double.parseDouble(numStr);
         } catch (NumberFormatException e) {
@@ -380,37 +462,47 @@ public class ConvexJointArbitrator implements JointArbitrator {
         }
     }
 
+    /**
+     * Extract a JSON array.
+     * Handles whitespace after colons.
+     */
     private String extractJsonArray(String json, String key) {
-        String pattern = "\"" + key + "\":";
-        int start = json.indexOf(pattern);
-        if (start < 0) return "[]";
-        start += pattern.length();
+        String keyPattern = "\"" + key + "\"";
+        int keyStart = json.indexOf(keyPattern);
+        if (keyStart < 0) return "[]";
         
-        // Skip whitespace
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) {
-            start++;
+        int colonPos = json.indexOf(":", keyStart + keyPattern.length());
+        if (colonPos < 0) return "[]";
+        
+        // Skip whitespace after colon
+        int valueStart = colonPos + 1;
+        while (valueStart < json.length() && Character.isWhitespace(json.charAt(valueStart))) {
+            valueStart++;
         }
         
-        if (start >= json.length() || json.charAt(start) != '[') return "[]";
+        if (valueStart >= json.length() || json.charAt(valueStart) != '[') return "[]";
         
         // Find matching bracket
         int depth = 0;
-        int end = start;
-        for (; end < json.length(); end++) {
-            char c = json.charAt(end);
+        int valueEnd = valueStart;
+        for (; valueEnd < json.length(); valueEnd++) {
+            char c = json.charAt(valueEnd);
             if (c == '[') depth++;
             else if (c == ']') {
                 depth--;
                 if (depth == 0) {
-                    end++;
+                    valueEnd++;
                     break;
                 }
             }
         }
         
-        return json.substring(start, end);
+        return json.substring(valueStart, valueEnd);
     }
 
+    /**
+     * Parse a nested array of doubles from JSON.
+     */
     private List<List<Double>> parseNestedDoubleArray(String arrayJson) {
         List<List<Double>> result = new ArrayList<>();
         

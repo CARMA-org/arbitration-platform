@@ -585,8 +585,8 @@ public class Demo {
         System.out.println();
         
         boolean converged = results.hasConverged(20, 0.01);
-        System.out.println("  " + (converged ? "✓ PASS" : "⚠ NOT CONVERGED") +
-            ": System reached equilibrium");
+        // FIX: Corrected contradictory message
+        System.out.println("  " + (converged ? "✓ PASS: System reached stable equilibrium" : "⚠ NOT CONVERGED: System did not reach stable equilibrium"));
         System.out.println(SEP);
         System.out.println();
     }
@@ -742,14 +742,18 @@ public class Demo {
             System.out.println("  Note: Minimal improvement in this scenario (may be near-optimal)");
         }
         
-        // Report which solver was actually used
+        // FIX: Report based on ACTUAL solver used, not just availability
         System.out.println();
         System.out.printf("  Solver used: %s\n", solverUsed);
-        if (clarabelAvailable) {
+        if ("Clarabel".equals(solverUsed)) {
             System.out.println("  ✓ Interior-point method guarantees polynomial time and exact solution");
         } else {
             System.out.println("  ⚠ Gradient ascent is iterative approximation");
-            System.out.println("  To enable exact solver: pip install cvxpy clarabel numpy");
+            if (!clarabelAvailable) {
+                System.out.println("  To enable exact solver: pip install cvxpy clarabel numpy");
+            } else {
+                System.out.println("  Note: Clarabel available but returned infeasible - check Python solver");
+            }
         }
         
         System.out.println(SEP);
@@ -872,7 +876,7 @@ public class Demo {
         agents.add(generalist);
         
         // Resource pool with varied scarcity levels
-        Map<ResourceType, Long> poolCapacity = new HashMap<>();
+        Map<ResourceType, Long> poolCapacity = new LinkedHashMap<>(); // Use LinkedHashMap for consistent ordering
         poolCapacity.put(ResourceType.COMPUTE, 100L);     // High contention
         poolCapacity.put(ResourceType.MEMORY, 100L);      // Medium contention
         poolCapacity.put(ResourceType.STORAGE, 120L);     // Medium contention
