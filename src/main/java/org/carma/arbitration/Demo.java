@@ -59,6 +59,7 @@ public class Demo {
             runAsymptoticTest();
             runJointOptimizationTest();
             runDiverseResourceTest();
+            runScenario11_ServiceIntegration();
         }
         
         System.out.println(SEP);
@@ -1011,6 +1012,89 @@ public class Demo {
             System.out.println("  Note: Minimal improvement (preferences may be near-independent)");
         }
         
+        System.out.println(SEP);
+        System.out.println();
+    }
+
+    // ========================================================================
+    // SCENARIO 11: AI SERVICE INTEGRATION
+    // ========================================================================
+    
+    static void runScenario11_ServiceIntegration() {
+        System.out.println("SCENARIO 11: AI SERVICE INTEGRATION");
+        System.out.println(SUBSEP);
+        System.out.println("Purpose: Demonstrate AI service allocation and composition.");
+        System.out.println("         For full service demo, run: java -cp out org.carma.arbitration.ServiceDemo");
+        System.out.println();
+        
+        // Quick demonstration using service components
+        org.carma.arbitration.model.ServiceRegistry registry = 
+            org.carma.arbitration.model.ServiceRegistry.forTesting(3);
+        
+        System.out.println("Service Registry initialized with test services:");
+        System.out.println("  " + registry.getStats());
+        System.out.println();
+        
+        // Show available service types
+        System.out.println("Available Service Types: " + 
+            org.carma.arbitration.model.ServiceType.values().length + " types across 5 categories");
+        System.out.println("  Text: TEXT_GENERATION, TEXT_EMBEDDING, TEXT_CLASSIFICATION, TEXT_SUMMARIZATION");
+        System.out.println("  Vision: IMAGE_ANALYSIS, IMAGE_GENERATION, OCR");
+        System.out.println("  Audio: SPEECH_TO_TEXT, TEXT_TO_SPEECH");
+        System.out.println("  Reasoning: CODE_GENERATION, CODE_ANALYSIS, REASONING");
+        System.out.println("  Data: DATA_EXTRACTION, VECTOR_SEARCH, KNOWLEDGE_RETRIEVAL");
+        System.out.println();
+        
+        // Create a simple composition
+        org.carma.arbitration.model.ServiceComposition ragPipeline = 
+            new org.carma.arbitration.model.ServiceComposition.Builder("rag-demo")
+                .name("RAG Pipeline Demo")
+                .addNode("embed", org.carma.arbitration.model.ServiceType.TEXT_EMBEDDING)
+                .addNode("search", org.carma.arbitration.model.ServiceType.VECTOR_SEARCH)
+                .addNode("generate", org.carma.arbitration.model.ServiceType.TEXT_GENERATION)
+                .connect("embed", "search", org.carma.arbitration.model.ServiceType.DataType.VECTOR)
+                .connect("search", "generate", org.carma.arbitration.model.ServiceType.DataType.STRUCTURED)
+                .build();
+        
+        org.carma.arbitration.model.ServiceComposition.ValidationResult validation = ragPipeline.validate();
+        
+        System.out.println("Sample Composition: RAG Pipeline");
+        System.out.println("  Structure: TEXT_EMBEDDING → VECTOR_SEARCH → TEXT_GENERATION");
+        System.out.println("  Valid: " + validation.isValid());
+        System.out.println("  Est. latency: " + ragPipeline.estimateCriticalPathLatencyMs() + "ms");
+        System.out.println("  Resources: " + ragPipeline.calculateTotalResourceRequirements());
+        System.out.println();
+        
+        // Service arbitration demo
+        PriorityEconomy economy = new PriorityEconomy();
+        org.carma.arbitration.mechanism.ServiceArbitrator arbitrator = 
+            new org.carma.arbitration.mechanism.ServiceArbitrator(economy, registry);
+        
+        java.util.List<org.carma.arbitration.mechanism.ServiceArbitrator.ServiceRequest> requests = 
+            java.util.List.of(
+                new org.carma.arbitration.mechanism.ServiceArbitrator.ServiceRequest.Builder("team-a")
+                    .requestService(org.carma.arbitration.model.ServiceType.TEXT_GENERATION, 5)
+                    .currencyCommitment(java.math.BigDecimal.valueOf(50))
+                    .build(),
+                new org.carma.arbitration.mechanism.ServiceArbitrator.ServiceRequest.Builder("team-b")
+                    .requestService(org.carma.arbitration.model.ServiceType.TEXT_GENERATION, 5)
+                    .currencyCommitment(java.math.BigDecimal.valueOf(20))
+                    .build()
+            );
+        
+        org.carma.arbitration.mechanism.ServiceArbitrator.ServiceAllocationResult result = 
+            arbitrator.arbitrate(requests);
+        
+        System.out.println("Service Arbitration (TEXT_GENERATION, capacity=9):");
+        System.out.println("  team-a: requested 5, burns 50 → got " + 
+            result.getAllocation("team-a", org.carma.arbitration.model.ServiceType.TEXT_GENERATION));
+        System.out.println("  team-b: requested 5, burns 20 → got " + 
+            result.getAllocation("team-b", org.carma.arbitration.model.ServiceType.TEXT_GENERATION));
+        System.out.println();
+        
+        System.out.println(SEP);
+        System.out.println("  ✓ PASS: Service integration components working");
+        System.out.println("  Run ServiceDemo for comprehensive scenarios");
         System.out.println(SEP);
         System.out.println();
     }

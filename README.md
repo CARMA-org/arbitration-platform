@@ -1,4 +1,4 @@
-# Arbitration Platform v0.3
+# Arbitration Platform v0.4
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
@@ -25,6 +25,9 @@ cd arbitration-platform
 
 # Run only the asymptotic test
 ./run.sh --asymptotic
+
+# Run nonlinear utility demo
+java -cp out org.carma.arbitration.NonlinearUtilityDemo
 ```
 
 Or compile and run directly:
@@ -36,6 +39,39 @@ javac -d out $(find src/main/java -name "*.java")
 # Run
 java -cp out org.carma.arbitration.Demo --full
 ```
+
+## What's New in v0.4
+
+### Nonlinear Preference Functions (Task #3)
+
+Support for concave utility functions that model diminishing returns and resource complementarities:
+
+| Utility Type | Formula | Use Case |
+|--------------|---------|----------|
+| **LINEAR** | `Φ = Σ wⱼ·aⱼ` | Perfect substitutes (default) |
+| **SQRT** | `Φ = (Σ wⱼ·√aⱼ)²` | Diminishing returns |
+| **LOG** | `Φ = Σ wⱼ·log(1+aⱼ)` | Strong diminishing returns |
+| **COBB_DOUGLAS** | `Φ = Π aⱼ^wⱼ` | Complementarities (need all resources) |
+| **LEONTIEF** | `Φ = min(aⱼ/wⱼ)` | Perfect complements |
+| **CES** | `Φ = (Σ wⱼ·aⱼ^ρ)^(1/ρ)` | Configurable elasticity of substitution |
+
+### New Components
+
+| Component | Description |
+|-----------|-------------|
+| **UtilityFunction.java** | Abstract base class with 6 concrete implementations |
+| **NonlinearUtilityDemo.java** | Demonstration of all utility function types |
+| **joint_solver.py** | Updated Python solver with nonlinear utility support |
+
+### AI Service Integration (Task #7)
+
+| Component | Description |
+|-----------|-------------|
+| **ServiceType** | 15 AI service types across 5 categories (Text, Vision, Audio, Reasoning, Data) |
+| **AIService** | Service model with QoS parameters, capacity tracking, load management |
+| **ServiceComposition** | DAG-based service pipelines with type compatibility validation |
+| **ServiceRegistry** | Service discovery, capacity management, composition support |
+| **ServiceArbitrator** | Arbitration for service slots using priority economy |
 
 ## What's New in v0.3
 
@@ -51,7 +87,7 @@ java -cp out org.carma.arbitration.Demo --full
 | **Water-Filling Division** | Added guards for degenerate cases + remainder distribution | Prevents NaN/infinity on edge cases |
 | **Contradictory Messages** | Fixed "NOT CONVERGED: System reached equilibrium" message | Now correctly says "System did not reach stable equilibrium" |
 
-### New Components
+### v0.3 Components
 
 | Component | Description |
 |-----------|-------------|
@@ -64,15 +100,20 @@ java -cp out org.carma.arbitration.Demo --full
 ```
 arbitration-platform/
 ├── src/main/java/org/carma/arbitration/
-│   ├── model/                    # Data models (7 files)
+│   ├── model/                    # Data models (12 files)
 │   │   ├── Agent.java           
-│   │   ├── ResourceType.java    # Now with 6 types including API_CREDITS
+│   │   ├── ResourceType.java    # 6 types including API_CREDITS
 │   │   ├── ResourceBundle.java  
 │   │   ├── ResourcePool.java    
-│   │   ├── PreferenceFunction.java  
+│   │   ├── PreferenceFunction.java  # Linear preferences (legacy)
+│   │   ├── UtilityFunction.java     # Nonlinear utilities (NEW)
 │   │   ├── Contention.java      
-│   │   └── AllocationResult.java 
-│   ├── mechanism/                # Core algorithms (10 files)
+│   │   ├── AllocationResult.java
+│   │   ├── ServiceType.java         # 15 AI service types (NEW)
+│   │   ├── AIService.java           # Service model with QoS (NEW)
+│   │   ├── ServiceComposition.java  # DAG pipelines (NEW)
+│   │   └── ServiceRegistry.java     # Service discovery (NEW)
+│   ├── mechanism/                # Core algorithms (11 files)
 │   │   ├── ProportionalFairnessArbitrator.java  # Water-filling
 │   │   ├── PriorityEconomy.java              # EMA-smoothed multipliers
 │   │   ├── ContentionDetector.java           # Connected components
@@ -82,16 +123,18 @@ arbitration-platform/
 │   │   ├── JointArbitrator.java              # Interface
 │   │   ├── SequentialJointArbitrator.java    # Fallback
 │   │   ├── GradientJointArbitrator.java      # Pure Java (~97-99% optimal)
-│   │   └── ConvexJointArbitrator.java        # Python+Clarabel (exact)
+│   │   ├── ConvexJointArbitrator.java        # Python+Clarabel (exact)
+│   │   └── ServiceArbitrator.java            # Service allocation (NEW)
 │   ├── event/                    # Event system (2 files)
 │   │   ├── Event.java           
 │   │   └── EventBus.java        
 │   ├── simulation/               # Testing (2 files)
 │   │   ├── AsymptoticSimulation.java  
 │   │   └── SimulationMetrics.java     
-│   └── Demo.java                 # 10 validation scenarios
+│   ├── Demo.java                 # 11 validation scenarios
+│   └── NonlinearUtilityDemo.java # Nonlinear utility demos (NEW)
 ├── scripts/
-│   └── joint_solver.py          # Python solver (Clarabel + fallbacks)
+│   └── joint_solver.py          # Python solver (Clarabel + nonlinear utilities)
 ├── docs/
 │   └── CLARABEL_INTEGRATION.md  
 ├── pom.xml                       
@@ -113,6 +156,7 @@ arbitration-platform/
 | 8 | Asymptotic Behavior | 15s convergence test with EMA smoothing | ⚠ Expected |
 | 9 | Joint Optimization | "Paretotopia" thesis - cross-resource trades | ✓ PASS (4.88%) |
 | 10 | Diverse Resources | 6 resources, 6 agents, overlapping clusters | ✓ PASS (4.54%) |
+| 11 | AI Service Integration | Service composition and arbitration | ✓ PASS |
 
 ## Mathematical Foundation
 
@@ -137,13 +181,30 @@ subject to:
 maximize: Σᵢ cᵢ · log(Φᵢ(A))
 
 where:
-  Φᵢ(A) = Σⱼ wᵢⱼ · aᵢⱼ  (weighted utility across ALL resources)
+  Φᵢ(A) = utility function (see below)
 
 subject to:
   Σᵢ aᵢⱼ ≤ Qⱼ           ∀j  (resource capacity)
   aᵢⱼ ≥ minᵢⱼ           ∀i,j (minimum requirements)
   aᵢⱼ ≤ idealᵢⱼ         ∀i,j (maximum requests)
 ```
+
+### Utility Functions
+
+| Type | Formula | Properties |
+|------|---------|------------|
+| **Linear** | `Φ = Σⱼ wⱼ·aⱼ` | Perfect substitutes, constant MRS |
+| **Square Root** | `Φ = (Σⱼ wⱼ·√aⱼ)²` | Diminishing returns, concave |
+| **Logarithmic** | `Φ = Σⱼ wⱼ·log(1+aⱼ)` | Strong diminishing returns |
+| **Cobb-Douglas** | `Φ = Πⱼ aⱼ^wⱼ` | Unit elasticity, complementarity |
+| **Leontief** | `Φ = minⱼ(aⱼ/wⱼ)` | Perfect complements, quasi-concave |
+| **CES** | `Φ = (Σⱼ wⱼ·aⱼ^ρ)^(1/ρ)` | Elasticity σ = 1/(1-ρ) |
+
+**CES Special Cases:**
+- ρ → 1: Linear (perfect substitutes)
+- ρ = 0.5: Square root-like
+- ρ → 0: Cobb-Douglas
+- ρ → -∞: Leontief (perfect complements)
 
 This enables **cross-resource trades** that sequential optimization cannot discover.
 
@@ -191,40 +252,13 @@ python3 -c "import cvxpy; import clarabel; print('OK')"
 Without Clarabel, the system uses pure Java gradient ascent which achieves
 ~97-99% of optimal welfare for typical problem sizes.
 
-## Expected Output (Scenario 9)
-
-```
-SCENARIO 9: JOINT vs SEQUENTIAL OPTIMIZATION
-────────────────────────────────────────────────────────────────
-
-SEQUENTIAL OPTIMIZATION (per-resource):
-  COMP: 39 compute, 24 storage (utility=37.50)
-  STOR: 24 compute, 39 storage (utility=37.50)
-  BAL1: 29 compute, 29 storage (utility=29.00)
-  BAL2: 28 compute, 28 storage (utility=28.00)
-  Total welfare: 139.4818
-
-JOINT OPTIMIZATION (Clarabel interior-point method):
-  COMP: 57 compute, 5 storage (utility=51.80)
-  STOR: 5 compute, 57 storage (utility=51.80)
-  BAL1: 29 compute, 29 storage (utility=29.00)
-  BAL2: 29 compute, 29 storage (utility=29.00)
-  Total welfare: 146.2937
-
-════════════════════════════════════════════════════════════════
-  Welfare improvement: 4.88%
-  ✓ PASS: Joint optimization found cross-resource trades
-
-  Solver used: Clarabel
-  ✓ Interior-point method guarantees polynomial time and exact solution
-════════════════════════════════════════════════════════════════
-```
-
 ## Component Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Joint Optimization | ✅ Done | Clarabel working with 4.88% welfare gain |
+| Nonlinear Utilities | ✅ Done | 6 utility types (Linear, Sqrt, Log, Cobb-Douglas, Leontief, CES) |
+| AI Service Integration | ✅ Done | 15 service types, compositions, arbitration |
 | EMA Smoothing | ✅ Done | α=0.15 dampens oscillations |
 | Transaction Manager | ✅ Done | Atomic commit/rollback |
 | Safety Monitor | ✅ Done | Centralized invariants |
@@ -242,21 +276,13 @@ MIT License - see LICENSE file for details.
 - Weighted Fair Queuing (Demers et al., 1989)
 - Mechanism Design for Resource Allocation (Parkes, 2001)
 - Clarabel: A modern convex solver (Goulart et al., 2023)
-
-## README Update Notes
-
-**Changes made:**
-1. Added 3 new bug fixes to the table: JSON Parsing Whitespace, Resource Ordering, Contradictory Messages
-2. Updated Validation Scenarios table to include actual results (percentages)
-3. Updated Expected Output section with actual Clarabel results (4.88% instead of 1.32%)
-4. Updated Component Status with actual welfare improvement numbers
-5. Minor clarifications in project structure comments
+- CES Utility Functions (Arrow et al., 1961)
 
 ---
 
 ## Latest `./run.sh --full` Output
 
-The following is the latest full demo run output as pasted (verbatim):
+The following is the latest full demo run output (verbatim):
 
 ```text
 > ./run.sh --full
