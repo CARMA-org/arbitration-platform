@@ -79,7 +79,7 @@ Configurable policies for controlling how agents get grouped for joint optimizat
 | 100 | PERFORMANCE | 9 | 10 | 66.4x |
 | 200 | PERFORMANCE | 18 | 10 | 323.5x |
 
-## What's New in v0.4
+## What's New in v0.41
 
 ### Nonlinear Preference Functions (Task #3)
 
@@ -111,28 +111,6 @@ Support for concave utility functions that model diminishing returns and resourc
 | **ServiceComposition** | DAG-based service pipelines with type compatibility validation |
 | **ServiceRegistry** | Service discovery, capacity management, composition support |
 | **ServiceArbitrator** | Arbitration for service slots using priority economy |
-
-## What's New in v0.3
-
-### Bug Fixes
-
-| Issue | Fix | Impact |
-|-------|-----|--------|
-| **Solver Identity Crisis** | Scenario 9 now USES Clarabel when available, not just checks availability | Guarantees exact Pareto optimality via interior-point method |
-| **JSON Parsing Whitespace** | Fixed JSON parser to handle whitespace after colons (`"key": "value"`) | Clarabel results now correctly parsed as "optimal" |
-| **Resource Ordering** | Resources now sorted by enum ordinal for deterministic ordering | Prevents allocation-to-resource mapping errors |
-| **Economic Oscillation** | Added EMA smoothing (α=0.15) to demand multiplier | Prevents control theory oscillation in asymptotic simulation |
-| **Hardcoded Earnings** | `AsymptoticSimulation` now calls `economy.calculateReleaseEarnings()` | Validates scarcity signaling feedback loop |
-| **Water-Filling Division** | Added guards for degenerate cases + remainder distribution | Prevents NaN/infinity on edge cases |
-| **Contradictory Messages** | Fixed "NOT CONVERGED: System reached equilibrium" message | Now correctly says "System did not reach stable equilibrium" |
-
-### v0.3 Components
-
-| Component | Description |
-|-----------|-------------|
-| **TransactionManager** | Atomic commit/rollback with explicit logging: `[TXN-START]`, `[TXN-COMMIT]`, `[TXN-ROLLBACK]` |
-| **API_CREDITS ResourceType** | 6th resource type for diverse multi-resource scenarios |
-| **Scenario 10** | "Jagged Optimization" test with 6 resources and overlapping agent clusters |
 
 ## Project Structure
 
