@@ -3,29 +3,24 @@ package org.carma.arbitration.model;
 import java.util.*;
 
 /**
- * Nonlinear Preference Functions for Multi-Agent Resource Allocation.
+ * Abstract base class for utility functions in the arbitration platform.
  * 
- * This module extends the linear preference model to support:
- * - Square Root (CES ρ=0.5): Diminishing returns
- * - Logarithmic: Strong diminishing returns
- * - Cobb-Douglas: Complementarities (need all resources)
- * - Leontief (min): Perfect complements
- * - CES (general): Constant elasticity of substitution
- * - Piecewise Linear: Approximation for non-convex cases
+ * Supports multiple utility function types including:
+ * - LINEAR: Perfect substitutes (Φ = Σ wⱼ·aⱼ)
+ * - SQRT: Square root diminishing returns (Φ = (Σ wⱼ·√aⱼ)²)
+ * - LOG: Logarithmic diminishing returns (Φ = Σ wⱼ·log(1+aⱼ))
+ * - COBB_DOUGLAS: Complementarity (Φ = Π aⱼ^wⱼ)
+ * - LEONTIEF: Perfect complements (Φ = min(aⱼ/wⱼ))
+ * - CES: Constant elasticity of substitution (Φ = (Σ wⱼ·aⱼ^ρ)^(1/ρ))
+ * - THRESHOLD: Soft threshold wrapper (σ(Σaⱼ - T) · Φ_base)
+ * - SATIATION: Upper-bounded utility (V_max · (1 - e^(-Φ_base/k)))
+ * - NESTED_CES: Hierarchical substitution patterns
+ * - SOFTPLUS_LOSS_AVERSION: Reference-dependent with smooth transition
+ * - ASYMMETRIC_LOG_LOSS_AVERSION: Reference-dependent with diminishing sensitivity
+ * - PIECEWISE_LINEAR: Approximation for non-convex functions
  * 
- * Mathematical Foundation:
- * 
- * Linear:       Φ(A) = Σⱼ wⱼ · aⱼ
- * Square Root:  Φ(A) = (Σⱼ wⱼ · √aⱼ)²
- * Logarithmic:  Φ(A) = Σⱼ wⱼ · log(1 + aⱼ)
- * Cobb-Douglas: Φ(A) = Πⱼ aⱼ^wⱼ
- * Leontief:     Φ(A) = minⱼ(aⱼ / wⱼ)
- * CES:          Φ(A) = (Σⱼ wⱼ · aⱼ^ρ)^(1/ρ)
- * 
- * All implemented utility functions are concave (or quasi-concave for Leontief),
- * which preserves convexity of the optimization problem.
- * 
- * @author CARMA Arbitration Platform
+ * All utility functions except Leontief are strictly concave, making them
+ * suitable for convex optimization in the weighted proportional fairness framework.
  */
 public abstract class UtilityFunction {
 
@@ -39,6 +34,11 @@ public abstract class UtilityFunction {
         COBB_DOUGLAS("Cobb-Douglas", "Φ = Π aⱼ^wⱼ", true),
         LEONTIEF("Leontief", "Φ = min(aⱼ/wⱼ)", false),  // quasi-concave
         CES("CES", "Φ = (Σ wⱼ·aⱼ^ρ)^(1/ρ)", true),
+        THRESHOLD("Threshold", "Φ = σ(Σaⱼ-T)·Φ_base", true),
+        SATIATION("Satiation", "Φ = V_max·(1-e^(-Φ_base/k))", true),
+        NESTED_CES("Nested CES", "Φ = f(nest₁, nest₂, ...)", true),
+        SOFTPLUS_LOSS_AVERSION("Softplus Loss Aversion", "Φ = Σ wⱼ·g(aⱼ-rⱼ)", true),
+        ASYMMETRIC_LOG_LOSS_AVERSION("Asymmetric Log Loss Aversion", "Φ = Σ wⱼ·h(aⱼ-rⱼ)", true),
         PIECEWISE_LINEAR("Piecewise Linear", "Φ = approx", true);
 
         private final String displayName;
@@ -208,6 +208,101 @@ public abstract class UtilityFunction {
      */
     public static CESUtility ces(Map<ResourceType, Double> weights, double rho) {
         return new CESUtility(weights, rho);
+    }
+
+    /**
+     * Create a threshold utility function wrapper.
+     * 
+     * Φ_threshold(A) = σ(Σⱼ aⱼ - T) · Φ_base(A)
+     * where σ(x) = 1/(1 + e^(-k·x)) is a soft threshold
+     * 
+     * @param base The base utility function to wrap
+     * @param threshold T - the minimum viable quantity threshold
+     * @param sharpness k - controls sharpness (higher = closer to hard threshold)
+     */
+    public static ThresholdUtility threshold(UtilityFunction base, double threshold, double sharpness) {
+        return new ThresholdUtility(base, threshold, sharpness);
+    }
+
+    /**
+     * Create a satiation utility function wrapper.
+     * 
+     * Φ_satiated(A) = V_max · (1 - e^(-Φ_base(A)/k))
+     * 
+     * @param base The base utility function to wrap
+     * @param maxUtility V_max - maximum achievable utility
+     * @param saturationRate k - controls how quickly satiation is approached
+     */
+    public static SatiationUtility satiation(UtilityFunction base, double maxUtility, double saturationRate) {
+        return new SatiationUtility(base, maxUtility, saturationRate, false);
+    }
+
+    /**
+     * Create a hyperbolic satiation utility function wrapper.
+     * 
+     * Φ_hyperbolic(A) = V_max · Φ_base(A) / (k + Φ_base(A))
+     * 
+     * @param base The base utility function to wrap
+     * @param maxUtility V_max - maximum achievable utility
+     * @param halfSaturation k - value at which utility reaches V_max/2
+     */
+    public static SatiationUtility hyperbolicSatiation(UtilityFunction base, double maxUtility, double halfSaturation) {
+        return new SatiationUtility(base, maxUtility, halfSaturation, true);
+    }
+
+    /**
+     * Create a nested CES utility function for partial substitutes.
+     * 
+     * @param nests List of resource groups (nests)
+     * @param nestRhos Elasticity parameter for each nest
+     * @param nestWeights Weights for combining nests
+     * @param outerRho Elasticity parameter for combining nests
+     */
+    public static NestedCESUtility nestedCES(
+            List<Map<ResourceType, Double>> nests,
+            List<Double> nestRhos,
+            List<Double> nestWeights,
+            double outerRho) {
+        return new NestedCESUtility(nests, nestRhos, nestWeights, outerRho);
+    }
+
+    /**
+     * Create a softplus loss aversion utility function (Constraint Set 3).
+     * 
+     * g(x) = x - (λ - 1) · τ · ln(1 + exp(-x / τ))
+     * Φ_i(A) = Σⱼ wⱼ · g(aⱼ - rⱼ)
+     * 
+     * @param weights Preference weights
+     * @param referencePoints Reference point for each resource
+     * @param lambda Loss aversion coefficient (λ > 1 means losses hurt more)
+     * @param tau Temperature parameter (smaller = sharper transition)
+     */
+    public static SoftplusLossAversionUtility softplusLossAversion(
+            Map<ResourceType, Double> weights,
+            Map<ResourceType, Double> referencePoints,
+            double lambda,
+            double tau) {
+        return new SoftplusLossAversionUtility(weights, referencePoints, lambda, tau);
+    }
+
+    /**
+     * Create an asymmetric logarithmic loss aversion utility (Constraint Set 5).
+     * 
+     * g(x) = ln(1 + x/κ) if x ≥ 0
+     * g(x) = -λ · ln(1 + |x|/κ) if x < 0
+     * Φ_i(A) = Σⱼ wⱼ · g(aⱼ - rⱼ)
+     * 
+     * @param weights Preference weights
+     * @param referencePoints Reference point for each resource
+     * @param lambda Loss aversion coefficient (λ ≥ 1 required for concavity)
+     * @param kappa Scaling parameter (larger = more linear behavior)
+     */
+    public static AsymmetricLogLossAversionUtility asymmetricLogLossAversion(
+            Map<ResourceType, Double> weights,
+            Map<ResourceType, Double> referencePoints,
+            double lambda,
+            double kappa) {
+        return new AsymmetricLogLossAversionUtility(weights, referencePoints, lambda, kappa);
     }
 
     /**
@@ -601,6 +696,642 @@ public abstract class UtilityFunction {
     }
 
     // ========================================================================
+    // Threshold Utility: Φ_threshold(A) = σ(Σⱼ aⱼ - T) · Φ_base(A)
+    // ========================================================================
+
+    /**
+     * Threshold utility wrapper that applies a soft sigmoid threshold.
+     * 
+     * Models minimum viable quantity - agents have a threshold below which
+     * utility approaches zero regardless of normal preference weights.
+     * 
+     * Φ_threshold(A) = σ(Σⱼ aⱼ - T) · Φ_base(A)
+     * where σ(x) = 1/(1 + e^(-k·x)) is a soft threshold
+     * 
+     * Properties:
+     * - Smooth and differentiable everywhere
+     * - Preserves concavity if base utility is concave
+     * - k controls sharpness (higher = closer to hard threshold)
+     */
+    public static class ThresholdUtility extends UtilityFunction {
+        private final UtilityFunction base;
+        private final double threshold;
+        private final double sharpness;
+
+        public ThresholdUtility(UtilityFunction base, double threshold, double sharpness) {
+            super(base.weights, Type.THRESHOLD);
+            this.base = base;
+            this.threshold = threshold;
+            this.sharpness = sharpness;
+        }
+
+        /**
+         * Sigmoid function: σ(x) = 1/(1 + e^(-x))
+         */
+        private double sigmoid(double x) {
+            if (x > 20) return 1.0;
+            if (x < -20) return 0.0;
+            return 1.0 / (1.0 + Math.exp(-x));
+        }
+
+        /**
+         * Derivative of sigmoid: σ'(x) = σ(x) · (1 - σ(x))
+         */
+        private double sigmoidDerivative(double x) {
+            double s = sigmoid(x);
+            return s * (1 - s);
+        }
+
+        private double totalAllocation(Map<ResourceType, Long> allocations) {
+            return allocations.values().stream().mapToLong(Long::longValue).sum();
+        }
+
+        @Override
+        public double evaluate(Map<ResourceType, Long> allocations) {
+            double total = totalAllocation(allocations);
+            double sigmoidArg = sharpness * (total - threshold);
+            double sigmoidValue = sigmoid(sigmoidArg);
+            return sigmoidValue * base.evaluate(allocations);
+        }
+
+        @Override
+        public Map<ResourceType, Double> gradient(Map<ResourceType, Long> allocations) {
+            double total = totalAllocation(allocations);
+            double sigmoidArg = sharpness * (total - threshold);
+            double sigmoidValue = sigmoid(sigmoidArg);
+            double sigmoidDeriv = sigmoidDerivative(sigmoidArg);
+            
+            double baseValue = base.evaluate(allocations);
+            Map<ResourceType, Double> baseGrad = base.gradient(allocations);
+            
+            // ∂Φ/∂aⱼ = σ'(k(total-T))·k·Φ_base + σ(k(total-T))·∂Φ_base/∂aⱼ
+            Map<ResourceType, Double> grad = new HashMap<>();
+            for (var entry : weights.entrySet()) {
+                ResourceType r = entry.getKey();
+                double dSigmoid = sigmoidDeriv * sharpness * baseValue;
+                double dBase = sigmoidValue * baseGrad.getOrDefault(r, 0.0);
+                grad.put(r, dSigmoid + dBase);
+            }
+            return grad;
+        }
+
+        public UtilityFunction getBase() {
+            return base;
+        }
+
+        public double getThreshold() {
+            return threshold;
+        }
+
+        public double getSharpness() {
+            return sharpness;
+        }
+
+        @Override
+        protected void addExtraParams(Map<String, Object> params) {
+            params.put("threshold", threshold);
+            params.put("sharpness", sharpness);
+            params.put("base_utility", base.toSolverFormat());
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ThresholdUtility[T=%.1f, k=%.1f, base=%s]", 
+                threshold, sharpness, base.getType());
+        }
+    }
+
+    // ========================================================================
+    // Satiation Utility: Φ = V_max · (1 - e^(-Φ_base/k)) or hyperbolic
+    // ========================================================================
+
+    /**
+     * Satiation utility wrapper that bounds utility with an upper limit.
+     * 
+     * Two variants:
+     * - Exponential: Φ_satiated(A) = V_max · (1 - e^(-Φ_base(A)/k))
+     * - Hyperbolic: Φ_hyperbolic(A) = V_max · Φ_base(A) / (k + Φ_base(A))
+     * 
+     * Properties:
+     * - Models diminishing returns with asymptotic upper bound
+     * - Preserves concavity if base utility is concave
+     * - k controls how quickly satiation is approached
+     */
+    public static class SatiationUtility extends UtilityFunction {
+        private static final double EPSILON = 1e-8;
+        private final UtilityFunction base;
+        private final double maxUtility;
+        private final double saturationParam;
+        private final boolean hyperbolic;
+
+        public SatiationUtility(UtilityFunction base, double maxUtility, double saturationParam, boolean hyperbolic) {
+            super(base.weights, Type.SATIATION);
+            this.base = base;
+            this.maxUtility = maxUtility;
+            this.saturationParam = saturationParam;
+            this.hyperbolic = hyperbolic;
+        }
+
+        @Override
+        public double evaluate(Map<ResourceType, Long> allocations) {
+            double baseValue = base.evaluate(allocations);
+            if (hyperbolic) {
+                // Φ_hyperbolic = V_max · Φ_base / (k + Φ_base)
+                return maxUtility * baseValue / (saturationParam + baseValue + EPSILON);
+            } else {
+                // Φ_exponential = V_max · (1 - e^(-Φ_base/k))
+                return maxUtility * (1 - Math.exp(-baseValue / saturationParam));
+            }
+        }
+
+        @Override
+        public Map<ResourceType, Double> gradient(Map<ResourceType, Long> allocations) {
+            double baseValue = base.evaluate(allocations);
+            Map<ResourceType, Double> baseGrad = base.gradient(allocations);
+            
+            double multiplier;
+            if (hyperbolic) {
+                // d/dx [V_max · x / (k + x)] = V_max · k / (k + x)²
+                double denom = saturationParam + baseValue + EPSILON;
+                multiplier = maxUtility * saturationParam / (denom * denom);
+            } else {
+                // d/dx [V_max · (1 - e^(-x/k))] = V_max · e^(-x/k) / k
+                multiplier = maxUtility * Math.exp(-baseValue / saturationParam) / saturationParam;
+            }
+            
+            Map<ResourceType, Double> grad = new HashMap<>();
+            for (var entry : baseGrad.entrySet()) {
+                grad.put(entry.getKey(), multiplier * entry.getValue());
+            }
+            return grad;
+        }
+
+        public UtilityFunction getBase() {
+            return base;
+        }
+
+        public double getMaxUtility() {
+            return maxUtility;
+        }
+
+        public double getSaturationParam() {
+            return saturationParam;
+        }
+
+        public boolean isHyperbolic() {
+            return hyperbolic;
+        }
+
+        @Override
+        protected void addExtraParams(Map<String, Object> params) {
+            params.put("max_utility", maxUtility);
+            params.put("saturation_param", saturationParam);
+            params.put("hyperbolic", hyperbolic);
+            params.put("base_utility", base.toSolverFormat());
+        }
+
+        @Override
+        public String toString() {
+            String variant = hyperbolic ? "hyperbolic" : "exponential";
+            return String.format("SatiationUtility[%s, V_max=%.1f, k=%.1f, base=%s]", 
+                variant, maxUtility, saturationParam, base.getType());
+        }
+    }
+
+    // ========================================================================
+    // Nested CES Utility: Hierarchical substitution patterns
+    // ========================================================================
+
+    /**
+     * Nested CES utility for partial substitutes with hierarchical structure.
+     * 
+     * Φ_nested = ((α₁·nest₁^ρ_outer + α₂·nest₂^ρ_outer)^(1/ρ_outer)
+     * where:
+     *   nest₁ = (w₁·a₁^ρ₁ + w₂·a₂^ρ₁)^(1/ρ₁)
+     *   nest₂ = (w₃·a₃^ρ₂ + w₄·a₄^ρ₂)^(1/ρ₂)
+     * 
+     * This allows different substitution patterns between resource groups.
+     * For example, compute and GPU might be close substitutes (high ρ),
+     * while {compute, GPU} and {storage, memory} are complements (low ρ).
+     */
+    public static class NestedCESUtility extends UtilityFunction {
+        private static final double EPSILON = 1e-8;
+        private final List<Map<ResourceType, Double>> nests;
+        private final List<Double> nestRhos;
+        private final List<Double> nestWeights;
+        private final double outerRho;
+
+        public NestedCESUtility(
+                List<Map<ResourceType, Double>> nests,
+                List<Double> nestRhos,
+                List<Double> nestWeights,
+                double outerRho) {
+            super(combineNestWeights(nests), Type.NESTED_CES);
+            this.nests = new ArrayList<>(nests);
+            this.nestRhos = new ArrayList<>(nestRhos);
+            this.nestWeights = normalizeWeights(nestWeights);
+            this.outerRho = outerRho;
+        }
+
+        private static Map<ResourceType, Double> combineNestWeights(List<Map<ResourceType, Double>> nests) {
+            Map<ResourceType, Double> combined = new HashMap<>();
+            for (Map<ResourceType, Double> nest : nests) {
+                combined.putAll(nest);
+            }
+            return combined;
+        }
+
+        private static List<Double> normalizeWeights(List<Double> weights) {
+            double sum = weights.stream().mapToDouble(Double::doubleValue).sum();
+            if (sum > 0 && Math.abs(sum - 1.0) > 0.001) {
+                return weights.stream().map(w -> w / sum).toList();
+            }
+            return new ArrayList<>(weights);
+        }
+
+        private double evaluateNest(int nestIdx, Map<ResourceType, Long> allocations) {
+            Map<ResourceType, Double> nestWeights = nests.get(nestIdx);
+            double rho = nestRhos.get(nestIdx);
+            
+            if (Math.abs(rho) < EPSILON) {
+                // Cobb-Douglas limit
+                double product = 1.0;
+                for (var entry : nestWeights.entrySet()) {
+                    long a = allocations.getOrDefault(entry.getKey(), 0L);
+                    product *= Math.pow(Math.max(a, EPSILON), entry.getValue());
+                }
+                return product;
+            }
+            
+            double sum = 0;
+            for (var entry : nestWeights.entrySet()) {
+                long a = allocations.getOrDefault(entry.getKey(), 0L);
+                sum += entry.getValue() * Math.pow(Math.max(a, EPSILON), rho);
+            }
+            return Math.pow(Math.max(sum, EPSILON), 1.0 / rho);
+        }
+
+        @Override
+        public double evaluate(Map<ResourceType, Long> allocations) {
+            if (Math.abs(outerRho) < EPSILON) {
+                // Outer Cobb-Douglas
+                double product = 1.0;
+                for (int i = 0; i < nests.size(); i++) {
+                    double nestValue = evaluateNest(i, allocations);
+                    product *= Math.pow(nestValue, nestWeights.get(i));
+                }
+                return product;
+            }
+            
+            double sum = 0;
+            for (int i = 0; i < nests.size(); i++) {
+                double nestValue = evaluateNest(i, allocations);
+                sum += nestWeights.get(i) * Math.pow(nestValue, outerRho);
+            }
+            return Math.pow(Math.max(sum, EPSILON), 1.0 / outerRho);
+        }
+
+        @Override
+        public Map<ResourceType, Double> gradient(Map<ResourceType, Long> allocations) {
+            Map<ResourceType, Double> grad = new HashMap<>();
+            
+            // Compute nest values and derivatives
+            List<Double> nestValues = new ArrayList<>();
+            for (int i = 0; i < nests.size(); i++) {
+                nestValues.add(evaluateNest(i, allocations));
+            }
+            
+            double outerValue = evaluate(allocations);
+            
+            for (int nestIdx = 0; nestIdx < nests.size(); nestIdx++) {
+                Map<ResourceType, Double> nestW = nests.get(nestIdx);
+                double nestRho = nestRhos.get(nestIdx);
+                double nestValue = nestValues.get(nestIdx);
+                double alpha = nestWeights.get(nestIdx);
+                
+                // d(outer)/d(nest_i)
+                double dOuterDNest;
+                if (Math.abs(outerRho) < EPSILON) {
+                    // Cobb-Douglas outer
+                    dOuterDNest = alpha * outerValue / Math.max(nestValue, EPSILON);
+                } else {
+                    double outerSum = 0;
+                    for (int i = 0; i < nests.size(); i++) {
+                        outerSum += nestWeights.get(i) * Math.pow(nestValues.get(i), outerRho);
+                    }
+                    dOuterDNest = alpha * Math.pow(outerSum, (1.0 / outerRho) - 1) 
+                                * Math.pow(nestValue, outerRho - 1);
+                }
+                
+                // d(nest_i)/d(a_j) for each resource in nest
+                for (var entry : nestW.entrySet()) {
+                    ResourceType r = entry.getKey();
+                    double w = entry.getValue();
+                    long a = allocations.getOrDefault(r, 0L);
+                    
+                    double dNestDA;
+                    if (Math.abs(nestRho) < EPSILON) {
+                        // Cobb-Douglas nest
+                        dNestDA = w * nestValue / Math.max(a, EPSILON);
+                    } else {
+                        double nestSum = 0;
+                        for (var e : nestW.entrySet()) {
+                            long aa = allocations.getOrDefault(e.getKey(), 0L);
+                            nestSum += e.getValue() * Math.pow(Math.max(aa, EPSILON), nestRho);
+                        }
+                        dNestDA = w * Math.pow(nestSum, (1.0 / nestRho) - 1) 
+                                * Math.pow(Math.max(a, EPSILON), nestRho - 1);
+                    }
+                    
+                    double dPhiDA = dOuterDNest * dNestDA;
+                    grad.put(r, grad.getOrDefault(r, 0.0) + dPhiDA);
+                }
+            }
+            
+            return grad;
+        }
+
+        public List<Map<ResourceType, Double>> getNests() {
+            return Collections.unmodifiableList(nests);
+        }
+
+        public List<Double> getNestRhos() {
+            return Collections.unmodifiableList(nestRhos);
+        }
+
+        public List<Double> getNestWeights() {
+            return Collections.unmodifiableList(nestWeights);
+        }
+
+        public double getOuterRho() {
+            return outerRho;
+        }
+
+        @Override
+        protected void addExtraParams(Map<String, Object> params) {
+            List<Map<String, Double>> nestsForSolver = new ArrayList<>();
+            for (var nest : nests) {
+                Map<String, Double> n = new HashMap<>();
+                for (var e : nest.entrySet()) {
+                    n.put(e.getKey().name(), e.getValue());
+                }
+                nestsForSolver.add(n);
+            }
+            params.put("nests", nestsForSolver);
+            params.put("nest_rhos", nestRhos);
+            params.put("nest_weights", nestWeights);
+            params.put("outer_rho", outerRho);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("NestedCESUtility[%d nests, ρ_outer=%.2f]", nests.size(), outerRho);
+        }
+    }
+
+    // ========================================================================
+    // Softplus Loss Aversion Utility (Constraint Set 3)
+    // ========================================================================
+
+    /**
+     * Softplus Loss Aversion utility for reference-dependent preferences.
+     * 
+     * g(x) = x - (λ - 1) · τ · ln(1 + exp(-x / τ))
+     * Φ_i(A) = Σⱼ wⱼ · g(aⱼ - rⱼ)
+     * 
+     * Properties:
+     * - Smooth transition between gains and losses (infinitely differentiable)
+     * - λ > 1 means losses hurt more than equivalent gains help
+     * - τ controls transition sharpness (smaller = more piecewise-linear)
+     * - Globally concave when λ > 1
+     * 
+     * Asymptotic behavior:
+     * - x >> 0: g(x) ≈ x (linear gains)
+     * - x << 0: g(x) ≈ λ·x (steeper linear losses)
+     */
+    public static class SoftplusLossAversionUtility extends UtilityFunction {
+        private final Map<ResourceType, Double> referencePoints;
+        private final double lambda;
+        private final double tau;
+
+        public SoftplusLossAversionUtility(
+                Map<ResourceType, Double> weights,
+                Map<ResourceType, Double> referencePoints,
+                double lambda,
+                double tau) {
+            super(weights, Type.SOFTPLUS_LOSS_AVERSION);
+            this.referencePoints = Collections.unmodifiableMap(new HashMap<>(referencePoints));
+            this.lambda = lambda;
+            this.tau = tau;
+        }
+
+        /**
+         * Value function: g(x) = x - (λ - 1) · τ · ln(1 + exp(-x / τ))
+         */
+        private double g(double x) {
+            // Handle numerical overflow
+            if (x / tau < -20) {
+                // For very negative x: g(x) ≈ λ·x
+                return lambda * x;
+            }
+            if (x / tau > 20) {
+                // For very positive x: g(x) ≈ x
+                return x;
+            }
+            return x - (lambda - 1) * tau * Math.log(1 + Math.exp(-x / tau));
+        }
+
+        /**
+         * Derivative: g'(x) = 1 + (λ - 1) · sigmoid(-x/τ) = λ - (λ - 1) · sigmoid(x/τ)
+         */
+        private double gPrime(double x) {
+            double sigmoidArg = x / tau;
+            if (sigmoidArg > 20) return 1.0;
+            if (sigmoidArg < -20) return lambda;
+            double sigmoid = 1.0 / (1.0 + Math.exp(-sigmoidArg));
+            return lambda - (lambda - 1) * sigmoid;
+        }
+
+        @Override
+        public double evaluate(Map<ResourceType, Long> allocations) {
+            double utility = 0;
+            for (var entry : weights.entrySet()) {
+                ResourceType r = entry.getKey();
+                double w = entry.getValue();
+                long a = allocations.getOrDefault(r, 0L);
+                double ref = referencePoints.getOrDefault(r, 0.0);
+                double x = a - ref;
+                utility += w * g(x);
+            }
+            return utility;
+        }
+
+        @Override
+        public Map<ResourceType, Double> gradient(Map<ResourceType, Long> allocations) {
+            Map<ResourceType, Double> grad = new HashMap<>();
+            for (var entry : weights.entrySet()) {
+                ResourceType r = entry.getKey();
+                double w = entry.getValue();
+                long a = allocations.getOrDefault(r, 0L);
+                double ref = referencePoints.getOrDefault(r, 0.0);
+                double x = a - ref;
+                grad.put(r, w * gPrime(x));
+            }
+            return grad;
+        }
+
+        public Map<ResourceType, Double> getReferencePoints() {
+            return referencePoints;
+        }
+
+        public double getLambda() {
+            return lambda;
+        }
+
+        public double getTau() {
+            return tau;
+        }
+
+        @Override
+        protected void addExtraParams(Map<String, Object> params) {
+            Map<String, Double> refs = new HashMap<>();
+            for (var e : referencePoints.entrySet()) {
+                refs.put(e.getKey().name(), e.getValue());
+            }
+            params.put("reference_points", refs);
+            params.put("lambda", lambda);
+            params.put("tau", tau);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("SoftplusLossAversionUtility[λ=%.2f, τ=%.2f]%s", lambda, tau, weights);
+        }
+    }
+
+    // ========================================================================
+    // Asymmetric Log Loss Aversion Utility (Constraint Set 5)
+    // ========================================================================
+
+    /**
+     * Asymmetric Logarithmic Loss Aversion utility for reference-dependent preferences.
+     * 
+     * g(x) = ln(1 + x/κ)       if x ≥ 0
+     * g(x) = -λ · ln(1 + |x|/κ) if x < 0
+     * Φ_i(A) = Σⱼ wⱼ · g(aⱼ - rⱼ)
+     * 
+     * Properties:
+     * - Diminishing sensitivity on both gains and losses
+     * - Concave kink at reference point when λ ≥ 1
+     * - λ controls loss aversion magnitude
+     * - κ controls curvature (larger = more linear)
+     * 
+     * This models an agent who:
+     * - Has satiation-like diminishing returns for surpluses
+     * - Has diminishing sensitivity to increasingly severe shortfalls
+     * - Still weights shortfalls more heavily than surpluses
+     */
+    public static class AsymmetricLogLossAversionUtility extends UtilityFunction {
+        private static final double EPSILON = 1e-10;
+        private final Map<ResourceType, Double> referencePoints;
+        private final double lambda;
+        private final double kappa;
+
+        public AsymmetricLogLossAversionUtility(
+                Map<ResourceType, Double> weights,
+                Map<ResourceType, Double> referencePoints,
+                double lambda,
+                double kappa) {
+            super(weights, Type.ASYMMETRIC_LOG_LOSS_AVERSION);
+            this.referencePoints = Collections.unmodifiableMap(new HashMap<>(referencePoints));
+            this.lambda = Math.max(1.0, lambda);  // Ensure λ ≥ 1 for concavity
+            this.kappa = Math.max(EPSILON, kappa);
+        }
+
+        /**
+         * Value function:
+         * g(x) = ln(1 + x/κ) if x ≥ 0
+         * g(x) = -λ · ln(1 + |x|/κ) if x < 0
+         */
+        private double g(double x) {
+            if (x >= 0) {
+                return Math.log(1 + x / kappa);
+            } else {
+                return -lambda * Math.log(1 + Math.abs(x) / kappa);
+            }
+        }
+
+        /**
+         * Derivative:
+         * g'(x) = 1/(κ + x) if x ≥ 0
+         * g'(x) = λ/(κ + |x|) if x < 0
+         */
+        private double gPrime(double x) {
+            if (x >= 0) {
+                return 1.0 / (kappa + x);
+            } else {
+                return lambda / (kappa + Math.abs(x));
+            }
+        }
+
+        @Override
+        public double evaluate(Map<ResourceType, Long> allocations) {
+            double utility = 0;
+            for (var entry : weights.entrySet()) {
+                ResourceType r = entry.getKey();
+                double w = entry.getValue();
+                long a = allocations.getOrDefault(r, 0L);
+                double ref = referencePoints.getOrDefault(r, 0.0);
+                double x = a - ref;
+                utility += w * g(x);
+            }
+            return utility;
+        }
+
+        @Override
+        public Map<ResourceType, Double> gradient(Map<ResourceType, Long> allocations) {
+            Map<ResourceType, Double> grad = new HashMap<>();
+            for (var entry : weights.entrySet()) {
+                ResourceType r = entry.getKey();
+                double w = entry.getValue();
+                long a = allocations.getOrDefault(r, 0L);
+                double ref = referencePoints.getOrDefault(r, 0.0);
+                double x = a - ref;
+                grad.put(r, w * gPrime(x));
+            }
+            return grad;
+        }
+
+        public Map<ResourceType, Double> getReferencePoints() {
+            return referencePoints;
+        }
+
+        public double getLambda() {
+            return lambda;
+        }
+
+        public double getKappa() {
+            return kappa;
+        }
+
+        @Override
+        protected void addExtraParams(Map<String, Object> params) {
+            Map<String, Double> refs = new HashMap<>();
+            for (var e : referencePoints.entrySet()) {
+                refs.put(e.getKey().name(), e.getValue());
+            }
+            params.put("reference_points", refs);
+            params.put("lambda", lambda);
+            params.put("kappa", kappa);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("AsymmetricLogLossAversionUtility[λ=%.2f, κ=%.2f]%s", lambda, kappa, weights);
+        }
+    }
+
+    // ========================================================================
     // Piecewise Linear Approximation
     // ========================================================================
 
@@ -684,8 +1415,17 @@ public abstract class UtilityFunction {
 
     public static class Builder {
         private final Map<ResourceType, Double> weights = new HashMap<>();
+        private final Map<ResourceType, Double> referencePoints = new HashMap<>();
         private Type type = Type.LINEAR;
         private double rho = 0.5;  // For CES
+        private double threshold = 0;
+        private double sharpness = 1.0;
+        private double maxUtility = 100;
+        private double saturationParam = 10;
+        private boolean hyperbolic = false;
+        private double lambda = 2.0;  // Loss aversion
+        private double tau = 1.0;     // Temperature
+        private double kappa = 10.0;  // Curvature
 
         public Builder weight(ResourceType resource, double weight) {
             weights.put(resource, weight);
@@ -694,6 +1434,16 @@ public abstract class UtilityFunction {
 
         public Builder weights(Map<ResourceType, Double> w) {
             weights.putAll(w);
+            return this;
+        }
+
+        public Builder referencePoint(ResourceType resource, double ref) {
+            referencePoints.put(resource, ref);
+            return this;
+        }
+
+        public Builder referencePoints(Map<ResourceType, Double> refs) {
+            referencePoints.putAll(refs);
             return this;
         }
 
@@ -728,6 +1478,43 @@ public abstract class UtilityFunction {
             return this;
         }
 
+        public Builder threshold(double threshold, double sharpness) {
+            this.type = Type.THRESHOLD;
+            this.threshold = threshold;
+            this.sharpness = sharpness;
+            return this;
+        }
+
+        public Builder satiation(double maxUtility, double saturationParam) {
+            this.type = Type.SATIATION;
+            this.maxUtility = maxUtility;
+            this.saturationParam = saturationParam;
+            this.hyperbolic = false;
+            return this;
+        }
+
+        public Builder hyperbolicSatiation(double maxUtility, double halfSaturation) {
+            this.type = Type.SATIATION;
+            this.maxUtility = maxUtility;
+            this.saturationParam = halfSaturation;
+            this.hyperbolic = true;
+            return this;
+        }
+
+        public Builder softplusLossAversion(double lambda, double tau) {
+            this.type = Type.SOFTPLUS_LOSS_AVERSION;
+            this.lambda = lambda;
+            this.tau = tau;
+            return this;
+        }
+
+        public Builder asymmetricLogLossAversion(double lambda, double kappa) {
+            this.type = Type.ASYMMETRIC_LOG_LOSS_AVERSION;
+            this.lambda = lambda;
+            this.kappa = kappa;
+            return this;
+        }
+
         public UtilityFunction build() {
             if (weights.isEmpty()) {
                 throw new IllegalStateException("Must specify at least one weight");
@@ -739,6 +1526,10 @@ public abstract class UtilityFunction {
                 case COBB_DOUGLAS -> new CobbDouglasUtility(weights);
                 case LEONTIEF -> new LeontiefUtility(weights);
                 case CES -> new CESUtility(weights, rho);
+                case THRESHOLD -> new ThresholdUtility(new LinearUtility(weights), threshold, sharpness);
+                case SATIATION -> new SatiationUtility(new LinearUtility(weights), maxUtility, saturationParam, hyperbolic);
+                case SOFTPLUS_LOSS_AVERSION -> new SoftplusLossAversionUtility(weights, referencePoints, lambda, tau);
+                case ASYMMETRIC_LOG_LOSS_AVERSION -> new AsymmetricLogLossAversionUtility(weights, referencePoints, lambda, kappa);
                 default -> new LinearUtility(weights);
             };
         }
@@ -822,5 +1613,19 @@ public abstract class UtilityFunction {
     public boolean hasComplementarity() {
         return type == Type.COBB_DOUGLAS || type == Type.LEONTIEF || 
                (type == Type.CES && ((CESUtility) this).getRho() < 0);
+    }
+
+    /**
+     * Check if this utility function has loss aversion.
+     */
+    public boolean hasLossAversion() {
+        return type == Type.SOFTPLUS_LOSS_AVERSION || type == Type.ASYMMETRIC_LOG_LOSS_AVERSION;
+    }
+
+    /**
+     * Check if this is a reference-dependent utility function.
+     */
+    public boolean isReferenceDependentent() {
+        return type == Type.SOFTPLUS_LOSS_AVERSION || type == Type.ASYMMETRIC_LOG_LOSS_AVERSION;
     }
 }
