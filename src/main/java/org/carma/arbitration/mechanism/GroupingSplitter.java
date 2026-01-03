@@ -15,7 +15,8 @@ import java.util.stream.Collectors;
  * 
  * <h3>K-Hop Limited Detection</h3>
  * Uses BFS from each agent to find all agents within k hops in the contention
- * graph, then merges overlapping neighborhoods.
+ * graph. Unlike naive overlapping merge, this version respects k-hop limits
+ * by ensuring all pairs in a group are within k hops of each other.
  * 
  * <h3>Size-Based Splitting</h3>
  * When a group exceeds maxGroupSize, splits using one of:
@@ -27,6 +28,11 @@ import java.util.stream.Collectors;
  * 
  * <h3>Compatibility Enforcement</h3>
  * Separates incompatible agents into different groups regardless of contention.
+ * 
+ * <h3>Resource Conservation</h3>
+ * When arbitrating split groups, use {@link #partitionPoolForGroups} or 
+ * {@link #createConservingContentionGroups} to ensure total allocations
+ * don't exceed pool capacity.
  * 
  * @see GroupingPolicy
  * @see ContentionDetector
@@ -97,22 +103,44 @@ public class GroupingSplitter {
             .collect(Collectors.toMap(Agent::getId, a -> a));
         Map<String, Set<String>> adjacency = buildContentionGraph(agents, pool);
         
-        // Apply k-hop BFS to find limited neighborhoods
-        List<Set<String>> neighborhoods = findKHopNeighborhoods(adjacency, policy.getKHopLimit());
+        // Apply k-hop grouping with proper k-hop constraint
+        List<Set<String>> neighborhoods;
+        if (policy.hasKHopLimit()) {
+            neighborhoods = findKHopConstrainedGroups(adjacency, policy.getKHopLimit());
+        } else {
+            // No k-hop limit - find connected components
+            neighborhoods = findConnectedComponents(adjacency);
+        }
         
         // Apply compatibility filtering
         if (policy.hasCompatibilityMatrix()) {
             neighborhoods = applyCompatibilityFilter(neighborhoods, policy);
         }
         
-        // Merge overlapping neighborhoods
-        List<Set<String>> merged = mergeOverlappingNeighborhoods(neighborhoods);
-        
-        // Convert to ContentionGroups
+        // Convert to ContentionGroups - check contention against TOTAL demand
         List<ContentionDetector.ContentionGroup> groups = new ArrayList<>();
         int groupNum = 0;
         
-        for (Set<String> neighborhood : merged) {
+        // First, calculate total demand across ALL agents for contention check
+        Map<ResourceType, Long> totalDemand = new HashMap<>();
+        for (Agent agent : agents) {
+            for (ResourceType type : ResourceType.values()) {
+                long ideal = agent.getIdeal(type);
+                if (ideal > 0) {
+                    totalDemand.merge(type, ideal, Long::sum);
+                }
+            }
+        }
+        
+        // Identify which resources are actually contended
+        Set<ResourceType> contentedResources = new HashSet<>();
+        for (ResourceType type : totalDemand.keySet()) {
+            if (totalDemand.get(type) > pool.getAvailable(type)) {
+                contentedResources.add(type);
+            }
+        }
+        
+        for (Set<String> neighborhood : neighborhoods) {
             if (neighborhood.size() < 2) {
                 continue; // Skip singletons
             }
@@ -126,7 +154,7 @@ public class GroupingSplitter {
                 continue;
             }
             
-            // Collect resources
+            // Collect resources this group wants
             Set<ResourceType> resources = new HashSet<>();
             for (Agent agent : groupAgents) {
                 for (ResourceType type : ResourceType.values()) {
@@ -136,21 +164,22 @@ public class GroupingSplitter {
                 }
             }
             
-            // Check for actual contention
+            // Check if this group is contending for any contended resource
+            // (i.e., the group has agents wanting resources where TOTAL demand > supply)
             boolean hasContention = false;
-            Map<ResourceType, Long> available = new HashMap<>();
             for (ResourceType type : resources) {
-                long supply = pool.getAvailable(type);
-                available.put(type, supply);
-                long demand = groupAgents.stream()
-                    .mapToLong(a -> a.getIdeal(type))
-                    .sum();
-                if (demand > supply) {
+                if (contentedResources.contains(type)) {
                     hasContention = true;
+                    break;
                 }
             }
             
             if (hasContention) {
+                Map<ResourceType, Long> available = new HashMap<>();
+                for (ResourceType type : resources) {
+                    available.put(type, pool.getAvailable(type));
+                }
+                
                 ContentionDetector.ContentionGroup group = new ContentionDetector.ContentionGroup(
                     "CG-" + (++groupNum),
                     groupAgents,
@@ -167,6 +196,121 @@ public class GroupingSplitter {
         }
         
         return groups;
+    }
+
+    /**
+     * Create contention groups with partitioned pool availability.
+     * 
+     * Use this method when you need to arbitrate split groups while conserving
+     * total resource allocations. Each group's available resources are 
+     * proportionally reduced based on the number of groups.
+     * 
+     * @param agents All agents
+     * @param pool Original resource pool
+     * @return Groups with partitioned pool availability
+     */
+    public List<ContentionDetector.ContentionGroup> createConservingContentionGroups(
+            List<Agent> agents, ResourcePool pool) {
+        
+        List<ContentionDetector.ContentionGroup> groups = detectWithPolicy(agents, pool);
+        
+        if (groups.size() <= 1) {
+            return groups; // No partitioning needed
+        }
+        
+        // Partition pool among groups based on their demand
+        Map<ResourceType, Map<String, Long>> partitions = partitionPoolForGroups(groups, pool);
+        
+        // Create new groups with partitioned availability
+        List<ContentionDetector.ContentionGroup> conservingGroups = new ArrayList<>();
+        for (ContentionDetector.ContentionGroup group : groups) {
+            Map<ResourceType, Long> groupAvailable = new HashMap<>();
+            for (ResourceType type : group.getResources()) {
+                Map<String, Long> typePartitions = partitions.get(type);
+                if (typePartitions != null && typePartitions.containsKey(group.getGroupId())) {
+                    groupAvailable.put(type, typePartitions.get(group.getGroupId()));
+                } else {
+                    groupAvailable.put(type, 0L);
+                }
+            }
+            
+            conservingGroups.add(new ContentionDetector.ContentionGroup(
+                group.getGroupId(),
+                group.getAgents(),
+                group.getResources(),
+                groupAvailable
+            ));
+        }
+        
+        return conservingGroups;
+    }
+
+    /**
+     * Partition pool resources among groups based on demand ratios.
+     * 
+     * Each group receives a share of resources proportional to its total demand.
+     * This ensures that if each group is arbitrated against its partition,
+     * total allocations won't exceed pool capacity.
+     * 
+     * @param groups Contention groups
+     * @param pool Original resource pool
+     * @return Map from ResourceType -> (GroupId -> allocated capacity)
+     */
+    public Map<ResourceType, Map<String, Long>> partitionPoolForGroups(
+            List<ContentionDetector.ContentionGroup> groups,
+            ResourcePool pool) {
+        
+        Map<ResourceType, Map<String, Long>> partitions = new HashMap<>();
+        
+        // Calculate demand per resource per group
+        Map<ResourceType, Map<String, Long>> demandByGroup = new HashMap<>();
+        for (ContentionDetector.ContentionGroup group : groups) {
+            for (ResourceType type : group.getResources()) {
+                long groupDemand = group.getAgents().stream()
+                    .mapToLong(a -> a.getIdeal(type))
+                    .sum();
+                demandByGroup.computeIfAbsent(type, k -> new HashMap<>())
+                    .put(group.getGroupId(), groupDemand);
+            }
+        }
+        
+        // Partition each resource based on demand ratio
+        for (ResourceType type : demandByGroup.keySet()) {
+            Map<String, Long> groupDemands = demandByGroup.get(type);
+            long totalDemand = groupDemands.values().stream().mapToLong(Long::longValue).sum();
+            long available = pool.getAvailable(type);
+            
+            Map<String, Long> typePartition = new HashMap<>();
+            
+            if (totalDemand <= available) {
+                // No contention - each group gets what it needs
+                typePartition.putAll(groupDemands);
+            } else {
+                // Proportional partitioning
+                long allocated = 0;
+                List<String> groupIds = new ArrayList<>(groupDemands.keySet());
+                
+                for (int i = 0; i < groupIds.size(); i++) {
+                    String groupId = groupIds.get(i);
+                    long demand = groupDemands.get(groupId);
+                    long share;
+                    
+                    if (i == groupIds.size() - 1) {
+                        // Last group gets remainder to avoid rounding issues
+                        share = available - allocated;
+                    } else {
+                        share = (long) Math.floor((double) demand / totalDemand * available);
+                    }
+                    
+                    typePartition.put(groupId, Math.max(0, share));
+                    allocated += share;
+                }
+            }
+            
+            partitions.put(type, typePartition);
+        }
+        
+        return partitions;
     }
 
     /**
@@ -644,51 +788,119 @@ public class GroupingSplitter {
     }
 
     /**
-     * Find k-hop neighborhoods for all agents.
+     * Find groups where all pairs of agents are within k hops of each other.
+     * 
+     * This is more restrictive than merging overlapping k-hop neighborhoods.
+     * For a chain A-B-C-D-E with k=1:
+     * - Old behavior: All merged into one group (A overlaps B, B overlaps C, etc.)
+     * - New behavior: Groups respect k-hop constraint between all pairs
      */
-    private List<Set<String>> findKHopNeighborhoods(Map<String, Set<String>> graph, int k) {
-        List<Set<String>> neighborhoods = new ArrayList<>();
+    private List<Set<String>> findKHopConstrainedGroups(Map<String, Set<String>> graph, int k) {
+        // Compute pairwise distances
+        Map<String, Map<String, Integer>> distances = computeAllPairDistances(graph);
         
-        for (String agentId : graph.keySet()) {
-            Set<String> neighborhood = bfsKHop(graph, agentId, k);
-            if (neighborhood.size() > 1) { // Include self
-                neighborhoods.add(neighborhood);
+        // Use greedy algorithm to form groups
+        Set<String> unassigned = new HashSet<>(graph.keySet());
+        List<Set<String>> groups = new ArrayList<>();
+        
+        while (!unassigned.isEmpty()) {
+            // Start with an unassigned agent
+            String seed = unassigned.iterator().next();
+            Set<String> group = new HashSet<>();
+            group.add(seed);
+            unassigned.remove(seed);
+            
+            // Add other agents that are within k hops of ALL current group members
+            boolean changed = true;
+            while (changed) {
+                changed = false;
+                for (String candidate : new ArrayList<>(unassigned)) {
+                    // Check if candidate is within k hops of all group members
+                    boolean withinK = true;
+                    for (String member : group) {
+                        Map<String, Integer> memberDist = distances.get(member);
+                        int dist = memberDist != null ? memberDist.getOrDefault(candidate, Integer.MAX_VALUE) : Integer.MAX_VALUE;
+                        if (dist > k) {
+                            withinK = false;
+                            break;
+                        }
+                    }
+                    
+                    if (withinK) {
+                        group.add(candidate);
+                        unassigned.remove(candidate);
+                        changed = true;
+                    }
+                }
             }
+            
+            groups.add(group);
         }
         
-        return neighborhoods;
+        return groups;
     }
 
     /**
-     * BFS to find all nodes within k hops.
+     * Compute all-pairs shortest path distances using BFS.
      */
-    private Set<String> bfsKHop(Map<String, Set<String>> graph, String start, int k) {
-        Set<String> visited = new HashSet<>();
-        Queue<String> queue = new LinkedList<>();
-        Map<String, Integer> distance = new HashMap<>();
+    private Map<String, Map<String, Integer>> computeAllPairDistances(Map<String, Set<String>> graph) {
+        Map<String, Map<String, Integer>> distances = new HashMap<>();
         
-        queue.add(start);
-        distance.put(start, 0);
-        visited.add(start);
-        
-        while (!queue.isEmpty()) {
-            String current = queue.poll();
-            int currentDist = distance.get(current);
+        for (String start : graph.keySet()) {
+            Map<String, Integer> distFromStart = new HashMap<>();
+            Queue<String> queue = new LinkedList<>();
+            queue.add(start);
+            distFromStart.put(start, 0);
             
-            if (currentDist >= k) {
-                continue; // Don't explore beyond k hops
-            }
-            
-            for (String neighbor : graph.getOrDefault(current, Collections.emptySet())) {
-                if (!visited.contains(neighbor)) {
-                    visited.add(neighbor);
-                    distance.put(neighbor, currentDist + 1);
-                    queue.add(neighbor);
+            while (!queue.isEmpty()) {
+                String current = queue.poll();
+                int currentDist = distFromStart.get(current);
+                
+                for (String neighbor : graph.getOrDefault(current, Collections.emptySet())) {
+                    if (!distFromStart.containsKey(neighbor)) {
+                        distFromStart.put(neighbor, currentDist + 1);
+                        queue.add(neighbor);
+                    }
                 }
             }
+            
+            distances.put(start, distFromStart);
         }
         
-        return visited;
+        return distances;
+    }
+
+    /**
+     * Find connected components in the graph.
+     */
+    private List<Set<String>> findConnectedComponents(Map<String, Set<String>> graph) {
+        Set<String> visited = new HashSet<>();
+        List<Set<String>> components = new ArrayList<>();
+        
+        for (String node : graph.keySet()) {
+            if (visited.contains(node)) continue;
+            
+            Set<String> component = new HashSet<>();
+            Queue<String> queue = new LinkedList<>();
+            queue.add(node);
+            
+            while (!queue.isEmpty()) {
+                String current = queue.poll();
+                if (visited.contains(current)) continue;
+                visited.add(current);
+                component.add(current);
+                
+                for (String neighbor : graph.getOrDefault(current, Collections.emptySet())) {
+                    if (!visited.contains(neighbor)) {
+                        queue.add(neighbor);
+                    }
+                }
+            }
+            
+            components.add(component);
+        }
+        
+        return components;
     }
 
     /**
@@ -757,55 +969,6 @@ public class GroupingSplitter {
         }
         
         return components;
-    }
-
-    /**
-     * Merge overlapping neighborhoods into disjoint sets.
-     */
-    private List<Set<String>> mergeOverlappingNeighborhoods(List<Set<String>> neighborhoods) {
-        if (neighborhoods.isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        // Union-Find to merge overlapping sets
-        Map<String, String> parent = new HashMap<>();
-        
-        for (Set<String> neighborhood : neighborhoods) {
-            for (String id : neighborhood) {
-                parent.putIfAbsent(id, id);
-            }
-        }
-        
-        for (Set<String> neighborhood : neighborhoods) {
-            String first = neighborhood.iterator().next();
-            for (String id : neighborhood) {
-                union(parent, first, id);
-            }
-        }
-        
-        // Group by root
-        Map<String, Set<String>> components = new HashMap<>();
-        for (String id : parent.keySet()) {
-            String root = find(parent, id);
-            components.computeIfAbsent(root, k -> new HashSet<>()).add(id);
-        }
-        
-        return new ArrayList<>(components.values());
-    }
-
-    private String find(Map<String, String> parent, String x) {
-        if (!parent.get(x).equals(x)) {
-            parent.put(x, find(parent, parent.get(x)));
-        }
-        return parent.get(x);
-    }
-
-    private void union(Map<String, String> parent, String x, String y) {
-        String rootX = find(parent, x);
-        String rootY = find(parent, y);
-        if (!rootX.equals(rootY)) {
-            parent.put(rootX, rootY);
-        }
     }
 
     /**

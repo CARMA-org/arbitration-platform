@@ -178,6 +178,7 @@ public class GroupingPolicyDemo {
         ResourcePool pool = new ResourcePool(Map.of(ResourceType.COMPUTE, 100L));
 
         System.out.println("  4 agents competing for COMPUTE: 2 trusted, 2 untrusted");
+        System.out.println("  Total demand: 200 units, Pool: 100 units (contention ratio 2.0)");
         System.out.println();
 
         // 1. No restrictions
@@ -185,44 +186,48 @@ public class GroupingPolicyDemo {
         GroupingSplitter noRestrictions = new GroupingSplitter(GroupingPolicy.DEFAULT);
         printGroups(noRestrictions.detectWithPolicy(agents, pool));
 
-        // 2. Blocklist mode (block untrusted-trusted pairs)
+        // 2. BLOCKLIST mode - block trusted ↔ untrusted
         System.out.println("  Mode: BLOCKLIST (block trusted ↔ untrusted)");
-        Set<GroupingPolicy.AgentPair> blocked = new HashSet<>();
-        blocked.add(new GroupingPolicy.AgentPair("Trusted-1", "Untrusted-1"));
-        blocked.add(new GroupingPolicy.AgentPair("Trusted-1", "Untrusted-2"));
-        blocked.add(new GroupingPolicy.AgentPair("Trusted-2", "Untrusted-1"));
-        blocked.add(new GroupingPolicy.AgentPair("Trusted-2", "Untrusted-2"));
+        Set<String> trustedIds = Set.of("Trusted-1", "Trusted-2");
+        Set<String> untrustedIds = Set.of("Untrusted-1", "Untrusted-2");
+        
+        Set<GroupingPolicy.AgentPair> blockPairs = new HashSet<>();
+        for (String t : trustedIds) {
+            for (String u : untrustedIds) {
+                blockPairs.add(new GroupingPolicy.AgentPair(t, u));
+            }
+        }
         
         GroupingPolicy blocklistPolicy = new GroupingPolicy.Builder()
-            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.blocklist(blocked))
+            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.blocklist(blockPairs))
             .build();
-        GroupingSplitter blocklist = new GroupingSplitter(blocklistPolicy);
-        printGroups(blocklist.detectWithPolicy(agents, pool));
+        GroupingSplitter blocklistSplitter = new GroupingSplitter(blocklistPolicy);
+        printGroups(blocklistSplitter.detectWithPolicy(agents, pool));
 
-        // 3. Category mode (trusted vs untrusted categories)
+        // 3. CATEGORY mode - group by trust level
         System.out.println("  Mode: CATEGORY (by trust level)");
-        Map<String, String> categories = Map.of(
-            "Trusted-1", "trusted",
-            "Trusted-2", "trusted",
-            "Untrusted-1", "untrusted",
-            "Untrusted-2", "untrusted"
-        );
+        Map<String, String> categoryMap = new HashMap<>();
+        categoryMap.put("Trusted-1", "trusted");
+        categoryMap.put("Trusted-2", "trusted");
+        categoryMap.put("Untrusted-1", "untrusted");
+        categoryMap.put("Untrusted-2", "untrusted");
+        
         GroupingPolicy categoryPolicy = new GroupingPolicy.Builder()
-            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.byCategory(categories))
+            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.byCategory(categoryMap))
             .build();
-        GroupingSplitter category = new GroupingSplitter(categoryPolicy);
-        printGroups(category.detectWithPolicy(agents, pool));
+        GroupingSplitter categorySplitter = new GroupingSplitter(categoryPolicy);
+        printGroups(categorySplitter.detectWithPolicy(agents, pool));
 
-        // 4. Allowlist mode (only explicit pairs can be grouped)
+        // 4. ALLOWLIST mode - only specific pairs allowed
         System.out.println("  Mode: ALLOWLIST (only Trusted-1 ↔ Trusted-2 allowed)");
-        Set<GroupingPolicy.AgentPair> allowed = Set.of(
-            new GroupingPolicy.AgentPair("Trusted-1", "Trusted-2")
-        );
-        GroupingPolicy allowlistPolicy = new GroupingPolicy.Builder()
-            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.allowlist(allowed))
+        Set<GroupingPolicy.AgentPair> allowPairs = new HashSet<>();
+        allowPairs.add(new GroupingPolicy.AgentPair("Trusted-1", "Trusted-2"));
+        
+        GroupingPolicy allowPolicy = new GroupingPolicy.Builder()
+            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.allowlist(allowPairs))
             .build();
-        GroupingSplitter allowlist = new GroupingSplitter(allowlistPolicy);
-        printGroups(allowlist.detectWithPolicy(agents, pool));
+        GroupingSplitter allowSplitter = new GroupingSplitter(allowPolicy);
+        printGroups(allowSplitter.detectWithPolicy(agents, pool));
 
         System.out.println("  ✓ Compatibility matrices enforce security/organizational boundaries");
         printScenarioFooter();
@@ -236,50 +241,52 @@ public class GroupingPolicyDemo {
         printScenarioHeader(4, "Tenant Isolation",
             "Multi-tenant system with per-tenant optimization boundaries");
 
-        // 3 tenants with multiple agents each
         List<Agent> agents = new ArrayList<>();
         Map<String, String> tenantMap = new HashMap<>();
-
-        String[] tenants = {"Acme Corp", "Globex Inc", "Initech LLC"};
-        for (String tenant : tenants) {
-            for (int i = 1; i <= 4; i++) {
-                String agentId = tenant.substring(0, 4) + "-Agent-" + i;
+        
+        // Three tenants, 4 agents each
+        for (String tenant : new String[]{"TenantA", "TenantB", "TenantC"}) {
+            for (int i = 0; i < 4; i++) {
+                String agentId = tenant + "-" + i;
                 agents.add(createAgent(agentId, 100, Map.of(
-                    ResourceType.COMPUTE, 25L,
-                    ResourceType.STORAGE, 25L
+                    ResourceType.COMPUTE, 20L,
+                    ResourceType.STORAGE, 20L
                 )));
                 tenantMap.put(agentId, tenant);
             }
         }
 
         ResourcePool pool = new ResourcePool(Map.of(
-            ResourceType.COMPUTE, 200L,
-            ResourceType.STORAGE, 200L
+            ResourceType.COMPUTE, 100L,
+            ResourceType.STORAGE, 100L
         ));
 
         System.out.println("  3 tenants × 4 agents = 12 agents");
         System.out.println("  All agents want COMPUTE + STORAGE (contention across all)");
         System.out.println();
 
-        // Without isolation
+        // Without tenant isolation
         System.out.println("  Without Tenant Isolation:");
-        ContentionDetector detector = new ContentionDetector();
-        List<ContentionDetector.ContentionGroup> noIsolation = detector.detectContentions(agents, pool);
-        System.out.printf("    %d group(s), max size = %d%n", 
-            noIsolation.size(),
-            noIsolation.stream().mapToInt(g -> g.getAgentCount()).max().orElse(0));
+        GroupingSplitter noIsolation = new GroupingSplitter(GroupingPolicy.DEFAULT);
+        List<ContentionDetector.ContentionGroup> noIsoGroups = noIsolation.detectWithPolicy(agents, pool);
+        int noIsoMax = noIsoGroups.stream()
+            .mapToInt(ContentionDetector.ContentionGroup::getAgentCount)
+            .max().orElse(0);
+        System.out.printf("    %d group(s), max size = %d%n", noIsoGroups.size(), noIsoMax);
 
-        // With isolation
+        // With tenant isolation
         System.out.println("  With Tenant Isolation:");
-        GroupingPolicy tenantPolicy = GroupingPolicy.tenantIsolated(tenantMap);
-        GroupingSplitter splitter = new GroupingSplitter(tenantPolicy);
-        List<ContentionDetector.ContentionGroup> isolated = splitter.detectWithPolicy(agents, pool);
+        GroupingPolicy tenantPolicy = new GroupingPolicy.Builder()
+            .compatibilityMatrix(GroupingPolicy.CompatibilityMatrix.byCategory(tenantMap))
+            .build();
+        GroupingSplitter tenantSplitter = new GroupingSplitter(tenantPolicy);
+        List<ContentionDetector.ContentionGroup> tenantGroups = tenantSplitter.detectWithPolicy(agents, pool);
         
-        System.out.printf("    %d group(s):%n", isolated.size());
-        for (ContentionDetector.ContentionGroup group : isolated) {
-            // Determine tenant
-            String tenant = tenantMap.get(group.getAgents().iterator().next().getId());
-            System.out.printf("      → %s: %d agents%n", tenant, group.getAgentCount());
+        System.out.printf("    %d group(s):%n", tenantGroups.size());
+        for (ContentionDetector.ContentionGroup group : tenantGroups) {
+            String firstAgent = group.getAgents().iterator().next().getId();
+            String tenant = tenantMap.get(firstAgent);
+            System.out.printf("      %s: %d agents%n", tenant, group.getAgentCount());
         }
 
         System.out.println();
@@ -296,40 +303,36 @@ public class GroupingPolicyDemo {
         printScenarioHeader(5, "Split Strategies",
             "Different algorithms for splitting oversized groups");
 
-        // Create agents with varying resource profiles
+        // Create agents with different resource affinities
         List<Agent> agents = new ArrayList<>();
         
-        // Compute-heavy agents
+        // 8 compute-heavy agents
         for (int i = 0; i < 8; i++) {
-            agents.add(createAgent("Compute-" + i, 100, Map.of(
-                ResourceType.COMPUTE, 80L,
-                ResourceType.MEMORY, 20L
+            agents.add(createAgent("Compute-" + i, 100 + i * 10, Map.of(
+                ResourceType.COMPUTE, 30L,
+                ResourceType.STORAGE, 5L
             )));
         }
         
-        // Storage-heavy agents
+        // 8 storage-heavy agents
         for (int i = 0; i < 8; i++) {
-            agents.add(createAgent("Storage-" + i, 100, Map.of(
-                ResourceType.STORAGE, 80L,
-                ResourceType.NETWORK, 20L
+            agents.add(createAgent("Storage-" + i, 100 + i * 10, Map.of(
+                ResourceType.COMPUTE, 5L,
+                ResourceType.STORAGE, 30L
             )));
         }
         
-        // Mixed agents (bridge the two groups)
+        // 4 mixed agents (create bridging contentions)
         for (int i = 0; i < 4; i++) {
-            agents.add(createAgent("Mixed-" + i, 100, Map.of(
-                ResourceType.COMPUTE, 40L,
-                ResourceType.STORAGE, 40L,
-                ResourceType.MEMORY, 10L,
-                ResourceType.NETWORK, 10L
+            agents.add(createAgent("Mixed-" + i, 150, Map.of(
+                ResourceType.COMPUTE, 15L,
+                ResourceType.STORAGE, 15L
             )));
         }
 
         ResourcePool pool = new ResourcePool(Map.of(
-            ResourceType.COMPUTE, 300L,
-            ResourceType.STORAGE, 300L,
-            ResourceType.MEMORY, 100L,
-            ResourceType.NETWORK, 100L
+            ResourceType.COMPUTE, 100L,
+            ResourceType.STORAGE, 100L
         ));
 
         System.out.println("  20 agents: 8 compute-heavy, 8 storage-heavy, 4 mixed");
@@ -337,6 +340,7 @@ public class GroupingPolicyDemo {
         System.out.println("  Splitting to max size = 6");
         System.out.println();
 
+        // Test each strategy
         for (GroupingPolicy.SplitStrategy strategy : GroupingPolicy.SplitStrategy.values()) {
             GroupingPolicy policy = new GroupingPolicy.Builder()
                 .maxGroupSize(6)
@@ -576,12 +580,12 @@ public class GroupingPolicyDemo {
     }
 
     // ========================================================================
-    // Scenario 9: Dynamic Scenario with Actual Arbitration
+    // Scenario 9: Dynamic Scenario with Resource-Conserving Arbitration
     // ========================================================================
 
     private static void scenario9_DynamicScenario() {
         printScenarioHeader(9, "Dynamic Arbitration Comparison",
-            "Comparing welfare under different policies with actual arbitration");
+            "Comparing welfare under different policies with RESOURCE-CONSERVING arbitration");
 
         // Create a scenario where policy choice matters
         List<Agent> agents = new ArrayList<>();
@@ -607,6 +611,8 @@ public class GroupingPolicyDemo {
         System.out.println("  10 agents competing for 100 COMPUTE (want 300 total)");
         System.out.println("  5 high-priority (c=200), 5 low-priority (c=50)");
         System.out.println();
+        System.out.println("  NOTE: Using resource-conserving arbitration to prevent over-allocation.");
+        System.out.println();
 
         PriorityEconomy economy = new PriorityEconomy();
         
@@ -627,11 +633,14 @@ public class GroupingPolicyDemo {
             System.out.printf("  Policy: %s%n", policy);
             
             GroupingSplitter splitter = new GroupingSplitter(policy);
-            List<ContentionDetector.ContentionGroup> groups = splitter.detectWithPolicy(agents, pool);
+            
+            // Use resource-conserving groups (pool is partitioned among groups)
+            List<ContentionDetector.ContentionGroup> groups = 
+                splitter.createConservingContentionGroups(agents, pool);
             
             System.out.printf("    Groups: %d%n", groups.size());
             
-            // Use sequential arbitrator on each group
+            // Arbitrate each group against its PARTITIONED pool share
             SequentialJointArbitrator arbitrator = new SequentialJointArbitrator(economy);
             double totalWelfare = 0;
             Map<String, Long> totalAllocations = new HashMap<>();
@@ -652,12 +661,18 @@ public class GroupingPolicyDemo {
                 lowPriTotal += totalAllocations.getOrDefault("LowPri-" + i, 0L);
             }
             
+            long totalAllocated = highPriTotal + lowPriTotal;
+            
             System.out.printf("    Total Welfare: %.2f%n", totalWelfare);
             System.out.printf("    High-priority total: %d, Low-priority total: %d%n", 
                 highPriTotal, lowPriTotal);
+            System.out.printf("    TOTAL ALLOCATED: %d (pool: 100) %s%n", 
+                totalAllocated, 
+                totalAllocated <= 100 ? "✓ Conservation OK" : "✗ OVER-ALLOCATED!");
             System.out.println();
         }
 
+        System.out.println("  ✓ Resource conservation maintained across all policies");
         System.out.println("  ✓ Different policies lead to different allocation outcomes");
         System.out.println("  ✓ Smaller groups may reduce cross-agent optimization opportunities");
         printScenarioFooter();

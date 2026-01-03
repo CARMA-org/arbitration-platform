@@ -1,4 +1,4 @@
-# Arbitration Platform v0.41
+# Arbitration Platform v0.5
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
@@ -43,7 +43,7 @@ javac -d out $(find src/main/java -name "*.java")
 java -cp out org.carma.arbitration.Demo --full
 ```
 
-## What's New in v0.41
+## What's New in v0.5
 
 ### Grouping Policy Configuration (Task #2)
 
@@ -75,11 +75,11 @@ Configurable policies for controlling how agents get grouped for joint optimizat
 
 | Agents | Policy | Groups | Max Size | Speedup | 
 |--------|--------|--------|----------|---------|
-| 50 | PERFORMANCE | 4 | 10 | 15.2x |
-| 100 | PERFORMANCE | 9 | 10 | 66.4x |
-| 200 | PERFORMANCE | 18 | 10 | 323.5x |
+| 50 | PERFORMANCE | 5 | 10 | 15.7x |
+| 100 | PERFORMANCE | 9 | 10 | 72.8x |
+| 200 | PERFORMANCE | 19 | 10 | 343.2x |
 
-## What's New in v0.41
+## What's New in v0.4
 
 ### Nonlinear Preference Functions (Task #3)
 
@@ -509,29 +509,29 @@ Starting asymptotic simulation...
   Agents: 10
   Resources: {Compute Units=500, Storage Units=500}
 
-  Tick 100 (5.5s): welfare=381.7532, gini=0.1308
+  Tick 100 (5.4s): welfare=381.7532, gini=0.1308
   Tick 200 (10.9s): welfare=362.7041, gini=0.1801
 
 Simulation complete:
-  Total time: 15.033 seconds
-  Total ticks: 274
-  Effective rate: 18.2 ticks/sec
+  Total time: 15.027 seconds
+  Total ticks: 275
+  Effective rate: 18.3 ticks/sec
 
 ════════════════════════════════════════════════════════════════════════
 ASYMPTOTIC ANALYSIS RESULTS
 ════════════════════════════════════════════════════════════════════════
 
 Simulation Metrics Summary:
-  Duration: 14.98 seconds (274 ticks)
-  Welfare: initial=380.7639, final=364.2135, avg=374.7090, stddev=6.4621
-  Welfare change: -4.35%
-  Gini coefficient: avg=0.1700
+  Duration: 14.97 seconds (275 ticks)
+  Welfare: initial=380.7639, final=364.8625, avg=374.6732, stddev=6.4775
+  Welfare change: -4.18%
+  Gini coefficient: avg=0.1702
   Converged: false
-  Trend (last 20): 0.318372
+  Trend (last 20): 0.142126
 
 Contention Histogram (by number of competing agents):
-  10 agents: ████████████████████████████████████████ 548 (100.0%)
-  Total contentions: 548
+  10 agents: ████████████████████████████████████████ 550 (100.0%)
+  Total contentions: 550
   Average contention ratio: 1.56
 
 ⚠ System did not reach stable equilibrium (expected for short runs)
@@ -923,12 +923,14 @@ Limiting how far contention spreads through the resource graph
   Agents form a chain through shared resources:
     A(Compute,Memory) ↔ B(Memory,Storage) ↔ C(Storage,Network) ↔ D(Network,Dataset) ↔ E(Dataset,API)
 
-  k-hop=1: 1 group(s)
-    → Group CG-1: {A, B, C, D, E}
-  k-hop=2: 1 group(s)
-    → Group CG-1: {A, B, C, D, E}
+  k-hop=1: 2 group(s)
+    → Group CG-1: {A, B}
+    → Group CG-2: {C, D}
+  k-hop=2: 2 group(s)
+    → Group CG-1: {A, B, C}
+    → Group CG-2: {D, E}
   k-hop=3: 1 group(s)
-    → Group CG-1: {A, B, C, D, E}
+    → Group CG-1: {A, B, C, D}
   k-hop=∞: 1 group(s)
     → Group CG-1: {A, B, C, D, E}
 
@@ -961,18 +963,21 @@ Explicit control over which agents can be grouped together
 ───────────────────────────────────────────────────────────────────────────────
 
   4 agents competing for COMPUTE: 2 trusted, 2 untrusted
+  Total demand: 200 units, Pool: 100 units (contention ratio 2.0)
 
   Mode: No Restrictions
     → {Trusted-1, Trusted-2, Untrusted-1, Untrusted-2}
 
   Mode: BLOCKLIST (block trusted ↔ untrusted)
-    No contention groups (no contention detected)
+    → {Trusted-1, Trusted-2}
+    → {Untrusted-1, Untrusted-2}
 
   Mode: CATEGORY (by trust level)
-    No contention groups (no contention detected)
+    → {Trusted-1, Trusted-2}
+    → {Untrusted-1, Untrusted-2}
 
   Mode: ALLOWLIST (only Trusted-1 ↔ Trusted-2 allowed)
-    No contention groups (no contention detected)
+    → {Trusted-1, Trusted-2}
 
   ✓ Compatibility matrices enforce security/organizational boundaries
 
@@ -987,7 +992,10 @@ Multi-tenant system with per-tenant optimization boundaries
   Without Tenant Isolation:
     1 group(s), max size = 12
   With Tenant Isolation:
-    0 group(s):
+    3 group(s):
+      TenantA: 4 agents
+      TenantB: 4 agents
+      TenantC: 4 agents
 
   ✓ Each tenant's agents optimized independently
   ✓ No cross-tenant information leakage through optimization
@@ -1003,9 +1011,9 @@ Different algorithms for splitting oversized groups
 
   Strategy: MIN_CUT
     Groups: 4
-      Group 1: 6 agents (C:2, S:0, M:4)
-      Group 2: 6 agents (C:4, S:2, M:0)
-      Group 3: 6 agents (C:2, S:4, M:0)
+      Group 1: 6 agents (C:5, S:1, M:0)
+      Group 2: 6 agents (C:2, S:2, M:2)
+      Group 3: 6 agents (C:1, S:3, M:2)
       ... and 1 more groups
 
   Strategy: RESOURCE_AFFINITY
@@ -1017,9 +1025,9 @@ Different algorithms for splitting oversized groups
 
   Strategy: PRIORITY_CLUSTERING
     Groups: 4
-      Group 1: 6 agents (C:5, S:1, M:0)
-      Group 2: 6 agents (C:2, S:2, M:2)
-      Group 3: 6 agents (C:1, S:3, M:2)
+      Group 1: 6 agents (C:3, S:2, M:1)
+      Group 2: 6 agents (C:1, S:2, M:3)
+      Group 3: 6 agents (C:3, S:3, M:0)
       ... and 1 more groups
 
   Strategy: ROUND_ROBIN
@@ -1031,9 +1039,9 @@ Different algorithms for splitting oversized groups
 
   Strategy: SPECTRAL
     Groups: 4
-      Group 1: 6 agents (C:2, S:0, M:4)
-      Group 2: 6 agents (C:4, S:2, M:0)
-      Group 3: 6 agents (C:2, S:4, M:0)
+      Group 1: 6 agents (C:5, S:1, M:0)
+      Group 2: 6 agents (C:2, S:2, M:2)
+      Group 3: 6 agents (C:1, S:3, M:2)
       ... and 1 more groups
 
   ✓ RESOURCE_AFFINITY groups similar agents together
@@ -1051,12 +1059,12 @@ Analyzing trade-offs between policies
   │ Policy                              │ Groups │ MaxSize │ Speedup │ OptLoss  │
   ├─────────────────────────────────────┼────────┼─────────┼─────────┼──────────┤
   │ GroupingPolicy[UNLIMITED]           │      1 │      30 │    1.0x │    0.0% │
-  │ GroupingPolicy[k-hop=1]             │      1 │      30 │    1.0x │    0.0% │
+  │ GroupingPolicy[k-hop=1]             │      3 │      12 │   15.6x │   49.7% │
   │ GroupingPolicy[k-hop=2]             │      1 │      30 │    1.0x │    0.0% │
   │ GroupingPolicy[maxSize=10]          │      3 │      10 │   27.0x │   60.5% │
   │ GroupingPolicy[maxSize=5]           │      6 │       5 │  216.0x │   73.3% │
   │ GroupingPolicy[k-hop=2, maxSize=10] │      3 │      10 │   27.0x │   60.5% │
-  │ GroupingPolicy[k-hop=1, maxSize=10] │      3 │      10 │   27.0x │   60.5% │
+  │ GroupingPolicy[k-hop=1, maxSize=10] │      5 │      10 │   27.0x │   50.3% │
   │ GroupingPolicy[k-hop=2, maxSize=20] │      2 │      20 │    3.4x │   37.7% │
   └─────────────────────────────────────┴────────┴─────────┴─────────┴──────────┘
 
@@ -1070,19 +1078,19 @@ Demonstrating performance benefits with many agents
   Testing with increasing agent counts...
 
   50 agents:
-    Baseline: 1 groups, max=37, detection=0.29ms
-    Policy:   4 groups, max=10, detection=2.04ms
-    Estimated optimization speedup: 15.2x
+    Baseline: 1 groups, max=37, detection=0.30ms
+    Policy:   5 groups, max=10, detection=1.57ms
+    Estimated optimization speedup: 15.7x
 
   100 agents:
-    Baseline: 1 groups, max=81, detection=1.24ms
-    Policy:   9 groups, max=10, detection=12.98ms
-    Estimated optimization speedup: 66.4x
+    Baseline: 1 groups, max=81, detection=1.56ms
+    Policy:   9 groups, max=10, detection=11.14ms
+    Estimated optimization speedup: 72.8x
 
   200 agents:
-    Baseline: 1 groups, max=179, detection=4.83ms
-    Policy:   18 groups, max=10, detection=40.00ms
-    Estimated optimization speedup: 323.5x
+    Baseline: 1 groups, max=179, detection=4.78ms
+    Policy:   19 groups, max=10, detection=50.99ms
+    Estimated optimization speedup: 343.2x
 
   ✓ Policy-based grouping enables scalability to large agent populations
 
@@ -1110,27 +1118,33 @@ Using multiple policy constraints simultaneously
 
 ───────────────────────────────────────────────────────────────────────────────
 SCENARIO 9: Dynamic Arbitration Comparison
-Comparing welfare under different policies with actual arbitration
+Comparing welfare under different policies with RESOURCE-CONSERVING arbitration
 ───────────────────────────────────────────────────────────────────────────────
 
   10 agents competing for 100 COMPUTE (want 300 total)
   5 high-priority (c=200), 5 low-priority (c=50)
 
+  NOTE: Using resource-conserving arbitration to prevent over-allocation.
+
   Policy: GroupingPolicy[UNLIMITED]
     Groups: 1
     Total Welfare: 530.69
     High-priority total: 65, Low-priority total: 35
+    TOTAL ALLOCATED: 100 (pool: 100) ✓ Conservation OK
 
   Policy: GroupingPolicy[maxSize=5]
     Groups: 2
-    Total Welfare: 686.24
-    High-priority total: 133, Low-priority total: 67
+    Total Welfare: 530.18
+    High-priority total: 67, Low-priority total: 33
+    TOTAL ALLOCATED: 100 (pool: 100) ✓ Conservation OK
 
   Policy: GroupingPolicy[maxSize=3]
     Groups: 4
-    Total Welfare: 765.27
-    High-priority total: 150, Low-priority total: 150
+    Total Welfare: 525.01
+    High-priority total: 60, Low-priority total: 40
+    TOTAL ALLOCATED: 100 (pool: 100) ✓ Conservation OK
 
+  ✓ Resource conservation maintained across all policies
   ✓ Different policies lead to different allocation outcomes
   ✓ Smaller groups may reduce cross-agent optimization opportunities
 
