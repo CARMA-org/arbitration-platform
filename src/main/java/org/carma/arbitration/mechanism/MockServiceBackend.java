@@ -7,15 +7,21 @@ import java.util.concurrent.*;
 import java.util.function.Function;
 
 /**
- * Mock backend implementations for AI services.
- * 
- * Provides deterministic test responses for all service types, enabling:
+ * Mock backend implementation for AI services.
+ *
+ * Implements the ServiceBackend interface to provide deterministic test responses
+ * for all service types, enabling:
  * - Unit testing without external dependencies
  * - Integration testing of composition pipelines
  * - Performance benchmarking with controlled latency
  * - Failure injection for resilience testing
+ *
+ * For REAL LLM integration, use LLMServiceBackend instead.
+ *
+ * @see ServiceBackend
+ * @see LLMServiceBackend
  */
-public class MockServiceBackend {
+public class MockServiceBackend implements ServiceBackend {
 
     private final ServiceRegistry registry;
     private final Map<ServiceType, ServiceHandler> handlers;
@@ -126,36 +132,8 @@ public class MockServiceBackend {
         Map<String, Object> handle(Map<String, Object> input) throws Exception;
     }
 
-    /**
-     * Result of service invocation.
-     */
-    public static class InvocationResult {
-        private final boolean success;
-        private final Map<String, Object> output;
-        private final String error;
-        private final long durationMs;
-
-        private InvocationResult(boolean success, Map<String, Object> output, 
-                                String error, long durationMs) {
-            this.success = success;
-            this.output = output;
-            this.error = error;
-            this.durationMs = durationMs;
-        }
-
-        public static InvocationResult success(Map<String, Object> output, long durationMs) {
-            return new InvocationResult(true, output, null, durationMs);
-        }
-
-        public static InvocationResult failure(String error, long durationMs) {
-            return new InvocationResult(false, null, error, durationMs);
-        }
-
-        public boolean isSuccess() { return success; }
-        public Map<String, Object> getOutput() { return output; }
-        public String getError() { return error; }
-        public long getDurationMs() { return durationMs; }
-    }
+    // InvocationResult is defined in ServiceBackend interface
+    // Use ServiceBackend.InvocationResult for all invocation results
 
     public MockServiceBackend(ServiceRegistry registry) {
         this(registry, MockConfig.defaults());
@@ -221,12 +199,12 @@ public class MockServiceBackend {
     /**
      * Invoke a service synchronously.
      */
-    public InvocationResult invoke(String serviceId, Map<String, Object> input) {
+    public ServiceBackend.InvocationResult invoke(String serviceId, Map<String, Object> input) {
         long startTime = System.currentTimeMillis();
 
         Optional<AIService> serviceOpt = registry.get(serviceId);
         if (serviceOpt.isEmpty()) {
-            return InvocationResult.failure("Service not found: " + serviceId, 0);
+            return ServiceBackend.InvocationResult.failure("Service not found: " + serviceId, 0);
         }
 
         AIService service = serviceOpt.get();
@@ -234,12 +212,12 @@ public class MockServiceBackend {
         ServiceHandler handler = handlers.get(type);
 
         if (handler == null) {
-            return InvocationResult.failure("No handler for service type: " + type, 0);
+            return ServiceBackend.InvocationResult.failure("No handler for service type: " + type, 0);
         }
 
         // Check availability
         if (!service.isAvailable()) {
-            return InvocationResult.failure("Service unavailable: " + serviceId, 0);
+            return ServiceBackend.InvocationResult.failure("Service unavailable: " + serviceId, 0);
         }
 
         // Simulate latency
@@ -257,40 +235,40 @@ public class MockServiceBackend {
         if (config.failureRate > 0 && random.nextDouble() < config.failureRate) {
             long duration = System.currentTimeMillis() - startTime;
             logInvocation(serviceId, type, input, null, duration, false, "Simulated failure");
-            return InvocationResult.failure("Simulated failure", duration);
+            return ServiceBackend.InvocationResult.failure("Simulated failure", duration);
         }
 
         try {
             Map<String, Object> output = handler.handle(input);
             long duration = System.currentTimeMillis() - startTime;
             logInvocation(serviceId, type, input, output, duration, true, null);
-            return InvocationResult.success(output, duration);
+            return ServiceBackend.InvocationResult.success(output, duration);
 
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
             logInvocation(serviceId, type, input, null, duration, false, e.getMessage());
-            return InvocationResult.failure(e.getMessage(), duration);
+            return ServiceBackend.InvocationResult.failure(e.getMessage(), duration);
         }
     }
 
     /**
      * Invoke a service asynchronously.
      */
-    public CompletableFuture<InvocationResult> invokeAsync(String serviceId, Map<String, Object> input) {
+    public CompletableFuture<ServiceBackend.InvocationResult> invokeAsync(String serviceId, Map<String, Object> input) {
         return CompletableFuture.supplyAsync(() -> invoke(serviceId, input), executor);
     }
 
     /**
      * Invoke a service by type (auto-selects best available instance).
      */
-    public InvocationResult invokeByType(ServiceType type, Map<String, Object> input) {
+    public ServiceBackend.InvocationResult invokeByType(ServiceType type, Map<String, Object> input) {
         Optional<AIService> service = registry.query()
             .ofType(type)
             .availableOnly()
             .findBestByLatency();
 
         if (service.isEmpty()) {
-            return InvocationResult.failure("No available service of type: " + type, 0);
+            return ServiceBackend.InvocationResult.failure("No available service of type: " + type, 0);
         }
 
         return invoke(service.get().getServiceId(), input);
@@ -653,6 +631,7 @@ public class MockServiceBackend {
     /**
      * Shutdown the executor.
      */
+    @Override
     public void shutdown() {
         executor.shutdown();
         try {
@@ -663,6 +642,22 @@ public class MockServiceBackend {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * Check if this backend supports a specific service type.
+     */
+    @Override
+    public boolean supportsServiceType(ServiceType type) {
+        return handlers.containsKey(type);
+    }
+
+    /**
+     * Get the name of this backend.
+     */
+    @Override
+    public String getName() {
+        return "MockServiceBackend";
     }
 
     @Override

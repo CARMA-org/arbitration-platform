@@ -1,14 +1,15 @@
-# Arbitration Platform v0.5
+# Arbitration Platform v0.6
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
-A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality.
+A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Now with real LLM integration supporting Gemini, OpenAI, and Anthropic APIs.
 
 ## Quick Start
 
 ### Prerequisites
 - Java 21 or higher
 - (Optional) Python 3.8+ with cvxpy, clarabel, numpy for exact optimization
+- (Optional) API key for LLM integration (Gemini, OpenAI, or Anthropic)
 
 ### Run the Demo
 
@@ -26,11 +27,15 @@ cd arbitration-platform
 # Run only the asymptotic test
 ./run.sh --asymptotic
 
-# Run nonlinear utility demo
-java -cp out org.carma.arbitration.NonlinearUtilityDemo
+# Run realistic agent demos (with mock backend)
+./run.sh --agents
 
-# Run grouping policy demo
-java -cp out org.carma.arbitration.GroupingPolicyDemo
+# Run service composition demos
+./run.sh --services
+
+# Test REAL LLM integration (requires API key)
+export GEMINI_API_KEY="your_key_here"  # or OPENAI_API_KEY or ANTHROPIC_API_KEY
+java -cp out org.carma.arbitration.demo.LLMIntegrationTest
 ```
 
 Or compile and run directly:
@@ -43,9 +48,86 @@ javac -d out $(find src/main/java -name "*.java")
 java -cp out org.carma.arbitration.Demo --full
 ```
 
+## What's New in v0.6
+
+### Real LLM Integration
+
+The platform supports **real API calls** to LLM providers:
+
+| Provider | Models | Status |
+|----------|--------|--------|
+| **Gemini** | gemini-2.5-flash, gemini-2.0-flash | Tested |
+| **OpenAI** | gpt-4, gpt-3.5-turbo | Supported |
+| **Anthropic** | claude-3-opus, claude-3-sonnet | Supported |
+| **Local** | Ollama (llama2, etc.) | Supported |
+
+```java
+// Create a real LLM backend
+LLMServiceBackend backend = new LLMServiceBackend.Builder()
+    .fromEnvironment()  // Reads GEMINI_API_KEY, OPENAI_API_KEY, etc.
+    .logRequests(true)
+    .build();
+
+// Use in agent runtime - agents now make REAL LLM calls
+AgentRuntime runtime = new AgentRuntime.Builder()
+    .serviceBackend(backend)
+    .build();
+```
+
+### Pluggable Service Backend Architecture
+
+New `ServiceBackend` interface enables swapping mock backends for real LLM integration:
+
+| Component | Description |
+|-----------|-------------|
+| **ServiceBackend.java** | Interface for pluggable backends |
+| **MockServiceBackend.java** | Simulated backend for testing |
+| **LLMServiceBackend.java** | Real LLM backend (Gemini, OpenAI, Anthropic) |
+
+### Realistic Agent Framework
+
+Production-ready agent implementations:
+
+| Agent | Description | Autonomy |
+|-------|-------------|----------|
+| **NewsSearchAgent** | Searches news, posts to Signal | TOOL |
+| **CodeReviewAgent** | Analyzes code, suggests improvements | LOW |
+| **ResearchAssistant** | Multi-step research with citations | MEDIUM |
+| **DataPipelineAgent** | Autonomous ETL orchestration | HIGH |
+| **TradingAgent** | Market analysis and trading | HIGH |
+| **ContentModerationAgent** | Reviews content, applies policies | LOW |
+
+### A+G+I Safety Monitoring
+
+Monitors for dangerous capability conjunctions:
+
+- **A** (Autonomy): Can the agent act without human approval?
+- **G** (Generality): Can the agent handle diverse domains?
+- **I** (Intelligence): Does the agent show advanced reasoning?
+
+```java
+AGIEmergenceMonitor monitor = new AGIEmergenceMonitor();
+monitor.registerAgent(agent);
+AGIEmergenceMonitor.RiskAssessment risk = monitor.assessAgent(agentId);
+// risk.getOverallRisk() → LOW, MEDIUM, HIGH, CRITICAL
+```
+
+### Configuration Validation
+
+Load-time validation with detailed error messages:
+
+| Validation | Description |
+|------------|-------------|
+| **Agent Configuration** | Validates autonomy levels, goals, permissions |
+| **Utility Functions** | Validates function types, parameters, weights |
+| **Service Compositions** | DAG validation, depth limits, compatibility |
+| **Safety Constraints** | A+G+I limits, rate limits, circuit breakers |
+
+---
+
 ## What's New in v0.5
 
-### Grouping Policy Configuration (Task #2)
+### Grouping Policy Configuration
 
 Configurable policies for controlling how agents get grouped for joint optimization, trading off Pareto optimality for performance:
 
@@ -81,7 +163,7 @@ Configurable policies for controlling how agents get grouped for joint optimizat
 
 ## What's New in v0.4
 
-### Nonlinear Preference Functions (Task #3)
+### Nonlinear Preference Functions
 
 Support for concave utility functions that model diminishing returns and resource complementarities:
 
@@ -102,7 +184,7 @@ Support for concave utility functions that model diminishing returns and resourc
 | **NonlinearUtilityDemo.java** | Demonstration of all utility function types |
 | **joint_solver.py** | Updated Python solver with nonlinear utility support |
 
-### AI Service Integration (Task #7)
+### AI Service Integration
 
 | Component | Description |
 |-----------|-------------|
@@ -118,24 +200,24 @@ Support for concave utility functions that model diminishing returns and resourc
 arbitration-platform/
 ├── src/main/java/org/carma/arbitration/
 │   ├── model/                    # Data models (12 files)
-│   │   ├── Agent.java           
+│   │   ├── Agent.java
 │   │   ├── ResourceType.java    # 6 types including API_CREDITS
-│   │   ├── ResourceBundle.java  
-│   │   ├── ResourcePool.java    
+│   │   ├── ResourceBundle.java
+│   │   ├── ResourcePool.java
 │   │   ├── PreferenceFunction.java  # Linear preferences (legacy)
-│   │   ├── UtilityFunction.java     # Nonlinear utilities (NEW)
-│   │   ├── Contention.java      
+│   │   ├── UtilityFunction.java     # Nonlinear utilities
+│   │   ├── Contention.java
 │   │   ├── AllocationResult.java
 │   │   ├── ServiceType.java         # 15 AI service types
 │   │   ├── AIService.java           # Service model with QoS
 │   │   ├── ServiceComposition.java  # DAG pipelines
 │   │   └── ServiceRegistry.java     # Service discovery
-│   ├── mechanism/                # Core algorithms (13 files)
+│   ├── mechanism/                # Core algorithms (16 files)
 │   │   ├── ProportionalFairnessArbitrator.java  # Water-filling
 │   │   ├── PriorityEconomy.java              # EMA-smoothed multipliers
 │   │   ├── ContentionDetector.java           # Connected components
-│   │   ├── GroupingPolicy.java               # Policy configuration (NEW)
-│   │   ├── GroupingSplitter.java             # Policy-based splitting (NEW)
+│   │   ├── GroupingPolicy.java               # Policy configuration
+│   │   ├── GroupingSplitter.java             # Policy-based splitting
 │   │   ├── EmbargoQueue.java                 # Request batching
 │   │   ├── SafetyMonitor.java                # Invariant checking
 │   │   ├── TransactionManager.java           # Atomic commit/rollback
@@ -143,23 +225,40 @@ arbitration-platform/
 │   │   ├── SequentialJointArbitrator.java    # Fallback
 │   │   ├── GradientJointArbitrator.java      # Pure Java (~97-99% optimal)
 │   │   ├── ConvexJointArbitrator.java        # Python+Clarabel (exact)
-│   │   └── ServiceArbitrator.java            # Service allocation
+│   │   ├── ServiceArbitrator.java            # Service allocation
+│   │   ├── ServiceBackend.java               # Pluggable backend interface (NEW)
+│   │   ├── MockServiceBackend.java           # Mock backend for testing (NEW)
+│   │   └── LLMServiceBackend.java            # Real LLM backend (NEW)
+│   ├── agent/                    # Realistic agent framework (NEW)
+│   │   ├── RealisticAgentFramework.java      # Core framework
+│   │   └── ExampleAgents.java                # 6 working agent implementations
+│   ├── safety/                   # Safety monitoring (NEW)
+│   │   ├── AGIEmergenceMonitor.java          # A+G+I conjunction detection
+│   │   ├── ConfigurationValidator.java       # Load-time validation
+│   │   └── ServiceCompositionAnalyzer.java   # Composition depth analysis
+│   ├── demo/                     # Demo applications (NEW)
+│   │   ├── RealisticAgentDemo.java           # Realistic agent scenarios
+│   │   └── LLMIntegrationTest.java           # Real LLM API testing
 │   ├── event/                    # Event system (2 files)
-│   │   ├── Event.java           
-│   │   └── EventBus.java        
+│   │   ├── Event.java
+│   │   └── EventBus.java
 │   ├── simulation/               # Testing (2 files)
-│   │   ├── AsymptoticSimulation.java  
-│   │   └── SimulationMetrics.java     
+│   │   ├── AsymptoticSimulation.java
+│   │   └── SimulationMetrics.java
 │   ├── Demo.java                 # 12 validation scenarios
+│   ├── ServiceDemo.java          # Service integration demo
 │   ├── NonlinearUtilityDemo.java # Nonlinear utility demos
-│   └── GroupingPolicyDemo.java   # Grouping policy demos (NEW)
+│   └── GroupingPolicyDemo.java   # Grouping policy demos
+├── config/
+│   └── ai-config.properties      # AI provider configuration (NEW)
 ├── scripts/
 │   └── joint_solver.py          # Python solver (Clarabel + nonlinear utilities)
 ├── docs/
-│   └── CLARABEL_INTEGRATION.md  
-├── pom.xml                       
-├── run.sh                        
-└── README.md                     
+│   └── CLARABEL_INTEGRATION.md
+├── .env.example                  # Environment variable template (NEW)
+├── pom.xml
+├── run.sh
+└── README.md
 ```
 
 ## Validation Scenarios
@@ -277,6 +376,11 @@ Without Clarabel, the system uses pure Java gradient ascent which achieves
 
 | Component | Status | Notes |
 |-----------|--------|-------|
+| **v0.6 - Real LLM Integration** | ✅ Done | Gemini, OpenAI, Anthropic support |
+| **v0.6 - ServiceBackend Interface** | ✅ Done | Pluggable backend architecture |
+| **v0.6 - Realistic Agent Framework** | ✅ Done | 6 working agent implementations |
+| **v0.6 - A+G+I Safety Monitoring** | ✅ Done | Conjunction risk detection |
+| **v0.6 - Configuration Validation** | ✅ Done | Load-time validation |
 | Grouping Policy | ✅ Done | K-hop limits, size bounds, compatibility matrices |
 | Joint Optimization | ✅ Done | Clarabel working with 2.73% welfare gain |
 | Nonlinear Utilities | ✅ Done | 11 utility types |
@@ -911,7 +1015,7 @@ ALL DEMONSTRATIONS COMPLETE
 ════════════════════════════════════════════════════════════════════════
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║           GROUPING POLICY CONFIGURATION DEMO (Task #2)                      ║
+║                    GROUPING POLICY CONFIGURATION DEMO                        ║
 ║  Configurable policies for trading off Pareto optimality vs performance     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 

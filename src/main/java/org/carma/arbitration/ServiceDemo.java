@@ -502,7 +502,7 @@ public class ServiceDemo {
             .addNode("step2", ServiceType.VECTOR_SEARCH)
             .addNode("step3", ServiceType.TEXT_GENERATION)
             .connect("step1", "step2", ServiceType.DataType.VECTOR)
-            .connect("step2", "step3", ServiceType.DataType.TEXT)
+            .connect("step2", "step3", ServiceType.DataType.STRUCTURED)
             .build();
 
         pipeline.validate();

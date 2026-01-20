@@ -8,18 +8,18 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Demonstration of Grouping Policy Configuration (Task #2).
- * 
+ * Demonstration of Grouping Policy Configuration.
+ *
  * Shows how configurable policies (k-hop limits, size bounds, compatibility matrices)
  * allow trading off Pareto optimality for performance in multi-agent arbitration.
- * 
+ *
  * Run with: java -cp out org.carma.arbitration.GroupingPolicyDemo
  */
 public class GroupingPolicyDemo {
 
     public static void main(String[] args) {
         System.out.println("╔══════════════════════════════════════════════════════════════════════════════╗");
-        System.out.println("║           GROUPING POLICY CONFIGURATION DEMO (Task #2)                      ║");
+        System.out.println("║                    GROUPING POLICY CONFIGURATION DEMO                        ║");
         System.out.println("║  Configurable policies for trading off Pareto optimality vs performance     ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════╝");
         System.out.println();
