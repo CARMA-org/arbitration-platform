@@ -1265,7 +1265,7 @@ ALL GROUPING POLICY SCENARIOS COMPLETED
 ## Realistic Agent Demo Output (`./run.sh --agents`)
 
 This demo shows the v0.6 realistic agent framework with:
-- **NewsSearchAgent**: Richard's example of a "narrow tailored agent with low autonomy"
+- **NewsSearchAgent**: Example of a narrow, tailored agent with low autonomy
 - **Multi-agent environment**: 5 agents with different autonomy levels competing for resources
 - **A+G+I Emergence Monitoring**: Conjunction detection for safety
 - **Autonomy levels**: TOOL, LOW, MEDIUM, HIGH with different checkpoint requirements
@@ -1290,8 +1290,8 @@ AgentRuntime runtime = new AgentRuntime.Builder()
 
 SCENARIO 1: NEWS SEARCH AGENT
 ────────────────────────────────────────────────────────────
-Purpose: Demonstrate Richard's example of a 'narrow tailored
-         agent with low autonomy' - searches news and posts
+Purpose: Demonstrate a narrow, tailored agent with low autonomy
+         that searches news and posts
          to a signal channel.
 
 Agent Configuration:

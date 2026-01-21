@@ -15,16 +15,14 @@ import java.util.*;
 
 /**
  * Demonstration of Realistic Agents with AGI Emergence Monitoring.
- * 
- * This demo addresses Richard's key requirements:
- * 1. "What we need is to take some agents and actually allow people to implement 
- *    this with real agents" - Shows working agent implementations
- * 2. "The safety aspect... A+G+I monitor" - Demonstrates conjunction detection
- * 3. Milestone 3: "broader support for goal structures, preference structures, 
- *    and situational awareness" - Shows all three
- * 
- * The demo shows:
- * - NewsSearchAgent: Richard's example of "narrow tailored agent with low autonomy"
+ *
+ * This demo showcases:
+ * 1. Working agent implementations with real service invocations
+ * 2. A+G+I conjunction detection for safety monitoring
+ * 3. Goal structures, preference structures, and situational awareness
+ *
+ * Scenarios include:
+ * - NewsSearchAgent: A narrow, tailored agent with low autonomy
  * - Multiple agents with different autonomy levels
  * - Real-time A+G+I monitoring with alerts
  * - Output channels for agent communication
@@ -53,14 +51,14 @@ public class RealisticAgentDemo {
     }
     
     // ========================================================================
-    // SCENARIO 1: News Search Agent (Richard's Example)
+    // SCENARIO 1: News Search Agent (Low Autonomy Example)
     // ========================================================================
-    
+
     static void runScenario1_NewsAgent() {
         System.out.println("SCENARIO 1: NEWS SEARCH AGENT");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Demonstrate Richard's example of a 'narrow tailored");
-        System.out.println("         agent with low autonomy' - searches news and posts");
+        System.out.println("Purpose: Demonstrate a narrow, tailored agent with low autonomy");
+        System.out.println("         that searches news and posts");
         System.out.println("         to a signal channel.");
         System.out.println();
         

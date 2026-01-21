@@ -19,8 +19,8 @@ import java.util.*;
  * - Publishes outputs to channels
  * - Operates within defined autonomy bounds
  * 
- * This addresses Richard's requirement: "What we need is to take some agents and
- * actually allow people to implement this with real agents."
+ * These agents demonstrate real-world use cases where agents operate within
+ * defined autonomy bounds and interact through the arbitration platform.
  */
 public class ExampleAgents {
 
@@ -30,8 +30,8 @@ public class ExampleAgents {
     
     /**
      * A narrow, tailored agent that searches for relevant news and publishes
-     * to a signal channel. This is Richard's example of a "narrow tailored
-     * agent with low autonomy."
+     * to a signal channel. This demonstrates a low-autonomy agent pattern
+     * suitable for periodic information gathering tasks.
      * 
      * Characteristics:
      * - Low autonomy: Periodic execution, single-step actions

@@ -13,8 +13,8 @@ import java.util.concurrent.CompletableFuture;
  * - LLMServiceBackend: For real LLM API calls (OpenAI, Anthropic, etc.)
  * - CustomServiceBackend: For user-defined backends
  *
- * This addresses Richard's requirement: "What we need is to take some agents and
- * actually allow people to implement this with real agents."
+ * This abstraction enables integration with real AI agents by allowing
+ * implementations to make actual LLM API calls.
  *
  * To integrate real LLMs:
  * 1. Implement this interface with your API client

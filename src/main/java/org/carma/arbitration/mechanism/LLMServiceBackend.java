@@ -17,9 +17,8 @@ import java.util.function.Function;
  * This backend makes REAL API calls to LLM providers (OpenAI, Anthropic, etc.)
  * instead of returning mock responses.
  *
- * This is the KEY component that enables Richard's requirement:
- * "What we need is to take some agents and actually allow people to
- * implement this with real agents."
+ * This is the key component that enables real AI agent integration,
+ * allowing agents to make actual LLM calls instead of using mock responses.
  *
  * Usage:
  * <pre>
