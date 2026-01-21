@@ -500,17 +500,18 @@ public class MockServiceBackend implements ServiceBackend {
         @SuppressWarnings("unchecked")
         double[] query = (double[]) input.getOrDefault("query_vector", new double[768]);
         int k = (int) input.getOrDefault("k", 5);
-        
-        // Mock search results
+
+        // Mock search results with title and content for agents
         List<Map<String, Object>> results = new ArrayList<>();
         for (int i = 0; i < k; i++) {
             results.add(Map.of(
                 "id", "doc_" + (i + 1),
+                "title", "Document " + (i + 1),
                 "score", 0.95 - (i * 0.05),
                 "content", "Mock document " + (i + 1) + " content"
             ));
         }
-        
+
         return Map.of(
             "results", results,
             "query_time_ms", 12,
@@ -520,15 +521,31 @@ public class MockServiceBackend implements ServiceBackend {
 
     private Map<String, Object> handleKnowledgeRetrieval(Map<String, Object> input) {
         String query = (String) input.getOrDefault("query", "");
-        
-        return Map.of(
-            "passages", List.of(
-                Map.of("text", "Relevant knowledge passage 1 for: " + query, "relevance", 0.92),
-                Map.of("text", "Relevant knowledge passage 2 for: " + query, "relevance", 0.85)
-            ),
-            "sources", List.of("knowledge_base_1", "knowledge_base_2"),
-            "answer", "Based on retrieved knowledge: Mock answer for " + query
-        );
+
+        // Create mutable result maps (agents may add fields like "topic")
+        Map<String, Object> result1 = new HashMap<>();
+        result1.put("title", "News: " + query);
+        result1.put("content", "Relevant knowledge passage 1 for: " + query);
+        result1.put("text", "Relevant knowledge passage 1 for: " + query);
+        result1.put("relevance", 0.92);
+
+        Map<String, Object> result2 = new HashMap<>();
+        result2.put("title", "Update: " + query);
+        result2.put("content", "Relevant knowledge passage 2 for: " + query);
+        result2.put("text", "Relevant knowledge passage 2 for: " + query);
+        result2.put("relevance", 0.85);
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        results.add(result1);
+        results.add(result2);
+
+        Map<String, Object> output = new HashMap<>();
+        output.put("results", results);  // For agents (NewsSearchAgent, ResearchAssistant)
+        output.put("passages", results); // Backward compatibility
+        output.put("sources", List.of("knowledge_base_1", "knowledge_base_2"));
+        output.put("answer", "Based on retrieved knowledge: Mock answer for " + query);
+
+        return output;
     }
 
     // ========================================================================

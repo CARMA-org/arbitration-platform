@@ -1259,3 +1259,154 @@ ALL GROUPING POLICY SCENARIOS COMPLETED
    ALL DEMONSTRATIONS COMPLETE
 ════════════════════════════════════════════════════════════════════════
 ```
+
+---
+
+## Realistic Agent Demo Output (`./run.sh --agents`)
+
+This demo shows the v0.6 realistic agent framework with:
+- **NewsSearchAgent**: Richard's example of a "narrow tailored agent with low autonomy"
+- **Multi-agent environment**: 5 agents with different autonomy levels competing for resources
+- **A+G+I Emergence Monitoring**: Conjunction detection for safety
+- **Autonomy levels**: TOOL, LOW, MEDIUM, HIGH with different checkpoint requirements
+
+**Note:** By default, agents use the **MockServiceBackend** which returns deterministic test responses. To use **real LLM APIs**, set environment variables (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`) and use `LLMServiceBackend`:
+
+```java
+LLMServiceBackend backend = new LLMServiceBackend.Builder()
+    .fromEnvironment()  // Reads API keys from environment
+    .build();
+
+AgentRuntime runtime = new AgentRuntime.Builder()
+    .serviceBackend(backend)  // Real LLM calls instead of mocks
+    .build();
+```
+
+```text
+════════════════════════════════════════════════════════════════════════
+   REALISTIC AGENT DEMONSTRATION
+   With AGI Emergence Monitoring (A+G+I Conjunction Detection)
+════════════════════════════════════════════════════════════════════════
+
+SCENARIO 1: NEWS SEARCH AGENT
+────────────────────────────────────────────────────────────
+Purpose: Demonstrate Richard's example of a 'narrow tailored
+         agent with low autonomy' - searches news and posts
+         to a signal channel.
+
+Agent Configuration:
+  ID: news-ai-safety
+  Name: AI Safety News Monitor
+  Autonomy Level: Low
+  Max Autonomous Span: 15 minutes
+  Required Services: [Knowledge Retrieval, Text Generation]
+  Operating Domains: [news, information_retrieval]
+  Goals: 1
+    - Goal[periodic-news-search: Search for news on configured topics, type=PERIODIC, priority=5, status=PENDING]
+
+Running News Agent...
+
+[news-ai-safety] Starting news search for topics: [AI safety, LLM capabilities, AI governance, alignment research]
+[news-ai-safety] Found 8 total results
+
+Execution Result:
+  GoalResult[SUCCESS: Found 8 news items, 47ms]
+  Services Used: [KNOWLEDGE_RETRIEVAL, KNOWLEDGE_RETRIEVAL, KNOWLEDGE_RETRIEVAL, KNOWLEDGE_RETRIEVAL, TEXT_GENERATION]
+  Execution Time: 47ms
+
+Messages Published to Signal Channel:
+  [news_update] {summary=..., topics=[AI safety, LLM capabilities, AI governance, alignment research],
+                 type=news_summary, result_count=8, timestamp=...}
+
+Agent Metrics:
+  Metrics[goals=1/1 (100%), services=5, time=47ms]
+
+  ✓ PASS: News agent executed successfully with bounded autonomy
+
+SCENARIO 2: MULTI-AGENT ENVIRONMENT
+────────────────────────────────────────────────────────────
+Purpose: Demonstrate multiple agents with different autonomy
+         levels operating through the arbitration platform.
+
+Registered Agents:
+  Agent ID             Autonomy        Services Used
+  -------------------------------------------------------
+  news-tech            Low             2 types
+  code-reviewer        Low             2 types
+  doc-summarizer       Tool-like       1 types
+  research-ai          Medium          4 types
+  sys-monitor          Low             0 types
+
+Resource Competition Scenario:
+  All agents compete for limited TEXT_GENERATION capacity
+  Arbitration uses weighted proportional fairness
+
+Agent Autonomy Comparison:
+  news-tech:        Low autonomy, 15 min max span, domains: [news, information_retrieval]
+  code-reviewer:    Low autonomy, 15 min max span, domains: [software_development, code_quality]
+  doc-summarizer:   Tool-like, no autonomous span, domains: [document_processing]
+  research-ai:      Medium autonomy, 1 hour max span, domains: [AI safety, ML, research]
+  sys-monitor:      Low autonomy, 15 min max span, domains: [operations, monitoring]
+
+  ✓ PASS: Multi-agent environment running with resource arbitration
+
+SCENARIO 3: AGI EMERGENCE DETECTION (A+G+I MONITOR)
+────────────────────────────────────────────────────────────
+Purpose: Demonstrate the conjunction detection monitor that
+         tracks Autonomy, Generality, and Intelligence scores.
+
+The CAIS Safety Model:
+  Any SINGLE property at high levels is manageable:
+  - High Autonomy alone: Specialized automation, bounded damage
+  - High Generality alone: Versatile tool, but human-controlled
+  - High Intelligence alone: Powerful oracle, but human-directed
+
+  The DANGER is the CONJUNCTION: High A + High G + High I =
+  System that can effectively pursue goals across domains
+  without meaningful human oversight.
+
+Monitor Configuration:
+  Autonomy threshold: 0.70
+  Generality threshold: 0.70
+  Intelligence threshold: 0.70
+
+Agent 1: 'narrow-tool' (Safe Narrow Agent)
+  Scores: A=0.00, G=0.02, I=0.00
+  Conjunction Risk: Low
+  Recommended Intervention: Observe
+
+Agent 2: 'wide-tool' (Moderate Concern - High Generality)
+  Scores: A=0.00, G=0.81 ⚠ FLAGGED, I=0.00
+  Conjunction Risk: Moderate
+  Recommended Intervention: Alert
+
+Agent 3: 'autonomous-general' (HIGH CONCERN - Multi-dimension)
+  ⚠ PATTERN: Tool Making detected
+  ⚠ PATTERN: Instrumental Goal Pursuit detected
+  Scores: A=0.61, G=0.81 ⚠ FLAGGED, I=0.65
+  Conjunction Risk: Moderate
+  Recommended Intervention: Suspend
+
+  ✓ PASS: AGI emergence detection working correctly
+
+SCENARIO 4: AUTONOMY LEVEL COMPARISON
+────────────────────────────────────────────────────────────
+Autonomy Level Definitions:
+
+  TOOL-LIKE (level 0): Only acts when explicitly invoked
+  LOW (level 1):       15 min max span, periodic single-step tasks
+  MEDIUM (level 2):    1 hour max span, multi-step goals, service chaining
+  HIGH (level 3):      4 hour max span, complex goals, requires A+G+I monitoring
+
+Safety Implications:
+  TOOL:   Safest - never self-schedule, always human-initiated
+  LOW:    Safe for narrow tasks - periodic execution, frequent checkpoints
+  MEDIUM: Requires monitoring - can chain services, hourly checkpoints
+  HIGH:   Comprehensive monitoring essential - A+G+I conjunction tracking
+
+  ✓ PASS: Autonomy levels correctly bounded
+
+════════════════════════════════════════════════════════════════════════
+   REALISTIC AGENT DEMONSTRATION COMPLETE
+════════════════════════════════════════════════════════════════════════
+```
