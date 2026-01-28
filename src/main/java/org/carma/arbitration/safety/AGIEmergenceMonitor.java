@@ -26,8 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * The danger is the conjunction: high A + high G + high I = system that can
  * effectively pursue goals across domains without meaningful oversight.
  * 
- * This addresses the safety requirements in v0.5plus-requests.md and
- * supports Milestone 3's "situational awareness (of the arbiter)."
+ * This implements the CAIS (Comprehensive AI Services) safety model,
+ * providing situational awareness for the arbitration platform.
  */
 public class AGIEmergenceMonitor {
 

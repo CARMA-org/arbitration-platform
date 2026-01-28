@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
  * 
  * Integrates with EventBus as a subscriber to ServiceInvocationEvents.
  * 
- * From v0.5plus-requests.md:
- * "You have services; you need observability into how they're composed."
+ * Key principle: Services are narrow, but composition enables emergent
+ * capabilities. Observability into composition patterns is essential.
  */
 public class ServiceCompositionAnalyzer {
 
@@ -53,10 +53,10 @@ public class ServiceCompositionAnalyzer {
         }
         
         /**
-         * Default configuration per v0.5plus-requests.md:
-         * soft_depth_limit: 10
-         * hard_depth_limit: 15
-         * enforce_hard_limit: false
+         * Default configuration for service composition safety:
+         * soft_depth_limit: 10 (alert when exceeded)
+         * hard_depth_limit: 15 (block if enforced)
+         * enforce_hard_limit: false (alerting only by default)
          */
         public static CompositionConfig defaults() {
             Set<ServiceTypePair> defaultConcerns = new HashSet<>();
@@ -696,7 +696,7 @@ public class ServiceCompositionAnalyzer {
         System.out.println("=".repeat(70));
         System.out.println();
         System.out.println("This demonstrates the CAIS safety monitoring of service composition.");
-        System.out.println("Per v0.5plus-requests.md: 'You have services; you need observability'");
+        System.out.println("Key insight: Services are narrow, but composition needs observability.");
         System.out.println();
         
         // Create analyzer with default config

@@ -7,6 +7,8 @@ import org.carma.arbitration.agent.RealisticAgentFramework.*;
 import org.carma.arbitration.agent.ExampleAgents.*;
 import org.carma.arbitration.safety.AGIEmergenceMonitor;
 import org.carma.arbitration.safety.AGIEmergenceMonitor.*;
+import org.carma.arbitration.safety.ServiceCompositionAnalyzer;
+import org.carma.arbitration.safety.ServiceCompositionAnalyzer.*;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -44,6 +46,7 @@ public class RealisticAgentDemo {
         runScenario2_MultiAgentEnvironment();
         runScenario3_AGIEmergenceDetection();
         runScenario4_AutonomyLevelComparison();
+        runScenario5_ServiceCompositionSafety();
         
         System.out.println(SEP);
         System.out.println("   REALISTIC AGENT DEMONSTRATION COMPLETE");
@@ -536,7 +539,202 @@ public class RealisticAgentDemo {
             case HIGH -> "Complex goals, strategy adaptation (requires full A+G+I monitoring)";
         };
     }
-    
+
+    // ========================================================================
+    // SCENARIO 5: Service Composition Safety Monitoring
+    // ========================================================================
+
+    static void runScenario5_ServiceCompositionSafety() {
+        System.out.println("SCENARIO 5: SERVICE COMPOSITION SAFETY MONITORING");
+        System.out.println(SUBSEP);
+        System.out.println("Purpose: Demonstrate the ServiceCompositionAnalyzer tracking");
+        System.out.println("         multi-service workflows, measuring composition depth,");
+        System.out.println("         and triggering alerts when thresholds are exceeded.");
+        System.out.println();
+        System.out.println("The CAIS Safety Story:");
+        System.out.println("  Individual services are narrow and bounded. But COMPOSITION");
+        System.out.println("  can enable emergent capabilities. Deep service chains may");
+        System.out.println("  indicate complex reasoning or self-modification patterns.");
+        System.out.println("  This analyzer provides observability into service composition.");
+        System.out.println();
+
+        // Create analyzer with a low threshold for demonstration
+        CompositionConfig config = new CompositionConfig(
+            5,    // softDepthLimit - alert when exceeded
+            8,    // hardDepthLimit - could block if enforced
+            false, // enforceHardLimit - don't block, just alert
+            ServiceCompositionAnalyzer.CompositionConfig.defaults().getConcerningCombinations(),
+            java.time.Duration.ofHours(1)
+        );
+
+        ServiceCompositionAnalyzer analyzer = new ServiceCompositionAnalyzer(config);
+
+        System.out.println("Analyzer Configuration:");
+        System.out.println("  Soft Depth Limit: " + config.getSoftDepthLimit() +
+            " (alert when exceeded)");
+        System.out.println("  Hard Depth Limit: " + config.getHardDepthLimit() +
+            " (could block if enforced)");
+        System.out.println("  Enforce Hard Limit: " + config.isEnforceHardLimit());
+        System.out.println("  Concerning Combinations: " + config.getConcerningCombinations());
+        System.out.println();
+
+        // Add alert listener
+        List<SafetyAlert> capturedAlerts = new ArrayList<>();
+        analyzer.addAlertListener(alert -> {
+            capturedAlerts.add(alert);
+            System.out.println("  [ALERT] " + alert.getSeverity() + ": " + alert.getMessage());
+        });
+
+        // ----------------------------------------------------------------
+        // Workflow 1: Simple RAG Pipeline (within limits)
+        // ----------------------------------------------------------------
+        System.out.println("-".repeat(60));
+        System.out.println("Workflow 1: Simple RAG Pipeline (within limits)");
+        System.out.println("-".repeat(60));
+        System.out.println();
+
+        String ragAgent = "rag-pipeline-agent";
+
+        // Simulate: KNOWLEDGE_RETRIEVAL → VECTOR_SEARCH → TEXT_GENERATION
+        ServiceInvocationEvent rag1 = new ServiceInvocationEvent(
+            ragAgent, ServiceType.KNOWLEDGE_RETRIEVAL, "rag-1", null);
+        analyzer.handleInvocation(rag1);
+
+        ServiceInvocationEvent rag2 = new ServiceInvocationEvent(
+            ragAgent, ServiceType.VECTOR_SEARCH, "rag-2", "rag-1");
+        analyzer.handleInvocation(rag2);
+
+        ServiceInvocationEvent rag3 = new ServiceInvocationEvent(
+            ragAgent, ServiceType.TEXT_GENERATION, "rag-3", "rag-2");
+        analyzer.handleInvocation(rag3);
+
+        CompositionMetrics ragMetrics = analyzer.getMetrics(ragAgent);
+        System.out.println("  Agent: " + ragAgent);
+        System.out.println("  Service Chain: KNOWLEDGE_RETRIEVAL → VECTOR_SEARCH → TEXT_GENERATION");
+        System.out.println("  Composition Depth: " + ragMetrics.getMaxDepthObserved());
+        System.out.println("  Total Invocations: " + ragMetrics.getTotalInvocations());
+        System.out.println("  Service Types Used: " + ragMetrics.getUniqueServiceTypes());
+        System.out.println("  Status: ✓ NORMAL (depth " + ragMetrics.getMaxDepthObserved() +
+            " <= soft limit " + config.getSoftDepthLimit() + ")");
+        System.out.println();
+
+        // ----------------------------------------------------------------
+        // Workflow 2: Deep Research Chain (exceeds soft limit)
+        // ----------------------------------------------------------------
+        System.out.println("-".repeat(60));
+        System.out.println("Workflow 2: Deep Research Chain (exceeds soft limit)");
+        System.out.println("-".repeat(60));
+        System.out.println();
+
+        String researchAgent = "deep-research-agent";
+
+        // Build a chain of 7 invocations (exceeds soft limit of 5)
+        System.out.println("  Building service chain...");
+        ServiceType[] chainTypes = {
+            ServiceType.KNOWLEDGE_RETRIEVAL,
+            ServiceType.TEXT_SUMMARIZATION,
+            ServiceType.REASONING,
+            ServiceType.KNOWLEDGE_RETRIEVAL,
+            ServiceType.CODE_ANALYSIS,  // This + REASONING is concerning combo
+            ServiceType.TEXT_GENERATION,
+            ServiceType.TEXT_SUMMARIZATION
+        };
+
+        String parentId = null;
+        for (int i = 0; i < chainTypes.length; i++) {
+            String invId = "research-" + (i + 1);
+            ServiceInvocationEvent event = new ServiceInvocationEvent(
+                researchAgent, chainTypes[i], invId, parentId);
+            InvocationResult result = analyzer.handleInvocation(event);
+
+            int depth = analyzer.getCurrentDepth(researchAgent);
+            String depthIndicator = depth > config.getSoftDepthLimit() ? " ⚠" : "";
+            System.out.println("    Step " + (i + 1) + ": " + chainTypes[i] +
+                " (depth=" + depth + ")" + depthIndicator);
+
+            parentId = invId;
+        }
+        System.out.println();
+
+        CompositionMetrics researchMetrics = analyzer.getMetrics(researchAgent);
+        System.out.println("  Agent: " + researchAgent);
+        System.out.println("  Composition Depth: " + researchMetrics.getMaxDepthObserved() +
+            " (exceeds soft limit " + config.getSoftDepthLimit() + ")");
+        System.out.println("  Concerning Pairs Found: " + researchMetrics.getConcerningPairCount());
+        System.out.println("  Service Diversity: " +
+            String.format("%.0f%%", researchMetrics.getServiceDiversity() * 100));
+        System.out.println();
+
+        // ----------------------------------------------------------------
+        // Workflow 3: Concerning Service Combination
+        // ----------------------------------------------------------------
+        System.out.println("-".repeat(60));
+        System.out.println("Workflow 3: Concerning Service Combination Detection");
+        System.out.println("-".repeat(60));
+        System.out.println();
+
+        String concerningAgent = "self-modify-risk-agent";
+
+        // REASONING + CODE_ANALYSIS is a concerning combination
+        // (can enable self-modification patterns)
+        System.out.println("  Chain: REASONING → CODE_ANALYSIS");
+        System.out.println("  This combination is flagged because reasoning + code analysis");
+        System.out.println("  could enable self-modification patterns.");
+        System.out.println();
+
+        ServiceInvocationEvent concern1 = new ServiceInvocationEvent(
+            concerningAgent, ServiceType.REASONING, "concern-1", null);
+        analyzer.handleInvocation(concern1);
+
+        ServiceInvocationEvent concern2 = new ServiceInvocationEvent(
+            concerningAgent, ServiceType.CODE_ANALYSIS, "concern-2", "concern-1");
+        analyzer.handleInvocation(concern2);
+
+        System.out.println();
+
+        // ----------------------------------------------------------------
+        // Summary
+        // ----------------------------------------------------------------
+        System.out.println("-".repeat(60));
+        System.out.println("Alert Summary");
+        System.out.println("-".repeat(60));
+        System.out.println();
+
+        System.out.println("  Total Alerts Generated: " + capturedAlerts.size());
+
+        Map<SafetyAlert.AlertType, Long> byType = capturedAlerts.stream()
+            .collect(java.util.stream.Collectors.groupingBy(
+                SafetyAlert::getType, java.util.stream.Collectors.counting()));
+
+        for (SafetyAlert.AlertType type : SafetyAlert.AlertType.values()) {
+            long count = byType.getOrDefault(type, 0L);
+            if (count > 0) {
+                System.out.println("    " + type + ": " + count);
+            }
+        }
+        System.out.println();
+
+        // Demonstrate getting the full service chain
+        System.out.println("  Service Chain Analysis for deep-research-agent:");
+        List<ServiceType> chain = analyzer.getServiceChain(researchAgent, "research-7");
+        System.out.println("    Full chain: " + chain);
+        System.out.println();
+
+        // CAIS connection
+        System.out.println("Connection to CAIS Safety Thesis:");
+        System.out.println("  Service boundaries create information bottlenecks.");
+        System.out.println("  By monitoring composition depth and service combinations,");
+        System.out.println("  we can detect when agents are building complex capabilities");
+        System.out.println("  that may exceed intended boundaries.");
+        System.out.println();
+
+        boolean passed = capturedAlerts.stream()
+            .anyMatch(a -> a.getType() == SafetyAlert.AlertType.DEPTH_SOFT_LIMIT_EXCEEDED);
+        System.out.println("  " + (passed ? "✓ PASS" : "✗ FAIL") +
+            ": ServiceCompositionAnalyzer correctly detected deep composition");
+        System.out.println();
+    }
+
     // ========================================================================
     // HELPER METHODS
     // ========================================================================

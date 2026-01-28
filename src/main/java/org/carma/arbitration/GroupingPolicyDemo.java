@@ -82,12 +82,23 @@ public class GroupingPolicyDemo {
 
         // Test different k values
         for (int k : new int[]{1, 2, 3, Integer.MAX_VALUE}) {
-            GroupingPolicy policy = k == Integer.MAX_VALUE 
-                ? GroupingPolicy.DEFAULT 
+            GroupingPolicy policy = k == Integer.MAX_VALUE
+                ? GroupingPolicy.DEFAULT
                 : GroupingPolicy.withKHopLimit(k);
-            
+
             GroupingSplitter splitter = new GroupingSplitter(policy);
             List<ContentionDetector.ContentionGroup> groups = splitter.detectWithPolicy(agents, pool);
+
+            // Find agents not in any group (singletons filtered out)
+            Set<String> groupedAgents = groups.stream()
+                .flatMap(g -> g.getAgents().stream())
+                .map(Agent::getId)
+                .collect(Collectors.toSet());
+            List<String> singletons = agents.stream()
+                .map(Agent::getId)
+                .filter(id -> !groupedAgents.contains(id))
+                .sorted()
+                .collect(Collectors.toList());
 
             String kLabel = k == Integer.MAX_VALUE ? "∞" : String.valueOf(k);
             System.out.printf("  k-hop=%s: %d group(s)%n", kLabel, groups.size());
@@ -97,6 +108,10 @@ public class GroupingPolicyDemo {
                     .sorted()
                     .collect(Collectors.joining(", "));
                 System.out.printf("    → Group %s: {%s}%n", group.getGroupId(), agentNames);
+            }
+            if (!singletons.isEmpty()) {
+                System.out.printf("    → Singletons (no internal contention): {%s}%n",
+                    String.join(", ", singletons));
             }
         }
 

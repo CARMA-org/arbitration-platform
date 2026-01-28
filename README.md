@@ -1030,11 +1030,13 @@ Limiting how far contention spreads through the resource graph
   k-hop=1: 2 group(s)
     → Group CG-1: {A, B}
     → Group CG-2: {C, D}
+    → Singletons (no internal contention): {E}
   k-hop=2: 2 group(s)
     → Group CG-1: {A, B, C}
     → Group CG-2: {D, E}
   k-hop=3: 1 group(s)
     → Group CG-1: {A, B, C, D}
+    → Singletons (no internal contention): {E}
   k-hop=∞: 1 group(s)
     → Group CG-1: {A, B, C, D, E}
 
@@ -1269,6 +1271,7 @@ This demo shows the v0.6 realistic agent framework with:
 - **Multi-agent environment**: 5 agents with different autonomy levels competing for resources
 - **A+G+I Emergence Monitoring**: Conjunction detection for safety
 - **Autonomy levels**: TOOL, LOW, MEDIUM, HIGH with different checkpoint requirements
+- **Service Composition Safety**: Depth tracking, pattern detection, and alerts for concerning service combinations
 
 **Note:** By default, agents use the **MockServiceBackend** which returns deterministic test responses. To use **real LLM APIs**, set environment variables (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`) and use `LLMServiceBackend`:
 
@@ -1405,6 +1408,57 @@ Safety Implications:
   HIGH:   Comprehensive monitoring essential - A+G+I conjunction tracking
 
   ✓ PASS: Autonomy levels correctly bounded
+
+SCENARIO 5: SERVICE COMPOSITION SAFETY MONITORING
+────────────────────────────────────────────────────────────
+Purpose: Demonstrate the ServiceCompositionAnalyzer tracking
+         multi-service workflows, measuring composition depth,
+         and triggering alerts when thresholds are exceeded.
+
+The CAIS Safety Story:
+  Individual services are narrow and bounded. But COMPOSITION
+  can enable emergent capabilities. Deep service chains may
+  indicate complex reasoning or self-modification patterns.
+  This analyzer provides observability into service composition.
+
+Analyzer Configuration:
+  Soft Depth Limit: 5 (alert when exceeded)
+  Hard Depth Limit: 8 (could block if enforced)
+  Concerning Combinations: [Code Analysis + Reasoning, Knowledge Retrieval + Reasoning, ...]
+
+Workflow 1: Simple RAG Pipeline (within limits)
+  Service Chain: KNOWLEDGE_RETRIEVAL → VECTOR_SEARCH → TEXT_GENERATION
+  Composition Depth: 3
+  Status: ✓ NORMAL (depth 3 <= soft limit 5)
+
+Workflow 2: Deep Research Chain (exceeds soft limit)
+  Step 1: Knowledge Retrieval (depth=1)
+  Step 2: Text Summarization (depth=2)
+  Step 3: Reasoning Engine (depth=3)
+  Step 4: Knowledge Retrieval (depth=4)
+  Step 5: Code Analysis (depth=5)
+  [ALERT] Composition depth 6 exceeds soft limit 5
+  Step 6: Text Generation (depth=6) ⚠
+  Step 7: Text Summarization (depth=7) ⚠
+
+  Composition Depth: 7 (exceeds soft limit 5)
+  Concerning Pairs Found: 1
+
+Workflow 3: Concerning Service Combination
+  Chain: REASONING → CODE_ANALYSIS
+  [ALERT] Concerning combination detected (self-modification risk)
+
+Alert Summary:
+  DEPTH_SOFT_LIMIT_EXCEEDED: 2
+  CONCERNING_COMBINATION_DETECTED: 6
+
+Connection to CAIS Safety Thesis:
+  Service boundaries create information bottlenecks.
+  By monitoring composition depth and service combinations,
+  we can detect when agents are building complex capabilities
+  that may exceed intended boundaries.
+
+  ✓ PASS: ServiceCompositionAnalyzer correctly detected deep composition
 
 ════════════════════════════════════════════════════════════════════════
    REALISTIC AGENT DEMONSTRATION COMPLETE
