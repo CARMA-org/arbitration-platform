@@ -1,0 +1,33 @@
+# Balanced resource needs agent
+id: balanced-workload
+name: Balanced Workload
+type: custom
+description: Agent with balanced resource needs
+
+autonomy: MEDIUM
+currency: 120
+
+preferences:
+  COMPUTE: 0.35
+  MEMORY: 0.35
+  API_CREDITS: 0.20
+  STORAGE: 0.10
+
+requests:
+  COMPUTE:
+    min: 15
+    ideal: 30
+  MEMORY:
+    min: 30
+    ideal: 60
+  API_CREDITS:
+    min: 10
+    ideal: 20
+  STORAGE:
+    min: 50
+    ideal: 100
+
+parameters:
+  operatingDomains:
+    - general_processing
+    - workflow_orchestration

@@ -1,0 +1,48 @@
+# High autonomy agent (REQUIRES MONITORING)
+# Complex goals, adaptation, long-running tasks
+id: code-reviewer
+name: Autonomous Code Reviewer
+type: CodeReviewAgent
+description: |
+  High autonomy agent with complex goal structures.
+  Can adapt strategies and pursue long-running tasks.
+  Max autonomous span: 4 hours.
+  REQUIRES A+G+I conjunction monitoring.
+  Triggers safety alerts if combined with high generality.
+
+autonomy: HIGH
+currency: 150
+
+preferences:
+  API_CREDITS: 0.4
+  COMPUTE: 0.4
+  MEMORY: 0.2
+
+requests:
+  API_CREDITS:
+    min: 15
+    ideal: 35
+  COMPUTE:
+    min: 25
+    ideal: 60
+  MEMORY:
+    min: 50
+    ideal: 120
+
+parameters:
+  languagesSupported:
+    - java
+    - python
+    - typescript
+    - go
+    - rust
+  checkCategories:
+    - security
+    - performance
+    - bugs
+    - complexity
+    - style
+
+outputs:
+  - type: memory
+    name: review-output

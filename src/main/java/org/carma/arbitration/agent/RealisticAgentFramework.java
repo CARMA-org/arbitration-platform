@@ -43,7 +43,7 @@ public class RealisticAgentFramework {
     
     /**
      * Defines the level of autonomous operation permitted for an agent.
-     * Aligns with CAIS safety principles: narrow + tool-like = safer.
+     * Aligns with CAIS-like safety principles: narrow + tool-like = safer.
      */
     public enum AutonomyLevel {
         /**

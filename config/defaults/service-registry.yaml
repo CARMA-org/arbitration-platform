@@ -1,0 +1,49 @@
+# Default Service Registry Configuration
+# Standard AI services available to all scenarios
+
+services:
+  # Text Services
+  - id: default-text-generation
+    type: TEXT_GENERATION
+    provider: default
+    capacity: 20
+    description: Default text generation service
+
+  - id: default-text-embedding
+    type: TEXT_EMBEDDING
+    provider: default
+    capacity: 50
+    description: Default text embedding service
+
+  - id: default-summarization
+    type: TEXT_SUMMARIZATION
+    provider: default
+    capacity: 25
+    description: Default summarization service
+
+  # Knowledge Services
+  - id: default-knowledge-retrieval
+    type: KNOWLEDGE_RETRIEVAL
+    provider: internal
+    capacity: 30
+    description: Default knowledge retrieval service
+
+  - id: default-vector-search
+    type: VECTOR_SEARCH
+    provider: internal
+    capacity: 40
+    description: Default vector search service
+
+  # Code Services
+  - id: default-code-analysis
+    type: CODE_ANALYSIS
+    provider: internal
+    capacity: 15
+    description: Default code analysis service
+
+  # Reasoning
+  - id: default-reasoning
+    type: REASONING
+    provider: default
+    capacity: 10
+    description: Default reasoning service

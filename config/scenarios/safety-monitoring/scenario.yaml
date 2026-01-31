@@ -1,0 +1,40 @@
+# Safety Monitoring Scenario
+# Mix of TOOL, LOW, MEDIUM, HIGH autonomy agents
+# Demonstrates A+G+I safety monitoring integration
+
+name: safety-monitoring
+description: |
+  Four agents at different autonomy levels demonstrate
+  the CAIS-like safety monitoring principles. Higher autonomy
+  agents require stricter monitoring and checkpoints.
+
+pool:
+  COMPUTE: 150
+  MEMORY: 300
+  API_CREDITS: 75
+
+services:
+  - id: text-generation
+    type: TEXT_GENERATION
+    provider: anthropic
+    capacity: 20
+
+  - id: reasoning-engine
+    type: REASONING
+    provider: internal
+    capacity: 10
+
+  - id: code-analysis
+    type: CODE_ANALYSIS
+    provider: internal
+    capacity: 15
+
+arbitration:
+  mechanism: proportional_fairness
+  autoDetectContentions: true
+
+agents:
+  - tool-agent.yaml
+  - low-autonomy-agent.yaml
+  - medium-autonomy-agent.yaml
+  - high-autonomy-agent.yaml

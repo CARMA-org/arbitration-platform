@@ -1,0 +1,29 @@
+# API-focused agent
+id: api-heavy
+name: API Intensive Workload
+type: custom
+description: Agent prioritizing API credits
+
+autonomy: LOW
+currency: 80
+
+preferences:
+  API_CREDITS: 0.7
+  COMPUTE: 0.2
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS:
+    min: 15
+    ideal: 35
+  COMPUTE:
+    min: 10
+    ideal: 20
+  MEMORY:
+    min: 10
+    ideal: 25
+
+parameters:
+  operatingDomains:
+    - api_orchestration
+    - external_services

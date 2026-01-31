@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Monitors for emergent AGI-like properties from service composition.
  * 
- * This is the core CAIS safety monitor. It tracks whether agents approach
+ * This is the core CAIS-like safety monitor. It tracks whether agents approach
  * dangerous conjunctions of Autonomy, Generality, and Intelligence (A+G+I).
  * 
  * The key insight: Individual services are narrow and safe. The danger is when
@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * The danger is the conjunction: high A + high G + high I = system that can
  * effectively pursue goals across domains without meaningful oversight.
  * 
- * This implements the CAIS (Comprehensive AI Services) safety model,
+ * This implements the CAIS-like (Comprehensive AI Services) safety model,
  * providing situational awareness for the arbitration platform.
  */
 public class AGIEmergenceMonitor {

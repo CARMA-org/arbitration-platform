@@ -1,0 +1,36 @@
+# Tool-level agent (SAFEST)
+# No autonomous operation - only explicit invocation
+id: tool-summarizer
+name: Summarization Tool
+type: DocumentSummarizerAgent
+description: |
+  Pure tool-level agent with no autonomous operation.
+  Only acts when explicitly invoked by human operator.
+  Demonstrates minimum autonomy for maximum safety.
+
+autonomy: TOOL
+currency: 50
+
+preferences:
+  API_CREDITS: 0.5
+  COMPUTE: 0.4
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS:
+    min: 2
+    ideal: 8
+  COMPUTE:
+    min: 5
+    ideal: 15
+  MEMORY:
+    min: 10
+    ideal: 30
+
+parameters:
+  maxDocumentLength: 25000
+  outputFormat: bullet_points
+
+outputs:
+  - type: memory
+    name: tool-output

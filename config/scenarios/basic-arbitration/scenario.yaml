@@ -1,0 +1,22 @@
+# Basic Arbitration Scenario
+# Three agents competing for COMPUTE resources
+# Tests weighted proportional fairness
+
+name: basic-arbitration
+description: |
+  Three agents with different preferences compete for 100 units of COMPUTE.
+  Demonstrates basic weighted proportional fairness arbitration with
+  automatic contention detection.
+
+pool:
+  COMPUTE: 100
+
+arbitration:
+  mechanism: proportional_fairness
+  autoDetectContentions: true
+
+# Agents are loaded from files in this directory
+agents:
+  - agent-a1.yaml
+  - agent-a2.yaml
+  - agent-a3.yaml

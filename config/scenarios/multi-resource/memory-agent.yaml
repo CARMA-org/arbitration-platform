@@ -1,0 +1,29 @@
+# Memory-focused agent
+id: memory-heavy
+name: Memory Intensive Workload
+type: custom
+description: Agent prioritizing memory resources
+
+autonomy: LOW
+currency: 100
+
+preferences:
+  MEMORY: 0.7
+  COMPUTE: 0.2
+  STORAGE: 0.1
+
+requests:
+  MEMORY:
+    min: 50
+    ideal: 120
+  COMPUTE:
+    min: 10
+    ideal: 25
+  STORAGE:
+    min: 50
+    ideal: 100
+
+parameters:
+  operatingDomains:
+    - caching
+    - in_memory_processing

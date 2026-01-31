@@ -1,0 +1,32 @@
+# Document Summarizer Agent
+id: doc-summarizer
+name: Document Summarizer
+type: DocumentSummarizerAgent
+description: On-demand document summarization
+
+autonomy: TOOL
+currency: 50
+
+preferences:
+  API_CREDITS: 0.5
+  COMPUTE: 0.4
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS:
+    min: 2
+    ideal: 10
+  COMPUTE:
+    min: 5
+    ideal: 20
+  MEMORY:
+    min: 10
+    ideal: 30
+
+parameters:
+  maxDocumentLength: 50000
+  outputFormat: paragraph
+
+outputs:
+  - type: memory
+    name: summary-channel

@@ -1,0 +1,38 @@
+# News Search Agent
+id: news-ai-safety
+name: AI Safety News Monitor
+type: NewsSearchAgent
+description: Monitors news about AI safety developments
+
+autonomy: LOW
+currency: 100
+
+preferences:
+  API_CREDITS: 0.6
+  COMPUTE: 0.3
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS:
+    min: 5
+    ideal: 15
+  COMPUTE:
+    min: 10
+    ideal: 30
+  MEMORY:
+    min: 20
+    ideal: 50
+
+parameters:
+  topics:
+    - AI safety
+    - LLM capabilities
+    - AI governance
+    - machine learning alignment
+  maxResultsPerSearch: 5
+  summaryFormat: bullet_points
+  searchPeriod: PT1H
+
+outputs:
+  - type: memory
+    name: news-channel

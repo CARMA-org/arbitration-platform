@@ -284,7 +284,7 @@ public class RealisticAgentDemo {
         System.out.println("         tracks Autonomy, Generality, and Intelligence scores.");
         System.out.println();
         
-        System.out.println("The CAIS Safety Model:");
+        System.out.println("The CAIS-like Safety Model:");
         System.out.println("  Any SINGLE property at high levels is manageable:");
         System.out.println("  - High Autonomy alone: Specialized automation, bounded damage");
         System.out.println("  - High Generality alone: Versatile tool, but human-controlled");
@@ -551,7 +551,7 @@ public class RealisticAgentDemo {
         System.out.println("         multi-service workflows, measuring composition depth,");
         System.out.println("         and triggering alerts when thresholds are exceeded.");
         System.out.println();
-        System.out.println("The CAIS Safety Story:");
+        System.out.println("The CAIS-like Safety Story:");
         System.out.println("  Individual services are narrow and bounded. But COMPOSITION");
         System.out.println("  can enable emergent capabilities. Deep service chains may");
         System.out.println("  indicate complex reasoning or self-modification patterns.");
@@ -720,8 +720,8 @@ public class RealisticAgentDemo {
         System.out.println("    Full chain: " + chain);
         System.out.println();
 
-        // CAIS connection
-        System.out.println("Connection to CAIS Safety Thesis:");
+        // CAIS-like connection
+        System.out.println("Connection to CAIS-like Safety Thesis:");
         System.out.println("  Service boundaries create information bottlenecks.");
         System.out.println("  By monitoring composition depth and service combinations,");
         System.out.println("  we can detect when agents are building complex capabilities");

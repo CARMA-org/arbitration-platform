@@ -1,0 +1,27 @@
+# Agent A1: High compute preference
+id: agent-a1
+name: Compute-Heavy Workload
+type: custom
+description: Agent with high compute needs for batch processing
+
+autonomy: TOOL
+currency: 100
+
+preferences:
+  COMPUTE: 1.0
+
+requests:
+  COMPUTE:
+    min: 20
+    ideal: 50
+
+parameters:
+  operatingDomains:
+    - batch_processing
+    - data_analytics
+
+goals:
+  - id: process-batch
+    description: Process batch workload
+    type: ONE_TIME
+    priority: 7

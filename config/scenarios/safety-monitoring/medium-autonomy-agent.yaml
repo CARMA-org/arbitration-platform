@@ -1,0 +1,40 @@
+# Medium autonomy agent
+# Can chain services but requires checkpoints for novel situations
+id: research-bot
+name: Research Bot
+type: ResearchAssistantAgent
+description: |
+  Medium autonomy agent capable of multi-step research.
+  Can chain services (search -> reason -> synthesize).
+  Max autonomous span: 1 hour.
+  Requires checkpoint approval for novel queries.
+
+autonomy: MEDIUM
+currency: 100
+
+preferences:
+  API_CREDITS: 0.5
+  COMPUTE: 0.3
+  MEMORY: 0.2
+
+requests:
+  API_CREDITS:
+    min: 10
+    ideal: 25
+  COMPUTE:
+    min: 15
+    ideal: 40
+  MEMORY:
+    min: 30
+    ideal: 80
+
+parameters:
+  researchDomains:
+    - software_engineering
+    - data_science
+  maxSourcesPerQuery: 5
+  citeSources: true
+
+outputs:
+  - type: memory
+    name: research-output

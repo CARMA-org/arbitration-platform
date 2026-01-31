@@ -1,0 +1,36 @@
+# Research Assistant Agent
+id: research-assistant
+name: Technical Research Assistant
+type: ResearchAssistantAgent
+description: Multi-step research with source synthesis
+
+autonomy: MEDIUM
+currency: 150
+
+preferences:
+  API_CREDITS: 0.5
+  COMPUTE: 0.3
+  MEMORY: 0.2
+
+requests:
+  API_CREDITS:
+    min: 10
+    ideal: 25
+  COMPUTE:
+    min: 20
+    ideal: 50
+  MEMORY:
+    min: 50
+    ideal: 100
+
+parameters:
+  researchDomains:
+    - artificial_intelligence
+    - machine_learning
+    - software_engineering
+  maxSourcesPerQuery: 8
+  citeSources: true
+
+outputs:
+  - type: memory
+    name: research-channel

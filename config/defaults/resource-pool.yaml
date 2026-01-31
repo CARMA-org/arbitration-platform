@@ -1,0 +1,9 @@
+# Default Resource Pool Configuration
+# These values are used when no explicit pool is specified in a scenario
+
+COMPUTE: 100
+MEMORY: 500
+STORAGE: 1000
+NETWORK: 100
+API_CREDITS: 50
+DATASET: 10

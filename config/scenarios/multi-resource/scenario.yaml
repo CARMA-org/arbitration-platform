@@ -1,0 +1,29 @@
+# Multi-Resource Scenario
+# Five agents with cross-resource preferences
+# Tests joint optimization across multiple resources
+
+name: multi-resource
+description: |
+  Five agents with diverse resource needs compete across COMPUTE,
+  MEMORY, and API_CREDITS. Demonstrates multi-resource joint
+  optimization using gradient-based arbitration.
+
+pool:
+  COMPUTE: 100
+  MEMORY: 200
+  API_CREDITS: 50
+  STORAGE: 500
+
+arbitration:
+  mechanism: gradient_joint
+  autoDetectContentions: true
+  groupingPolicy:
+    kHopLimit: 3
+    maxGroupSize: 20
+
+agents:
+  - compute-agent.yaml
+  - memory-agent.yaml
+  - balanced-agent.yaml
+  - api-agent.yaml
+  - storage-agent.yaml

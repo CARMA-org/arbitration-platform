@@ -1,0 +1,28 @@
+# Agent A2: Medium compute preference
+id: agent-a2
+name: Interactive Service
+type: custom
+description: Interactive service requiring moderate compute
+
+autonomy: LOW
+currency: 100
+
+preferences:
+  COMPUTE: 1.0
+
+requests:
+  COMPUTE:
+    min: 15
+    ideal: 40
+
+parameters:
+  operatingDomains:
+    - web_services
+    - api_gateway
+
+goals:
+  - id: serve-requests
+    description: Handle incoming requests
+    type: PERIODIC
+    period: PT5M
+    priority: 5

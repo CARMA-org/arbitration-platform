@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 /**
  * Monitors service invocation patterns for safety.
  * 
- * This addresses the CAIS safety story: services alone are narrow, but composition
+ * This addresses the CAIS-like safety story: services alone are narrow, but composition
  * can enable emergent capabilities. This analyzer:
  * 
  * - Builds dependency graphs of service invocations per agent
@@ -695,7 +695,7 @@ public class ServiceCompositionAnalyzer {
         System.out.println("SERVICE COMPOSITION ANALYZER DEMONSTRATION");
         System.out.println("=".repeat(70));
         System.out.println();
-        System.out.println("This demonstrates the CAIS safety monitoring of service composition.");
+        System.out.println("This demonstrates the CAIS-like safety monitoring of service composition.");
         System.out.println("Key insight: Services are narrow, but composition needs observability.");
         System.out.println();
         

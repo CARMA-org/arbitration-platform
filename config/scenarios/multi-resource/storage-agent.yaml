@@ -1,0 +1,29 @@
+# Storage-focused agent
+id: storage-heavy
+name: Storage Intensive Workload
+type: custom
+description: Agent prioritizing storage resources
+
+autonomy: TOOL
+currency: 60
+
+preferences:
+  STORAGE: 0.6
+  MEMORY: 0.3
+  COMPUTE: 0.1
+
+requests:
+  STORAGE:
+    min: 100
+    ideal: 300
+  MEMORY:
+    min: 20
+    ideal: 50
+  COMPUTE:
+    min: 5
+    ideal: 15
+
+parameters:
+  operatingDomains:
+    - data_archival
+    - backup_processing

@@ -1,0 +1,40 @@
+# Low autonomy agent
+# Can run periodic tasks but limited to single-step actions
+id: news-monitor
+name: News Monitor
+type: NewsSearchAgent
+description: |
+  Low autonomy agent that searches news periodically.
+  Limited to single-step actions (search + summarize).
+  Max autonomous span: 15 minutes.
+
+autonomy: LOW
+currency: 75
+
+preferences:
+  API_CREDITS: 0.6
+  COMPUTE: 0.3
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS:
+    min: 5
+    ideal: 15
+  COMPUTE:
+    min: 10
+    ideal: 25
+  MEMORY:
+    min: 20
+    ideal: 50
+
+parameters:
+  topics:
+    - technology news
+    - software releases
+  maxResultsPerSearch: 3
+  summaryFormat: brief
+  searchPeriod: PT30M
+
+outputs:
+  - type: memory
+    name: news-output

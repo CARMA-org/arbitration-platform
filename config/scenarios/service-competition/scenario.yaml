@@ -1,0 +1,45 @@
+# Service Competition Scenario
+# Multiple agents competing for AI service slots
+# Tests service-aware arbitration
+
+name: service-competition
+description: |
+  News search and research agents compete for scarce AI services.
+  Both require TEXT_GENERATION and KNOWLEDGE_RETRIEVAL.
+  Demonstrates service-level resource arbitration.
+
+pool:
+  COMPUTE: 200
+  MEMORY: 500
+  API_CREDITS: 100
+
+services:
+  - id: text-gen-primary
+    type: TEXT_GENERATION
+    provider: anthropic
+    capacity: 10
+    description: Primary text generation service
+
+  - id: knowledge-retrieval
+    type: KNOWLEDGE_RETRIEVAL
+    provider: internal
+    capacity: 20
+    description: Internal knowledge base retrieval
+
+  - id: text-summarization
+    type: TEXT_SUMMARIZATION
+    provider: anthropic
+    capacity: 15
+    description: Text summarization service
+
+arbitration:
+  mechanism: proportional_fairness
+  autoDetectContentions: true
+  groupingPolicy:
+    kHopLimit: 2
+    maxGroupSize: 10
+
+agents:
+  - news-agent.yaml
+  - research-agent.yaml
+  - summarizer-agent.yaml

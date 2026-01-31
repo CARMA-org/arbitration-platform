@@ -1,13 +1,14 @@
-# Arbitration Platform v0.6
+# Arbitration Platform v0.7
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
-A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Now with real LLM integration supporting Gemini, OpenAI, and Anthropic APIs.
+A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Now with config-driven agent definitions and automatic contention detection.
 
 ## Quick Start
 
 ### Prerequisites
 - Java 21 or higher
+- Maven 3.6+
 - (Optional) Python 3.8+ with cvxpy, clarabel, numpy for exact optimization
 - (Optional) API key for LLM integration (Gemini, OpenAI, or Anthropic)
 
@@ -18,35 +19,242 @@ A complete implementation of Weighted Proportional Fairness for resource allocat
 git clone https://github.com/CARMA-org/arbitration-platform.git
 cd arbitration-platform
 
-# Run validation scenarios only (fast)
-./run.sh
+# Build with Maven
+mvn clean compile
 
-# Run validation + asymptotic tests + joint optimization demos
-./run.sh --full
+# Run config-driven demo (all scenarios)
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.ConfigDrivenDemo
 
-# Run only the asymptotic test
-./run.sh --asymptotic
+# Run specific scenario
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.ConfigDrivenDemo basic-arbitration
 
-# Run realistic agent demos (with mock backend)
-./run.sh --agents
+# Run original validation demos
+mvn exec:java -Dexec.mainClass=org.carma.arbitration.Demo
 
-# Run service composition demos
-./run.sh --services
-
-# Test REAL LLM integration (requires API key)
+# Run end-to-end demo with REAL LLM integration (requires API key)
 export GEMINI_API_KEY="your_key_here"  # or OPENAI_API_KEY or ANTHROPIC_API_KEY
-java -cp out org.carma.arbitration.demo.LLMIntegrationTest
+java -cp target/classes org.carma.arbitration.demo.RealAgentDemo
 ```
 
-Or compile and run directly:
+### Sample Output (Real LLM Backend)
 
-```bash
-# Compile
-javac -d out $(find src/main/java -name "*.java")
-
-# Run
-java -cp out org.carma.arbitration.Demo --full
 ```
+======================================================================
+   CARMA REAL AGENT EXECUTION DEMO
+   End-to-End: Config → Arbitration → Execution → Output
+======================================================================
+
+API Key Status:
+  GEMINI_API_KEY:    ✓ SET
+  OPENAI_API_KEY:    ✗ not set
+  ANTHROPIC_API_KEY: ✗ not set
+
+>>> RUNNING WITH REAL LLM BACKEND <<<
+    Agents will make actual API calls to LLM providers.
+
+PHASE 1: SETUP
+--------------------------------------------------
+Service Registry:
+  - TEXT_GENERATION (capacity: 10)
+  - KNOWLEDGE_RETRIEVAL (capacity: 20)
+  - TEXT_SUMMARIZATION (capacity: 15)
+
+Resource Pool:
+  - COMPUTE: 100 units
+  - MEMORY: 200 units
+  - API_CREDITS: 50 units
+
+PHASE 2: SERVICE BACKEND
+--------------------------------------------------
+Created: LLMServiceBackend (REAL API calls)
+
+PHASE 3: AGENT CREATION
+--------------------------------------------------
+Created agents:
+  1. AI News Monitor (id: news-agent)
+     Type: NewsSearchAgent
+     Autonomy: LOW
+     Services: [Text Generation, Knowledge Retrieval]
+
+  2. Document Summarizer (id: summarizer-agent)
+     Type: DocumentSummarizerAgent
+     Autonomy: TOOL
+     Services: [Text Summarization]
+
+PHASE 4: RESOURCE ARBITRATION
+--------------------------------------------------
+Contention Detection:
+  No contentions - all requests can be satisfied.
+
+Running Weighted Proportional Fairness...
+
+  API Credits allocation:
+    news-agent: 15 units (100% of ideal 15)
+    summarizer-agent: 10 units (100% of ideal 10)
+  Compute Units allocation:
+    news-agent: 30 units (100% of ideal 30)
+    summarizer-agent: 20 units (100% of ideal 20)
+
+PHASE 5: AGENT EXECUTION
+--------------------------------------------------
+Registered agents with runtime.
+
+Starting agent runtime...
+
+Executing agents (5 ticks)...
+[news-agent] Starting news search for topics: [artificial intelligence, machine learning]
+[news-agent] Found 0 total results
+..... Done!
+
+Invoking summarizer agent directly...
+[summarizer-agent] Summarizing document: AI Overview
+
+PHASE 6: EXECUTION RESULTS
+--------------------------------------------------
+Agent Metrics:
+  AI News Monitor:
+    Goals attempted: 1
+    Goals completed: 1
+    Service invocations: 2
+
+  Document Summarizer:
+    Goals attempted: 0
+    Goals completed: 0
+    Service invocations: 0
+
+Agent Outputs (2 messages):
+  [news_update] from news-agent:
+    {status=no_results, message=No news found for topics: [...], timestamp=...}
+  [document_summary] from summarizer-agent:
+    {summary=..., original_length=335, title=AI Overview, timestamp=...}
+
+SUMMARY
+--------------------------------------------------
+This demo demonstrated:
+  ✓ Service registry with multiple AI service types
+  ✓ Resource pool with COMPUTE, MEMORY, API_CREDITS
+  ✓ REAL LLM backend (actual API calls)
+  ✓ RealisticAgent creation (NewsSearchAgent, DocumentSummarizerAgent)
+  ✓ Automatic contention detection
+  ✓ Weighted Proportional Fairness arbitration
+  ✓ AgentRuntime execution with service backend
+  ✓ Output capture via MemoryChannel
+
+======================================================================
+   DEMO COMPLETE
+======================================================================
+```
+
+## What's New in v0.7
+
+### Config-Driven Agent Definitions
+
+Agents and scenarios are now defined in **YAML configuration files** instead of Java code:
+
+```
+config/scenarios/
+├── basic-arbitration/       # 3 agents, single resource
+│   ├── scenario.yaml
+│   ├── agent-a1.yaml
+│   ├── agent-a2.yaml
+│   └── agent-a3.yaml
+├── service-competition/     # AI service arbitration
+├── multi-resource/          # Joint optimization
+└── safety-monitoring/       # Mixed autonomy levels
+```
+
+**Agent YAML format:**
+```yaml
+id: news-ai-safety
+name: AI Safety News Monitor
+type: NewsSearchAgent
+autonomy: LOW
+currency: 100
+
+preferences:
+  API_CREDITS: 0.6
+  COMPUTE: 0.3
+  MEMORY: 0.1
+
+requests:
+  API_CREDITS: { min: 5, ideal: 15 }
+  COMPUTE: { min: 10, ideal: 30 }
+
+parameters:
+  topics: [AI safety, LLM capabilities]
+  searchPeriod: PT1H
+```
+
+**Scenario YAML format:**
+```yaml
+name: basic-arbitration
+description: Three agents competing for compute resources
+
+pool:
+  COMPUTE: 100
+
+arbitration:
+  mechanism: proportional_fairness
+  autoDetectContentions: true
+```
+
+### Automatic Contention Detection
+
+The platform now **automatically detects** which agents are in contention using graph-based analysis:
+
+```
+=== AUTOMATIC CONTENTION DETECTION ===
+Detected 1 contention group(s):
+  CG-1:
+    Agents: agent-a1, agent-a2, agent-a3
+    Resources: [Compute Units]
+    Severity: 1.20
+    Requires joint optimization: false
+```
+
+No manual contention specification required - the `ContentionDetector` finds groups using Union-Find algorithm.
+
+### New Components
+
+| Component | Package | Purpose |
+|-----------|---------|---------|
+| `AgentConfigLoader` | `config` | Parses agent YAML files |
+| `ScenarioConfigLoader` | `config` | Parses scenario configurations |
+| `ConfigurableAgent` | `config` | Agent with inline behavior scripts |
+| `ScenarioRunner` | `runner` | Orchestrates scenario execution |
+| `ConfigDrivenDemo` | `demo` | Demo using config files |
+
+### Platform Capabilities: Real vs Simulated
+
+**Understanding what's actually running:**
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Arbitration Math** | **REAL** | Actual optimization algorithms compute allocations |
+| **Contention Detection** | **REAL** | Union-Find algorithm finds agent groups |
+| **Resource Allocation** | **REAL** | Pool tracks actual allocations |
+| **LLMServiceBackend** | **REAL** | Makes HTTP calls to OpenAI/Anthropic/Gemini |
+| **MockServiceBackend** | **SIMULATED** | Default; returns fake LLM responses |
+| **Config System** | **REAL** | Loads YAML, instantiates real agent objects |
+| **ScenarioRunner** | **PARTIAL** | Computes allocations; does not execute agent goals |
+| **MonitoringAgent metrics** | **SIMULATED** | Uses Random() for CPU/memory values |
+
+**To use REAL LLM calls:**
+```java
+// Create real backend with API keys
+LLMServiceBackend backend = new LLMServiceBackend.Builder()
+    .fromEnvironment()  // Uses OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
+    .build();
+
+// Wire into AgentRuntime for actual execution
+AgentRuntime runtime = new AgentRuntime.Builder()
+    .serviceBackend(backend)
+    .build();
+```
+
+---
 
 ## What's New in v0.6
 
@@ -86,16 +294,16 @@ New `ServiceBackend` interface enables swapping mock backends for real LLM integ
 
 ### Realistic Agent Framework
 
-Production-ready agent implementations:
+Example agent implementations:
 
 | Agent | Description | Autonomy |
 |-------|-------------|----------|
-| **NewsSearchAgent** | Searches news, posts to Signal | TOOL |
-| **CodeReviewAgent** | Analyzes code, suggests improvements | LOW |
-| **ResearchAssistant** | Multi-step research with citations | MEDIUM |
-| **DataPipelineAgent** | Autonomous ETL orchestration | HIGH |
-| **TradingAgent** | Market analysis and trading | HIGH |
-| **ContentModerationAgent** | Reviews content, applies policies | LOW |
+| **NewsSearchAgent** | Periodic news search with summaries | LOW |
+| **DocumentSummarizerAgent** | On-demand document summarization | TOOL |
+| **DataExtractionAgent** | Periodic structured data extraction | LOW |
+| **ResearchAssistantAgent** | Multi-step research with citations | MEDIUM |
+| **CodeReviewAgent** | Code analysis and review | LOW |
+| **MonitoringAgent** | System metrics and alerting | LOW |
 
 ### A+G+I Safety Monitoring
 
@@ -238,7 +446,8 @@ arbitration-platform/
 │   │   └── ServiceCompositionAnalyzer.java   # Composition depth analysis
 │   ├── demo/                     # Demo applications (NEW)
 │   │   ├── RealisticAgentDemo.java           # Realistic agent scenarios
-│   │   └── LLMIntegrationTest.java           # Real LLM API testing
+│   │   ├── LLMIntegrationTest.java           # Real LLM API testing
+│   │   └── RealAgentDemo.java                # End-to-end demo with real execution
 │   ├── event/                    # Event system (2 files)
 │   │   ├── Event.java
 │   │   └── EventBus.java
@@ -1358,7 +1567,7 @@ SCENARIO 3: AGI EMERGENCE DETECTION (A+G+I MONITOR)
 Purpose: Demonstrate the conjunction detection monitor that
          tracks Autonomy, Generality, and Intelligence scores.
 
-The CAIS Safety Model:
+The CAIS-like Safety Model:
   Any SINGLE property at high levels is manageable:
   - High Autonomy alone: Specialized automation, bounded damage
   - High Generality alone: Versatile tool, but human-controlled
@@ -1415,7 +1624,7 @@ Purpose: Demonstrate the ServiceCompositionAnalyzer tracking
          multi-service workflows, measuring composition depth,
          and triggering alerts when thresholds are exceeded.
 
-The CAIS Safety Story:
+The CAIS-like Safety Story:
   Individual services are narrow and bounded. But COMPOSITION
   can enable emergent capabilities. Deep service chains may
   indicate complex reasoning or self-modification patterns.
@@ -1452,7 +1661,7 @@ Alert Summary:
   DEPTH_SOFT_LIMIT_EXCEEDED: 2
   CONCERNING_COMBINATION_DETECTED: 6
 
-Connection to CAIS Safety Thesis:
+Connection to CAIS-like Safety Thesis:
   Service boundaries create information bottlenecks.
   By monitoring composition depth and service combinations,
   we can detect when agents are building complex capabilities

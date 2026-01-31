@@ -1,0 +1,29 @@
+# Compute-focused agent
+id: compute-heavy
+name: Compute Intensive Workload
+type: custom
+description: Agent prioritizing compute resources
+
+autonomy: LOW
+currency: 100
+
+preferences:
+  COMPUTE: 0.7
+  MEMORY: 0.2
+  API_CREDITS: 0.1
+
+requests:
+  COMPUTE:
+    min: 30
+    ideal: 60
+  MEMORY:
+    min: 20
+    ideal: 40
+  API_CREDITS:
+    min: 5
+    ideal: 10
+
+parameters:
+  operatingDomains:
+    - computation
+    - numerical_analysis

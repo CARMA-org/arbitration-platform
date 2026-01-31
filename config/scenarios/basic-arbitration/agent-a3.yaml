@@ -1,0 +1,28 @@
+# Agent A3: Low priority background task
+id: agent-a3
+name: Background Analytics
+type: custom
+description: Low priority background analytics task
+
+autonomy: TOOL
+currency: 50
+
+preferences:
+  COMPUTE: 1.0
+
+requests:
+  COMPUTE:
+    min: 10
+    ideal: 30
+
+parameters:
+  operatingDomains:
+    - analytics
+    - reporting
+
+goals:
+  - id: generate-reports
+    description: Generate periodic reports
+    type: PERIODIC
+    period: PT1H
+    priority: 3
