@@ -16,6 +16,7 @@ import java.util.Objects;
  * - Minimum and ideal resource requests
  * - Current allocations
  */
+
 public class Agent {
     
     /** Base weight for all agents, ensuring participation even with zero currency */

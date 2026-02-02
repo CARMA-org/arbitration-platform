@@ -1,10 +1,12 @@
 package org.carma.arbitration.demo;
 
 import org.carma.arbitration.mechanism.*;
+import org.carma.arbitration.mechanism.ContentionDetector.*;
 import org.carma.arbitration.model.*;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * End-to-end multi-agent arbitration test with REAL LLM calls.
@@ -105,6 +107,7 @@ public class MultiAgentArbitrationTest {
         // Create arbitration model using the platform's classes
         PriorityEconomy economy = new PriorityEconomy();
         ProportionalFairnessArbitrator arbitrator = new ProportionalFairnessArbitrator(economy);
+        ContentionDetector detector = new ContentionDetector();
 
         List<Agent> arbAgents = new ArrayList<>();
         Map<String, BigDecimal> burns = new HashMap<>();
@@ -117,7 +120,22 @@ public class MultiAgentArbitrationTest {
             burns.put(la.id, BigDecimal.ZERO);
         }
 
-        Contention contention = new Contention(ResourceType.API_CREDITS, arbAgents, totalQuota);
+        // Use automatic contention detection
+        ResourcePool pool = ResourcePool.ofSingle(ResourceType.API_CREDITS, totalQuota);
+
+        List<ContentionGroup> groups = detector.detectContentions(arbAgents, pool);
+        System.out.println("Automatic Contention Detection:");
+        System.out.println("  Detected " + groups.size() + " contention group(s)");
+        for (ContentionGroup group : groups) {
+            System.out.println("  " + group.getGroupId() + ": " +
+                group.getAgents().stream().map(Agent::getId).collect(Collectors.joining(", ")));
+        }
+        System.out.println();
+
+        // Get the contention from the detected group
+        ContentionGroup mainGroup = groups.get(0);
+        Contention contention = new Contention(ResourceType.API_CREDITS,
+            new ArrayList<>(mainGroup.getAgents()), totalQuota);
         AllocationResult result = arbitrator.arbitrate(contention, burns);
 
         System.out.println("Arbitration Results:");
@@ -228,6 +246,7 @@ public class MultiAgentArbitrationTest {
         // Run arbitration using the platform
         PriorityEconomy economy = new PriorityEconomy();
         ProportionalFairnessArbitrator arbitrator = new ProportionalFairnessArbitrator(economy);
+        ContentionDetector detector = new ContentionDetector();
 
         List<Agent> arbAgents = new ArrayList<>();
         Map<String, BigDecimal> burns = new HashMap<>();
@@ -240,7 +259,16 @@ public class MultiAgentArbitrationTest {
             burns.put(la.id, BigDecimal.ZERO);
         }
 
-        Contention contention = new Contention(ResourceType.API_CREDITS, arbAgents, totalQuota);
+        // Use automatic contention detection
+        ResourcePool pool = ResourcePool.ofSingle(ResourceType.API_CREDITS, totalQuota);
+
+        List<ContentionGroup> groups = detector.detectContentions(arbAgents, pool);
+        System.out.println("Automatic contention detection: " + groups.size() + " group(s) found");
+        System.out.println();
+
+        ContentionGroup mainGroup = groups.get(0);
+        Contention contention = new Contention(ResourceType.API_CREDITS,
+            new ArrayList<>(mainGroup.getAgents()), totalQuota);
         AllocationResult result = arbitrator.arbitrate(contention, burns);
 
         System.out.println("Arbitration Results:");

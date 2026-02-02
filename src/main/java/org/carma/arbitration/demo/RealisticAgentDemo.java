@@ -2,6 +2,7 @@ package org.carma.arbitration.demo;
 
 import org.carma.arbitration.model.*;
 import org.carma.arbitration.mechanism.*;
+import org.carma.arbitration.mechanism.ContentionDetector.*;
 import org.carma.arbitration.agent.*;
 import org.carma.arbitration.agent.RealisticAgentFramework.*;
 import org.carma.arbitration.agent.ExampleAgents.*;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Demonstration of Realistic Agents with AGI Emergence Monitoring.
@@ -235,6 +237,31 @@ public class RealisticAgentDemo {
         }
         System.out.println();
         
+        // Automatic contention detection
+        System.out.println("Automatic Contention Detection:");
+        ContentionDetector detector = new ContentionDetector();
+
+        // Convert RealisticAgents to arbitration Agents for contention detection
+        List<Agent> arbAgents = new ArrayList<>();
+        for (RealisticAgent ra : runtime.getAgents()) {
+            Agent a = new Agent(ra.getAgentId(), ra.getName(),
+                ra.getResourcePreferences(), ra.getCurrencyBalance().intValue());
+            // Set some resource requests
+            a.setRequest(ResourceType.API_CREDITS, 5, 20);
+            a.setRequest(ResourceType.COMPUTE, 10, 50);
+            arbAgents.add(a);
+        }
+
+        List<ContentionGroup> groups = detector.detectContentions(arbAgents, resourcePool);
+        System.out.println("  Detected " + groups.size() + " contention group(s):");
+        for (ContentionGroup group : groups) {
+            System.out.println("    " + group.getGroupId() + ": " +
+                group.getAgents().stream().map(Agent::getId).collect(Collectors.joining(", ")));
+            System.out.println("      Resources: " + group.getResources());
+            System.out.println("      Severity: " + String.format("%.2f", group.getContentionSeverity()));
+        }
+        System.out.println();
+
         // Resource competition simulation
         System.out.println("Resource Competition Scenario:");
         System.out.println("  All agents compete for limited TEXT_GENERATION capacity");

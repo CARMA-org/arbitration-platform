@@ -226,22 +226,20 @@ No manual contention specification required - the `ContentionDetector` finds gro
 | `ScenarioRunner` | `runner` | Orchestrates scenario execution |
 | `ConfigDrivenDemo` | `demo` | Demo using config files |
 
-### Platform Capabilities: Real vs Simulated
+### Platform Capabilities
 
-**Understanding what's actually running:**
+**Core functionality:**
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Arbitration Math** | **REAL** | Actual optimization algorithms compute allocations |
-| **Contention Detection** | **REAL** | Union-Find algorithm finds agent groups |
+| **Contention Detection** | **REAL** | Union-Find algorithm finds agent groups automatically |
 | **Resource Allocation** | **REAL** | Pool tracks actual allocations |
 | **LLMServiceBackend** | **REAL** | Makes HTTP calls to OpenAI/Anthropic/Gemini |
-| **MockServiceBackend** | **SIMULATED** | Default; returns fake LLM responses |
 | **Config System** | **REAL** | Loads YAML, instantiates real agent objects |
-| **ScenarioRunner** | **PARTIAL** | Computes allocations; does not execute agent goals |
-| **MonitoringAgent metrics** | **SIMULATED** | Uses Random() for CPU/memory values |
+| **ScenarioRunner** | **REAL** | Runs full arbitration with config-driven agents |
 
-**To use REAL LLM calls:**
+**Using LLM integration:**
 ```java
 // Create real backend with API keys
 LLMServiceBackend backend = new LLMServiceBackend.Builder()
@@ -284,13 +282,12 @@ AgentRuntime runtime = new AgentRuntime.Builder()
 
 ### Pluggable Service Backend Architecture
 
-New `ServiceBackend` interface enables swapping mock backends for real LLM integration:
+The `ServiceBackend` interface enables pluggable LLM integration:
 
 | Component | Description |
 |-----------|-------------|
 | **ServiceBackend.java** | Interface for pluggable backends |
-| **MockServiceBackend.java** | Simulated backend for testing |
-| **LLMServiceBackend.java** | Real LLM backend (Gemini, OpenAI, Anthropic) |
+| **LLMServiceBackend.java** | LLM backend supporting Gemini, OpenAI, and Anthropic |
 
 ### Realistic Agent Framework
 
@@ -434,9 +431,8 @@ arbitration-platform/
 │   │   ├── GradientJointArbitrator.java      # Pure Java (~97-99% optimal)
 │   │   ├── ConvexJointArbitrator.java        # Python+Clarabel (exact)
 │   │   ├── ServiceArbitrator.java            # Service allocation
-│   │   ├── ServiceBackend.java               # Pluggable backend interface (NEW)
-│   │   ├── MockServiceBackend.java           # Mock backend for testing (NEW)
-│   │   └── LLMServiceBackend.java            # Real LLM backend (NEW)
+│   │   ├── ServiceBackend.java               # Pluggable backend interface
+│   │   └── LLMServiceBackend.java            # LLM backend (Gemini, OpenAI, Anthropic)
 │   ├── agent/                    # Realistic agent framework (NEW)
 │   │   ├── RealisticAgentFramework.java      # Core framework
 │   │   └── ExampleAgents.java                # 6 working agent implementations
@@ -1482,7 +1478,7 @@ This demo shows the v0.6 realistic agent framework with:
 - **Autonomy levels**: TOOL, LOW, MEDIUM, HIGH with different checkpoint requirements
 - **Service Composition Safety**: Depth tracking, pattern detection, and alerts for concerning service combinations
 
-**Note:** By default, agents use the **MockServiceBackend** which returns deterministic test responses. To use **real LLM APIs**, set environment variables (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`) and use `LLMServiceBackend`:
+**LLM Integration:** To run agents with real LLM APIs, set environment variables (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`):
 
 ```java
 LLMServiceBackend backend = new LLMServiceBackend.Builder()
@@ -1490,7 +1486,7 @@ LLMServiceBackend backend = new LLMServiceBackend.Builder()
     .build();
 
 AgentRuntime runtime = new AgentRuntime.Builder()
-    .serviceBackend(backend)  // Real LLM calls instead of mocks
+    .serviceBackend(backend)
     .build();
 ```
 
@@ -1548,6 +1544,12 @@ Registered Agents:
   doc-summarizer       Tool-like       1 types
   research-ai          Medium          4 types
   sys-monitor          Low             0 types
+
+Automatic Contention Detection:
+  Detected 1 contention group(s):
+    CG-1: news-tech, code-reviewer, doc-summarizer, research-ai, sys-monitor
+      Resources: [API_CREDITS, COMPUTE]
+      Severity: 0.35
 
 Resource Competition Scenario:
   All agents compete for limited TEXT_GENERATION capacity

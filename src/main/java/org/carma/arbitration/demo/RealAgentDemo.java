@@ -76,13 +76,21 @@ public class RealAgentDemo {
         if (hasKey) {
             System.out.println(">>> RUNNING WITH REAL LLM BACKEND <<<");
             System.out.println("    Agents will make actual API calls to LLM providers.");
+            System.out.println();
+            return true;
         } else {
-            System.out.println(">>> RUNNING WITH MOCK BACKEND <<<");
-            System.out.println("    Set an API key environment variable for real LLM calls.");
+            System.out.println("ERROR: No API key found.");
+            System.out.println();
+            System.out.println("This demo requires real LLM API credentials.");
+            System.out.println("Set one of the following environment variables:");
+            System.out.println("  export GEMINI_API_KEY=your_key_here");
+            System.out.println("  export OPENAI_API_KEY=your_key_here");
+            System.out.println("  export ANTHROPIC_API_KEY=your_key_here");
+            System.out.println();
+            System.out.println("For demos without API keys, use ConfigDrivenDemo instead.");
+            System.exit(1);
+            return false;
         }
-        System.out.println();
-
-        return hasKey;
     }
 
     private static boolean isSet(String value) {
@@ -133,17 +141,12 @@ public class RealAgentDemo {
         System.out.println("PHASE 2: SERVICE BACKEND");
         System.out.println(SUBSEP);
 
-        ServiceBackend backend;
-        if (useRealBackend) {
-            backend = new LLMServiceBackend.Builder()
-                .fromEnvironment()
-                .logRequests(true)
-                .build();
-            System.out.println("Created: LLMServiceBackend (REAL API calls)");
-        } else {
-            backend = new MockServiceBackend(registry);
-            System.out.println("Created: MockServiceBackend (simulated responses)");
-        }
+        // Create real LLM backend (API key already verified)
+        ServiceBackend backend = new LLMServiceBackend.Builder()
+            .fromEnvironment()
+            .logRequests(true)
+            .build();
+        System.out.println("Created: LLMServiceBackend (REAL API calls)");
         System.out.println();
 
         // ================================================================

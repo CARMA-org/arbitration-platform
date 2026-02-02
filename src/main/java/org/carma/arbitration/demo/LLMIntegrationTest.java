@@ -36,53 +36,25 @@ public class LLMIntegrationTest {
         System.out.println("  ANTHROPIC_API_KEY: " + (anthropicKey != null && !anthropicKey.isEmpty() ? "✓ Set" : "✗ Not set"));
         System.out.println();
 
-        // If no API keys, show mock test
+        // If no API keys, show error and exit
         if ((geminiKey == null || geminiKey.isEmpty()) &&
             (openaiKey == null || openaiKey.isEmpty()) &&
             (anthropicKey == null || anthropicKey.isEmpty())) {
 
-            System.out.println("No API keys found. Running MOCK test instead.");
-            System.out.println("To test real LLM integration, set one of the API key environment variables.");
+            System.out.println("ERROR: No API keys found.");
             System.out.println();
-            runMockTest();
+            System.out.println("To test LLM integration, set one of the following environment variables:");
+            System.out.println("  export GEMINI_API_KEY=your_key_here");
+            System.out.println("  export OPENAI_API_KEY=your_key_here");
+            System.out.println("  export ANTHROPIC_API_KEY=your_key_here");
+            System.out.println();
+            System.out.println("This test requires real LLM API credentials to verify integration.");
+            System.exit(1);
             return;
         }
 
         // Run real LLM test
         runRealLLMTest();
-    }
-
-    private static void runMockTest() {
-        System.out.println("MOCK SERVICE BACKEND TEST");
-        System.out.println("────────────────────────────────────────────────────────────────────────");
-
-        ServiceRegistry registry = new ServiceRegistry();
-        registry.register(new AIService.Builder("mock-gen", ServiceType.TEXT_GENERATION)
-            .maxCapacity(10)
-            .build());
-
-        MockServiceBackend backend = new MockServiceBackend(registry);
-
-        Map<String, Object> input = Map.of(
-            "prompt", "What is 2+2?",
-            "max_tokens", 100
-        );
-
-        System.out.println("Input: " + input);
-        System.out.println();
-
-        ServiceBackend.InvocationResult result = backend.invokeByType(ServiceType.TEXT_GENERATION, input);
-
-        System.out.println("Result:");
-        System.out.println("  Success: " + result.isSuccess());
-        System.out.println("  Duration: " + result.getDurationMs() + "ms");
-        if (result.isSuccess()) {
-            System.out.println("  Output: " + result.getOutput());
-        } else {
-            System.out.println("  Error: " + result.getError());
-        }
-        System.out.println();
-        System.out.println("✓ Mock test passed");
     }
 
     private static void runRealLLMTest() {
