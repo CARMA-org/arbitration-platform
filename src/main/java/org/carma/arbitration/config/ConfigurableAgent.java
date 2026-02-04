@@ -2,16 +2,18 @@ package org.carma.arbitration.config;
 
 import org.carma.arbitration.model.*;
 import org.carma.arbitration.agent.RealisticAgentFramework.*;
+import org.carma.arbitration.agent.KotlinScriptExecutor;
+import org.carma.arbitration.config.AgentConfigLoader.AgentConfig;
 
-import javax.script.*;
 import java.util.*;
+import java.util.function.BiConsumer;
 
 /**
- * A configurable agent that executes behavior defined via inline scripts.
+ * A configurable agent that executes behavior defined via Kotlin scripts.
  *
  * This enables agents to be fully defined in YAML configuration files
- * without requiring Java code. The behavior script uses a JavaScript-like
- * syntax that can access goal parameters, service context, and publish outputs.
+ * without requiring Java code. The Kotlin script can access goal parameters,
+ * service context, and publish outputs.
  *
  * Example YAML configuration:
  * <pre>
@@ -20,131 +22,120 @@ import java.util.*;
  * type: custom
  * autonomy: TOOL
  *
- * behavior: |
- *   function executeGoal(goal, context) {
- *     var input = goal.getParameter("data");
- *     if (!context.hasService("DATA_EXTRACTION")) {
- *       return GoalResult.failure("Service unavailable");
- *     }
- *     var result = context.invokeService("DATA_EXTRACTION", {"text": input});
- *     if (result.isSuccess()) {
- *       publish("validation_result", {"valid": true, "data": result.getOutput("data")});
- *       return GoalResult.success("Validated", result.getOutputs());
- *     }
- *     return GoalResult.failure(result.getError());
+ * services:
+ *   required:
+ *     - DATA_EXTRACTION
+ *
+ * initialization: |
+ *   state["validationCount"] = 0
+ *   log("Validator initialized")
+ *
+ * execution: |
+ *   val input = goal.getParameter("data") as String
+ *   if (!context.hasService("DATA_EXTRACTION")) {
+ *       return@execution GoalResult.failure("Service unavailable")
+ *   }
+ *   val result = context.invokeService("DATA_EXTRACTION", mapOf("text" to input))
+ *   if (result.isSuccess()) {
+ *       state["validationCount"] = (state["validationCount"] as Int) + 1
+ *       publish("validation_result", mapOf("valid" to true, "count" to state["validationCount"]))
+ *       GoalResult.success("Validated", result.outputs, System.currentTimeMillis() - startTime, servicesUsed)
+ *   } else {
+ *       GoalResult.failure(result.error)
  *   }
  * </pre>
  *
- * The script engine provides these bindings:
+ * Available script bindings:
  * - goal: The current Goal object
- * - context: The ExecutionContext for service invocation
+ * - context: ScriptableContext for service invocation
+ * - state: Persistent Map across executions
  * - publish(type, data): Function to publish to output channels
- * - GoalResult: Static factory methods for success/failure
- * - ServiceType: Enum for service type constants
+ * - GoalResult: Factory class for success/failure results
+ * - startTime: Execution start timestamp
+ * - servicesUsed: List tracking invoked services
  */
 public class ConfigurableAgent extends RealisticAgent {
 
-    private final String behaviorScript;
+    private final String initializationScript;
+    private final String executionScript;
     private final Set<ServiceType> requiredServices;
     private final Set<String> operatingDomains;
-    private final ScriptEngine scriptEngine;
+    private final KotlinScriptExecutor scriptExecutor;
+    private boolean initialized = false;
+    private final AgentConfig config;
 
     protected ConfigurableAgent(Builder builder) {
         super(builder);
-        this.behaviorScript = builder.behaviorScript;
+        this.initializationScript = builder.initializationScript;
+        this.executionScript = builder.executionScript;
         this.requiredServices = new HashSet<>(builder.requiredServices);
         this.operatingDomains = new HashSet<>(builder.operatingDomains);
+        this.config = builder.config;
 
-        // Initialize JavaScript engine (try multiple options for Java version compatibility)
-        ScriptEngineManager manager = new ScriptEngineManager();
-        ScriptEngine engine = manager.getEngineByName("javascript");
-        if (engine == null) {
-            engine = manager.getEngineByName("nashorn");
+        // Initialize Kotlin script executor
+        KotlinScriptExecutor executor = null;
+        try {
+            executor = new KotlinScriptExecutor(builder.scriptTimeoutMs);
+        } catch (Exception e) {
+            // Kotlin scripting not available - will use fallback behavior
         }
-        if (engine == null) {
-            engine = manager.getEngineByName("graal.js");
-        }
-        this.scriptEngine = engine;
+        this.scriptExecutor = executor;
+    }
 
-        // Note: If no JS engine available, executeGoal will use fallback behavior
-        // without script execution. This is acceptable for config-driven agents
-        // that use built-in types (NewsSearchAgent, etc.) rather than custom scripts.
+    /**
+     * Run initialization script if not already done.
+     */
+    private void ensureInitialized() {
+        if (initialized || initializationScript == null || initializationScript.isEmpty()) {
+            initialized = true;
+            return;
+        }
+
+        if (scriptExecutor != null && config != null) {
+            try {
+                scriptExecutor.executeInitialization(initializationScript, config, this::log);
+                initialized = true;
+            } catch (Exception e) {
+                log("Initialization script failed: " + e.getMessage());
+                initialized = true; // Mark as initialized to prevent retry loops
+            }
+        } else {
+            initialized = true;
+        }
     }
 
     @Override
     protected GoalResult executeGoal(Goal goal, ExecutionContext context) {
-        if (behaviorScript == null || behaviorScript.isEmpty()) {
+        // Ensure initialization has run
+        ensureInitialized();
+
+        if (executionScript == null || executionScript.isEmpty()) {
             // Default behavior: just return success
             return GoalResult.success(
-                "No behavior defined",
+                "No execution script defined",
                 Map.of(),
                 0,
                 List.of()
             );
         }
 
-        // If no script engine available, return a descriptive message
-        if (scriptEngine == null) {
+        // If no script executor available, return a descriptive message
+        if (scriptExecutor == null) {
             return GoalResult.success(
-                "Custom behavior script defined but no JavaScript engine available (Java 21+). " +
-                "Use built-in agent types (NewsSearchAgent, etc.) or add GraalJS dependency.",
-                Map.of("script_length", behaviorScript.length()),
+                "Kotlin scripting not available. Add kotlin-scripting-jvm-host dependency.",
+                Map.of("script_length", executionScript.length()),
                 0,
                 List.of()
             );
         }
 
-        long startTime = System.currentTimeMillis();
-        List<String> servicesUsed = new ArrayList<>();
+        // Create publish function that forwards to agent's publish method
+        BiConsumer<String, Map<String, Object>> publishFn = (type, data) -> {
+            this.publish(type, data);
+        };
 
-        try {
-            Bindings bindings = scriptEngine.createBindings();
-
-            // Provide goal and context
-            bindings.put("goal", goal);
-            bindings.put("context", new ScriptableContext(context, servicesUsed));
-
-            // Provide publish function
-            bindings.put("agent", this);
-
-            // Provide helper classes
-            bindings.put("GoalResult", GoalResult.class);
-            bindings.put("ServiceType", ServiceType.class);
-            bindings.put("Map", Map.class);
-            bindings.put("List", List.class);
-
-            // Provide publish function as a Java object
-            bindings.put("publishFn", (PublishFunction) this::publish);
-
-            // Wrap the script with helper function access
-            String wrappedScript = """
-                function publish(type, data) {
-                    agent.publish(type, data);
-                }
-
-                """ + behaviorScript + """
-
-                // Call the executeGoal function
-                var result = executeGoal(goal, context);
-                result;
-                """;
-
-            Object result = scriptEngine.eval(wrappedScript, bindings);
-
-            if (result instanceof GoalResult) {
-                return (GoalResult) result;
-            } else {
-                return GoalResult.success(
-                    result != null ? result.toString() : "Completed",
-                    Map.of("result", result),
-                    System.currentTimeMillis() - startTime,
-                    servicesUsed
-                );
-            }
-
-        } catch (ScriptException e) {
-            return GoalResult.failure("Script execution error: " + e.getMessage());
-        }
+        // Execute the Kotlin script
+        return scriptExecutor.executeGoal(executionScript, goal, context, publishFn);
     }
 
     @Override
@@ -157,44 +148,28 @@ public class ConfigurableAgent extends RealisticAgent {
         return Collections.unmodifiableSet(operatingDomains);
     }
 
-    // ========================================================================
-    // SCRIPTABLE CONTEXT WRAPPER
-    // ========================================================================
-
     /**
-     * Wrapper around ExecutionContext for easier scripting access.
+     * Log a message for this agent.
      */
-    public static class ScriptableContext {
-        private final ExecutionContext delegate;
-        private final List<String> servicesUsed;
-
-        public ScriptableContext(ExecutionContext delegate, List<String> servicesUsed) {
-            this.delegate = delegate;
-            this.servicesUsed = servicesUsed;
-        }
-
-        public boolean hasService(String serviceName) {
-            ServiceType type = ServiceType.valueOf(serviceName);
-            return delegate.hasService(type);
-        }
-
-        public ServiceResult invokeService(String serviceName, Map<String, Object> input) {
-            ServiceType type = ServiceType.valueOf(serviceName);
-            servicesUsed.add(type.name());
-            return delegate.invokeService(type, input);
-        }
-
-        public void log(String message) {
-            delegate.log(message);
-        }
+    protected void log(String message) {
+        System.out.printf("[%s] %s: %s%n",
+            java.time.Instant.now(), getAgentId(), message);
     }
 
     /**
-     * Functional interface for publish function in scripts.
+     * Get the script executor's current state.
      */
-    @FunctionalInterface
-    public interface PublishFunction {
-        void publish(String messageType, Map<String, Object> content);
+    public Map<String, Object> getScriptState() {
+        return scriptExecutor != null ? scriptExecutor.getState() : Map.of();
+    }
+
+    /**
+     * Clear the script state.
+     */
+    public void clearScriptState() {
+        if (scriptExecutor != null) {
+            scriptExecutor.clearState();
+        }
     }
 
     // ========================================================================
@@ -202,21 +177,51 @@ public class ConfigurableAgent extends RealisticAgent {
     // ========================================================================
 
     public static class Builder extends RealisticAgent.Builder<Builder> {
-        private String behaviorScript;
+        private String initializationScript;
+        private String executionScript;
         private Set<ServiceType> requiredServices = new HashSet<>();
         private Set<String> operatingDomains = new HashSet<>();
+        private long scriptTimeoutMs = 5000;
+        private AgentConfig config;
+
+        // Legacy support
+        private String behaviorScript;
 
         public Builder(String agentId) {
             super(agentId);
         }
 
+        /**
+         * Set the initialization script (runs once at agent creation).
+         */
+        public Builder initializationScript(String script) {
+            this.initializationScript = script;
+            return this;
+        }
+
+        /**
+         * Set the execution script (runs for each goal).
+         */
+        public Builder executionScript(String script) {
+            this.executionScript = script;
+            return this;
+        }
+
+        /**
+         * Legacy method: set behavior script (maps to executionScript).
+         */
         public Builder behaviorScript(String script) {
-            this.behaviorScript = script;
+            this.executionScript = script;
             return this;
         }
 
         public Builder requireService(ServiceType type) {
             this.requiredServices.add(type);
+            return this;
+        }
+
+        public Builder requiredServices(Set<ServiceType> services) {
+            this.requiredServices = new HashSet<>(services);
             return this;
         }
 
@@ -227,6 +232,16 @@ public class ConfigurableAgent extends RealisticAgent {
 
         public Builder addDomain(String domain) {
             this.operatingDomains.add(domain);
+            return this;
+        }
+
+        public Builder scriptTimeout(long timeoutMs) {
+            this.scriptTimeoutMs = timeoutMs;
+            return this;
+        }
+
+        public Builder config(AgentConfig config) {
+            this.config = config;
             return this;
         }
 

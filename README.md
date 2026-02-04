@@ -2,7 +2,7 @@
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
-A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Now with config-driven agent definitions and automatic contention detection.
+A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Supports config-driven agent definitions, automatic contention detection, and third-party agent extensibility via Kotlin scripting.
 
 ## Quick Start
 
@@ -148,6 +148,112 @@ This demo demonstrated:
 ```
 
 ## What's New in v0.7
+
+### Third-Party Agent Extensibility via Kotlin Scripting
+
+Agents can now be defined entirely in YAML configuration files using Kotlin scripts for behavior logic. This eliminates the need to modify Java source code when adding new agent types.
+
+**Key changes:**
+- **Kotlin scripting engine** replaces the deprecated Nashorn JavaScript engine
+- **Registry pattern** replaces hardcoded switch statements for agent type resolution
+- **Compile-time validation** catches script errors and security violations at load time
+- **Symmetric YAML schema** with `initialization` and `execution` blocks
+
+**Example: Custom agent defined in YAML**
+
+```yaml
+id: custom-calculator
+name: Math Calculator Agent
+type: scripted
+autonomy: TOOL
+currency: 50
+
+services:
+  required: []
+
+domains:
+  - math
+  - computation
+
+initialization: |
+  state["calculations"] = 0
+  state["lastResult"] = 0.0
+
+execution: |
+  val operation = goal.getParameter("operation") as? String ?: "add"
+  val a = (goal.getParameter("a") as? Number)?.toDouble() ?: 0.0
+  val b = (goal.getParameter("b") as? Number)?.toDouble() ?: 0.0
+
+  val result = when (operation) {
+      "add" -> a + b
+      "subtract" -> a - b
+      "multiply" -> a * b
+      "divide" -> if (b != 0.0) a / b else Double.NaN
+      else -> Double.NaN
+  }
+
+  state["calculations"] = (state["calculations"] as Int) + 1
+  publish("calculation_result", mapOf("result" to result))
+
+  GoalResult.success(
+      "Calculated: $a $operation $b = $result",
+      mapOf("result" to result),
+      System.currentTimeMillis() - startTime,
+      servicesUsed
+  )
+
+goals:
+  - id: calculate
+    type: ONE_TIME
+    description: Perform a calculation
+
+outputs:
+  - type: memory
+    name: calc-output
+```
+
+### Script API
+
+Scripts have access to the following bindings:
+
+| Binding | Type | Available In | Description |
+|---------|------|--------------|-------------|
+| `config` | `AgentConfig` | initialization | Agent configuration |
+| `state` | `MutableMap<String, Any>` | both | Persistent state across executions |
+| `log(msg)` | Function | both | Log a message |
+| `goal` | `Goal` | execution | Current goal being executed |
+| `context` | `ScriptableContext` | execution | Service invocation context |
+| `publish(type, data)` | Function | execution | Publish to output channels |
+| `GoalResult` | Class | execution | Factory for creating results |
+| `startTime` | `Long` | execution | Execution start timestamp |
+| `servicesUsed` | `MutableList<String>` | execution | Tracks services invoked |
+
+### Compile-Time Validation
+
+Scripts are validated at load time for:
+
+| Check | Description |
+|-------|-------------|
+| **Syntax validation** | Kotlin compiler verifies script syntax |
+| **Security checks** | Blocked APIs: `java.io`, `java.net`, `java.lang.Runtime`, `java.lang.ProcessBuilder`, reflection |
+| **Service consistency** | Services invoked in scripts must be declared in `services.required` |
+
+**Running the third-party agent demo:**
+
+```bash
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.ThirdPartyAgentDemo
+```
+
+### New Components
+
+| Component | Package | Purpose |
+|-----------|---------|---------|
+| `KotlinScriptExecutor` | `agent` | Executes Kotlin scripts with sandboxing |
+| `KotlinScriptValidator` | `config` | Compile-time script validation |
+| `AgentTypeRegistry` | `config` | Registry for agent type factories |
+| `ScriptedAgentFactory` | `config.factories` | Factory for scripted agents |
+| `ThirdPartyAgentDemo` | `demo` | Demonstrates third-party agent definition |
 
 ### Config-Driven Agent Definitions
 
@@ -433,17 +539,29 @@ arbitration-platform/
 │   │   ├── ServiceArbitrator.java            # Service allocation
 │   │   ├── ServiceBackend.java               # Pluggable backend interface
 │   │   └── LLMServiceBackend.java            # LLM backend (Gemini, OpenAI, Anthropic)
-│   ├── agent/                    # Realistic agent framework (NEW)
+│   ├── agent/                    # Realistic agent framework
 │   │   ├── RealisticAgentFramework.java      # Core framework
-│   │   └── ExampleAgents.java                # 6 working agent implementations
-│   ├── safety/                   # Safety monitoring (NEW)
+│   │   ├── ExampleAgents.java                # 6 working agent implementations
+│   │   └── KotlinScriptExecutor.java         # Kotlin script execution engine
+│   ├── config/                   # Configuration and loading
+│   │   ├── AgentConfigLoader.java            # YAML agent parsing
+│   │   ├── ScenarioConfigLoader.java         # Scenario configuration
+│   │   ├── ConfigurableAgent.java            # Scripted agent implementation
+│   │   ├── AgentTypeRegistry.java            # Agent factory registry
+│   │   ├── KotlinScriptValidator.java        # Script validation
+│   │   └── factories/                        # Agent factories
+│   │       ├── ScriptedAgentFactory.java     # Scripted agent factory
+│   │       └── BuiltInAgentFactories.java    # Built-in type factories
+│   ├── safety/                   # Safety monitoring
 │   │   ├── AGIEmergenceMonitor.java          # A+G+I conjunction detection
 │   │   ├── ConfigurationValidator.java       # Load-time validation
 │   │   └── ServiceCompositionAnalyzer.java   # Composition depth analysis
-│   ├── demo/                     # Demo applications (NEW)
+│   ├── demo/                     # Demo applications
 │   │   ├── RealisticAgentDemo.java           # Realistic agent scenarios
 │   │   ├── LLMIntegrationTest.java           # Real LLM API testing
-│   │   └── RealAgentDemo.java                # End-to-end demo with real execution
+│   │   ├── RealAgentDemo.java                # End-to-end demo with real execution
+│   │   ├── ConfigDrivenDemo.java             # Config-driven scenarios
+│   │   └── ThirdPartyAgentDemo.java          # Third-party agent demonstration
 │   ├── event/                    # Event system (2 files)
 │   │   ├── Event.java
 │   │   └── EventBus.java
@@ -455,12 +573,12 @@ arbitration-platform/
 │   ├── NonlinearUtilityDemo.java # Nonlinear utility demos
 │   └── GroupingPolicyDemo.java   # Grouping policy demos
 ├── config/
-│   └── ai-config.properties      # AI provider configuration (NEW)
+│   └── ai-config.properties      # AI provider configuration
 ├── scripts/
 │   └── joint_solver.py          # Python solver (Clarabel + nonlinear utilities)
 ├── docs/
 │   └── CLARABEL_INTEGRATION.md
-├── .env.example                  # Environment variable template (NEW)
+├── .env.example                  # Environment variable template
 ├── pom.xml
 ├── run.sh
 └── README.md
@@ -581,6 +699,11 @@ Without Clarabel, the system uses pure Java gradient ascent which achieves
 
 | Component | Status | Notes |
 |-----------|--------|-------|
+| **v0.7 - Kotlin Scripting** | ✅ Done | Third-party agents via YAML + Kotlin |
+| **v0.7 - Agent Type Registry** | ✅ Done | Registry pattern for agent factories |
+| **v0.7 - Script Validation** | ✅ Done | Compile-time syntax and security checks |
+| **v0.7 - Config-Driven Agents** | ✅ Done | YAML-based agent and scenario definitions |
+| **v0.7 - Contention Detection** | ✅ Done | Automatic agent grouping via Union-Find |
 | **v0.6 - Real LLM Integration** | ✅ Done | Gemini, OpenAI, Anthropic support |
 | **v0.6 - ServiceBackend Interface** | ✅ Done | Pluggable backend architecture |
 | **v0.6 - Realistic Agent Framework** | ✅ Done | 6 working agent implementations |

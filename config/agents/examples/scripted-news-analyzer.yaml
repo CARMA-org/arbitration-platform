@@ -1,0 +1,173 @@
+# Example: Scripted News Analyzer Agent
+#
+# This demonstrates the new Kotlin scripting capability for defining
+# arbitrary third-party agents without modifying Java source code.
+#
+# The agent combines news search with custom analysis logic, showing:
+# - initialization: block for one-time setup
+# - execution: block for goal processing
+# - state persistence across executions
+# - service invocation and output publishing
+
+id: scripted-news-analyzer
+name: Scripted News Analyzer
+description: A custom agent that searches news and performs sentiment analysis
+type: scripted
+autonomy: LOW
+currency: 100
+
+# Resource preferences for arbitration
+preferences:
+  COMPUTE: 0.4
+  API_CREDITS: 0.5
+  MEMORY: 0.1
+
+# Resource requests
+requests:
+  COMPUTE:
+    min: 10
+    ideal: 30
+  API_CREDITS:
+    min: 5
+    ideal: 15
+
+# Required services must be declared upfront
+services:
+  required:
+    - KNOWLEDGE_RETRIEVAL
+    - TEXT_GENERATION
+  optional:
+    - TEXT_SUMMARIZATION
+
+# Operating domains for safety monitoring
+domains:
+  - news
+  - analysis
+  - research
+
+# Agent-specific parameters accessible in scripts
+parameters:
+  topics:
+    - artificial intelligence
+    - machine learning
+    - robotics
+  maxArticles: 10
+  sentimentCategories:
+    - positive
+    - negative
+    - neutral
+
+# Goals define when and what the agent should do
+goals:
+  - id: analyze-news
+    type: PERIODIC
+    period: PT2H
+    description: Search for news and analyze sentiment
+    parameters:
+      outputFormat: detailed
+
+# Initialization script - runs once when agent is created
+initialization: |
+  // Initialize tracking state
+  state["articlesAnalyzed"] = 0
+  state["sentimentCounts"] = mutableMapOf(
+      "positive" to 0,
+      "negative" to 0,
+      "neutral" to 0
+  )
+  state["lastRunTime"] = null
+
+  // Get topics from config
+  val topics = config.getList("topics")
+  state["topics"] = topics
+
+  log("News Analyzer initialized with ${topics.size} topics")
+
+# Execution script - runs for each goal execution
+execution: |
+  // Get configuration
+  val topics = state["topics"] as List<String>
+  val maxArticles = 10
+
+  // Track services used
+  val results = mutableListOf<Map<String, Any>>()
+
+  // Check required services
+  if (!context.hasService("KNOWLEDGE_RETRIEVAL")) {
+      return@execution GoalResult.failure("Knowledge retrieval service not available")
+  }
+
+  // Search for news on each topic
+  for (topic in topics) {
+      context.log("Searching news for: $topic")
+
+      val searchResult = context.invokeService("KNOWLEDGE_RETRIEVAL", mapOf(
+          "query" to "$topic news recent",
+          "max_results" to maxArticles / topics.size
+      ))
+
+      if (searchResult.isSuccess()) {
+          @Suppress("UNCHECKED_CAST")
+          val articles = searchResult.getOutputValue("results") as? List<Map<String, Any>> ?: listOf()
+          results.addAll(articles)
+      }
+  }
+
+  // Analyze sentiment if we have results
+  if (results.isNotEmpty() && context.hasService("TEXT_GENERATION")) {
+      val articleTexts = results.mapNotNull { it["snippet"] as? String }.take(5)
+      val combinedText = articleTexts.joinToString("\n\n")
+
+      val analysisResult = context.invokeService("TEXT_GENERATION", mapOf(
+          "prompt" to """Analyze the sentiment of these news snippets.
+                        Respond with JSON: {"sentiment": "positive|negative|neutral", "confidence": 0.0-1.0, "summary": "brief explanation"}
+
+                        News snippets:
+                        $combinedText""",
+          "max_tokens" to 200
+      ))
+
+      if (analysisResult.isSuccess()) {
+          val analysisText = analysisResult.getOutputValue("text") as? String ?: "{}"
+
+          // Update sentiment counts (simplified parsing)
+          @Suppress("UNCHECKED_CAST")
+          val sentimentCounts = state["sentimentCounts"] as MutableMap<String, Int>
+          when {
+              analysisText.contains("\"positive\"") -> sentimentCounts["positive"] = sentimentCounts["positive"]!! + 1
+              analysisText.contains("\"negative\"") -> sentimentCounts["negative"] = sentimentCounts["negative"]!! + 1
+              else -> sentimentCounts["neutral"] = sentimentCounts["neutral"]!! + 1
+          }
+
+          // Publish analysis results
+          publish("news_analysis", mapOf(
+              "articleCount" to results.size,
+              "topics" to topics,
+              "analysis" to analysisText,
+              "timestamp" to java.time.Instant.now().toString()
+          ))
+      }
+  }
+
+  // Update state
+  state["articlesAnalyzed"] = (state["articlesAnalyzed"] as Int) + results.size
+  state["lastRunTime"] = java.time.Instant.now()
+
+  // Return success
+  GoalResult.success(
+      "Analyzed ${results.size} articles across ${topics.size} topics",
+      mapOf(
+          "articleCount" to results.size,
+          "topicsCovered" to topics.size,
+          "totalAnalyzed" to state["articlesAnalyzed"]
+      ),
+      System.currentTimeMillis() - startTime,
+      servicesUsed
+  )
+
+# Output channels
+outputs:
+  - type: memory
+    name: analysis-results
+  - type: console
+    name: debug-output

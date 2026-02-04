@@ -33,7 +33,7 @@ public class AgentConfigLoader {
     public static class AgentConfig {
         public String id;
         public String name;
-        public String type;                              // Agent type or "custom"
+        public String type;                              // Agent type or "custom"/"scripted"
         public String description;
         public String autonomy;                          // TOOL, LOW, MEDIUM, HIGH
         public double currency = 100.0;
@@ -42,11 +42,38 @@ public class AgentConfigLoader {
         public Map<String, Object> parameters;           // Agent-specific params
         public List<GoalConfig> goals;
         public List<OutputConfig> outputs;
-        public String behavior;                          // For custom agents
+        public String behavior;                          // Legacy: for custom agents (JavaScript)
+
+        // New Kotlin scripting fields
+        public String initialization;                    // Kotlin script run once at agent creation
+        public String execution;                         // Kotlin script run for each goal execution
+        public ServicesConfig services;                  // Required/optional services declaration
+        public List<String> domains;                     // Operating domains for safety monitoring
 
         @Override
         public String toString() {
             return String.format("AgentConfig[id=%s, type=%s, autonomy=%s]", id, type, autonomy);
+        }
+
+        /**
+         * Check if this config uses Kotlin scripting.
+         */
+        public boolean isScriptedAgent() {
+            return (execution != null && !execution.isEmpty()) ||
+                   (initialization != null && !initialization.isEmpty());
+        }
+    }
+
+    /**
+     * Services configuration for an agent.
+     */
+    public static class ServicesConfig {
+        public List<String> required;                    // Services the agent must have
+        public List<String> optional;                    // Services the agent may use
+
+        @Override
+        public String toString() {
+            return String.format("ServicesConfig[required=%s, optional=%s]", required, optional);
         }
     }
 
@@ -107,29 +134,104 @@ public class AgentConfigLoader {
     // ========================================================================
 
     private final Yaml yaml;
+    private final KotlinScriptValidator validator;
+    private boolean validateOnLoad = true;
 
     public AgentConfigLoader() {
+        this(true);
+    }
+
+    /**
+     * Create loader with optional validation.
+     *
+     * @param validateOnLoad If true, validates scripts when loading configs
+     */
+    public AgentConfigLoader(boolean validateOnLoad) {
         LoaderOptions options = new LoaderOptions();
         options.setAllowDuplicateKeys(false);
         this.yaml = new Yaml(options);
+        this.validator = new KotlinScriptValidator();
+        this.validateOnLoad = validateOnLoad;
+    }
+
+    /**
+     * Enable or disable automatic validation on load.
+     */
+    public void setValidateOnLoad(boolean validate) {
+        this.validateOnLoad = validate;
     }
 
     /**
      * Load agent configuration from a YAML file.
+     * If validateOnLoad is true, validates scripts and throws on errors.
      */
     public AgentConfig loadFromFile(Path yamlFile) throws IOException {
         try (InputStream is = Files.newInputStream(yamlFile)) {
             Map<String, Object> raw = yaml.load(is);
-            return parseAgentConfig(raw);
+            AgentConfig config = parseAgentConfig(raw);
+            if (validateOnLoad && config.isScriptedAgent()) {
+                KotlinScriptValidator.ConfigValidationResult result = validator.validateConfig(config);
+                result.throwIfInvalid();
+            }
+            return config;
         }
     }
 
     /**
      * Load agent configuration from a YAML string.
+     * If validateOnLoad is true, validates scripts and throws on errors.
      */
     public AgentConfig loadFromString(String yamlContent) {
         Map<String, Object> raw = yaml.load(yamlContent);
-        return parseAgentConfig(raw);
+        AgentConfig config = parseAgentConfig(raw);
+        if (validateOnLoad && config.isScriptedAgent()) {
+            KotlinScriptValidator.ConfigValidationResult result = validator.validateConfig(config);
+            result.throwIfInvalid();
+        }
+        return config;
+    }
+
+    /**
+     * Load and validate a configuration, returning the validation result.
+     * Does not throw on validation errors.
+     */
+    public LoadResult loadAndValidate(Path yamlFile) throws IOException {
+        try (InputStream is = Files.newInputStream(yamlFile)) {
+            Map<String, Object> raw = yaml.load(is);
+            AgentConfig config = parseAgentConfig(raw);
+            KotlinScriptValidator.ConfigValidationResult validation =
+                validator.validateConfig(config);
+            return new LoadResult(config, validation);
+        }
+    }
+
+    /**
+     * Load and validate a configuration from string, returning the validation result.
+     */
+    public LoadResult loadAndValidateString(String yamlContent) {
+        Map<String, Object> raw = yaml.load(yamlContent);
+        AgentConfig config = parseAgentConfig(raw);
+        KotlinScriptValidator.ConfigValidationResult validation =
+            validator.validateConfig(config);
+        return new LoadResult(config, validation);
+    }
+
+    /**
+     * Result of loading with validation.
+     */
+    public static class LoadResult {
+        public final AgentConfig config;
+        public final KotlinScriptValidator.ConfigValidationResult validation;
+
+        public LoadResult(AgentConfig config,
+                         KotlinScriptValidator.ConfigValidationResult validation) {
+            this.config = config;
+            this.validation = validation;
+        }
+
+        public boolean isValid() {
+            return validation.isValid();
+        }
     }
 
     /**
@@ -146,6 +248,28 @@ public class AgentConfigLoader {
         config.autonomy = getString(raw, "autonomy", "TOOL");
         config.currency = getDouble(raw, "currency", 100.0);
         config.behavior = getString(raw, "behavior", null);
+
+        // New Kotlin scripting fields
+        config.initialization = getString(raw, "initialization", null);
+        config.execution = getString(raw, "execution", null);
+
+        // Parse domains
+        @SuppressWarnings("unchecked")
+        List<String> domainsList = (List<String>) raw.get("domains");
+        config.domains = domainsList;
+
+        // Parse services config
+        @SuppressWarnings("unchecked")
+        Map<String, Object> servicesMap = (Map<String, Object>) raw.get("services");
+        if (servicesMap != null) {
+            config.services = new ServicesConfig();
+            @SuppressWarnings("unchecked")
+            List<String> required = (List<String>) servicesMap.get("required");
+            @SuppressWarnings("unchecked")
+            List<String> optional = (List<String>) servicesMap.get("optional");
+            config.services.required = required != null ? required : new ArrayList<>();
+            config.services.optional = optional != null ? optional : new ArrayList<>();
+        }
 
         // Parse preferences
         config.preferences = new HashMap<>();
@@ -214,6 +338,11 @@ public class AgentConfigLoader {
     /**
      * Build a RealisticAgent from configuration.
      *
+     * Uses the AgentTypeRegistry for type resolution, enabling:
+     * 1. Built-in agent types (NewsSearchAgent, etc.)
+     * 2. Scripted agents via Kotlin (execution: block in YAML)
+     * 3. Custom registered agent types
+     *
      * @param config The loaded agent configuration
      * @param channels Pre-created output channels (by name)
      * @return Configured RealisticAgent instance
@@ -221,35 +350,11 @@ public class AgentConfigLoader {
     public RealisticAgent buildRealisticAgent(AgentConfig config, Map<String, OutputChannel> channels) {
         validateConfig(config);
 
-        RealisticAgent agent;
-
-        switch (config.type) {
-            case "NewsSearchAgent":
-                agent = buildNewsSearchAgent(config, channels);
-                break;
-            case "DocumentSummarizerAgent":
-                agent = buildDocumentSummarizerAgent(config, channels);
-                break;
-            case "DataExtractionAgent":
-                agent = buildDataExtractionAgent(config, channels);
-                break;
-            case "ResearchAssistantAgent":
-                agent = buildResearchAssistantAgent(config, channels);
-                break;
-            case "CodeReviewAgent":
-                agent = buildCodeReviewAgent(config, channels);
-                break;
-            case "MonitoringAgent":
-                agent = buildMonitoringAgent(config, channels);
-                break;
-            case "custom":
-                agent = buildConfigurableAgent(config, channels);
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown agent type: " + config.type);
-        }
-
-        return agent;
+        // Use registry for ALL type resolution
+        // This is the key architectural change: no hardcoded switch statements,
+        // enabling arbitrary third-party agents defined entirely in YAML
+        AgentTypeRegistry registry = AgentTypeRegistry.getInstance();
+        return registry.create(config, channels);
     }
 
     /**
