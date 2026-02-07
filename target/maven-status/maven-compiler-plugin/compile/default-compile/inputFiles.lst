@@ -13,6 +13,7 @@
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/config/factories/BuiltInAgentFactories.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/config/factories/ScriptedAgentFactory.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/ConfigDrivenDemo.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/IntegratedArbitrationDemo.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/LLMIntegrationTest.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/MultiAgentArbitrationTest.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/RealAgentDemo.java

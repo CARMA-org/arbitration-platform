@@ -1,4 +1,4 @@
-# Arbitration Platform v0.7
+# Arbitration Platform v0.8
 
 **Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
 
@@ -22,6 +22,10 @@ cd arbitration-platform
 # Build with Maven
 mvn clean compile
 
+# Run INTEGRATED demo (proves arbitration constrains execution)
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.IntegratedArbitrationDemo
+
 # Run config-driven demo (all scenarios)
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
     org.carma.arbitration.demo.ConfigDrivenDemo
@@ -30,7 +34,7 @@ java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
     org.carma.arbitration.demo.ConfigDrivenDemo basic-arbitration
 
-# Run original validation demos
+# Run validation demos (mathematical proofs)
 mvn exec:java -Dexec.mainClass=org.carma.arbitration.Demo
 
 # Run end-to-end demo with REAL LLM integration (requires API key)
@@ -146,6 +150,94 @@ This demo demonstrated:
    DEMO COMPLETE
 ======================================================================
 ```
+
+## What's New in v0.8
+
+### Integrated Arbitration and Execution
+
+Resource allocations from arbitration now flow through to agent execution. The platform enforces allocation limits during goal execution.
+
+**Key changes:**
+- **AgentRuntime.runArbitration()** runs contention detection and WPF arbitration, storing results
+- **AgentRuntime.agentAllocations** stores per-agent resource allocations
+- **ExecutionContext** tracks resource consumption and enforces limits
+- Agents that exceed their allocations are blocked
+
+**Running the integrated platform:**
+
+```bash
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.IntegratedArbitrationDemo
+```
+
+**Sample output:**
+
+```
+══════════════════════════════════════════════════════════════════════
+   INTEGRATED ARBITRATION PLATFORM
+   End-to-End: Agents → Arbitration → Constrained Execution
+══════════════════════════════════════════════════════════════════════
+
+PHASE 3: AGENT REGISTRATION
+──────────────────────────────────────────────────
+Registered 3 agents:
+  summarizer-agent (Document Summarizer)
+    Currency: 80.0
+    Services: [Text Summarization]
+  news-agent (News Monitor)
+    Currency: 100.0
+    Services: [Knowledge Retrieval, Text Generation]
+  research-agent (Research Assistant)
+    Currency: 60.0
+    Services: [Reasoning Engine, Vector Search, Knowledge Retrieval, Text Generation]
+
+PHASE 4: RESOURCE ARBITRATION
+──────────────────────────────────────────────────
+Running arbitration via AgentRuntime.runArbitration()...
+
+Allocations computed and stored in runtime:
+  summarizer-agent:
+    API Credits: 4 units
+    Compute Units: 8 units
+    Memory Units: 6 units
+  news-agent:
+    API Credits: 5 units
+    Compute Units: 14 units
+    Memory Units: 14 units
+  research-agent:
+    API Credits: 17 units
+    Compute Units: 37 units
+    Memory Units: 39 units
+
+PHASE 5: CONSTRAINED EXECUTION
+──────────────────────────────────────────────────
+Agents now execute with their allocated resources enforced.
+ExecutionContext tracks consumption and blocks excess usage.
+
+Invoking summarizer-agent with goal 'summarize-doc'...
+
+Execution Result:
+  Success: true
+  Message: Document summarized successfully
+  Services Used: [TEXT_SUMMARIZATION]
+
+PHASE 6: VERIFICATION
+──────────────────────────────────────────────────
+  ✓ Agents registered with AgentRuntime
+  ✓ ContentionDetector found resource conflicts
+  ✓ ProportionalFairnessArbitrator calculated allocations
+  ✓ Allocations stored in AgentRuntime.agentAllocations
+  ✓ ExecutionContext created with actual allocations
+  ✓ Resource consumption tracked and enforced
+  ✓ All agents have allocations stored
+
+Resource Conservation:
+  Compute Units: allocated=59, pool=100 ✓
+  API Credits: allocated=26, pool=50 ✓
+  Memory Units: allocated=59, pool=200 ✓
+```
+
+---
 
 ## What's New in v0.7
 
@@ -557,6 +649,7 @@ arbitration-platform/
 │   │   ├── ConfigurationValidator.java       # Load-time validation
 │   │   └── ServiceCompositionAnalyzer.java   # Composition depth analysis
 │   ├── demo/                     # Demo applications
+│   │   ├── IntegratedArbitrationDemo.java    # KEY: Proves arbitration constrains execution
 │   │   ├── RealisticAgentDemo.java           # Realistic agent scenarios
 │   │   ├── LLMIntegrationTest.java           # Real LLM API testing
 │   │   ├── RealAgentDemo.java                # End-to-end demo with real execution
@@ -699,6 +792,7 @@ Without Clarabel, the system uses pure Java gradient ascent which achieves
 
 | Component | Status | Notes |
 |-----------|--------|-------|
+| **v0.8 - Integrated Execution** | ✅ Done | Arbitration results constrain agent execution |
 | **v0.7 - Kotlin Scripting** | ✅ Done | Third-party agents via YAML + Kotlin |
 | **v0.7 - Agent Type Registry** | ✅ Done | Registry pattern for agent factories |
 | **v0.7 - Script Validation** | ✅ Done | Compile-time syntax and security checks |

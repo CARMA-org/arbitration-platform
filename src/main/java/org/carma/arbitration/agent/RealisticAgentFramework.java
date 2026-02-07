@@ -641,12 +641,16 @@ public class RealisticAgentFramework {
     /**
      * Context provided to agents during goal execution.
      * Contains available resources, services, and execution helpers.
+     *
+     * IMPORTANT: This context enforces resource allocations from arbitration.
+     * Agents can only consume up to their allocated amounts.
      */
     public static class ExecutionContext {
         private final Map<ResourceType, Long> allocatedResources;
+        private final Map<ResourceType, Long> consumedResources;  // Track consumption
         private final Map<ServiceType, Integer> allocatedServiceSlots;
         private final ServiceRegistry serviceRegistry;
-        private final ServiceBackend serviceBackend;  // Uses interface for pluggable backends
+        private final ServiceBackend serviceBackend;
         private final Consumer<String> logger;
         private final long timeoutMs;
 
@@ -654,51 +658,106 @@ public class RealisticAgentFramework {
                 Map<ResourceType, Long> allocatedResources,
                 Map<ServiceType, Integer> allocatedServiceSlots,
                 ServiceRegistry serviceRegistry,
-                ServiceBackend serviceBackend,  // Accepts any ServiceBackend implementation
+                ServiceBackend serviceBackend,
                 Consumer<String> logger,
                 long timeoutMs) {
-            this.allocatedResources = allocatedResources;
+            this.allocatedResources = new HashMap<>(allocatedResources);
+            this.consumedResources = new HashMap<>();
             this.allocatedServiceSlots = allocatedServiceSlots;
             this.serviceRegistry = serviceRegistry;
             this.serviceBackend = serviceBackend;
             this.logger = logger;
             this.timeoutMs = timeoutMs;
+
+            // Initialize consumption tracking
+            for (ResourceType type : ResourceType.values()) {
+                consumedResources.put(type, 0L);
+            }
         }
-        
+
         public long getAllocatedResource(ResourceType type) {
             return allocatedResources.getOrDefault(type, 0L);
         }
-        
+
+        public long getConsumedResource(ResourceType type) {
+            return consumedResources.getOrDefault(type, 0L);
+        }
+
+        public long getRemainingResource(ResourceType type) {
+            return getAllocatedResource(type) - getConsumedResource(type);
+        }
+
+        /**
+         * Try to consume resources. Returns true if successful, false if would exceed allocation.
+         * If the full amount cannot be consumed, consumes up to the limit and returns false.
+         */
+        public boolean tryConsumeResource(ResourceType type, long amount) {
+            long allocated = getAllocatedResource(type);
+            long consumed = getConsumedResource(type);
+            long remaining = allocated - consumed;
+
+            if (amount <= remaining) {
+                consumedResources.put(type, consumed + amount);
+                return true;
+            } else {
+                // Consume what we can, but return false to indicate constraint hit
+                if (remaining > 0) {
+                    consumedResources.put(type, allocated);
+                    log("Resource limit hit: " + type + " consumed " + remaining +
+                        " of " + amount + " requested (allocation: " + allocated + ")");
+                }
+                return false;
+            }
+        }
+
+        /**
+         * Check if a resource consumption would succeed without actually consuming.
+         */
+        public boolean canConsumeResource(ResourceType type, long amount) {
+            return amount <= getRemainingResource(type);
+        }
+
         public int getAllocatedServiceSlots(ServiceType type) {
             return allocatedServiceSlots.getOrDefault(type, 0);
         }
-        
+
         public boolean hasService(ServiceType type) {
             return allocatedServiceSlots.getOrDefault(type, 0) > 0;
         }
-        
+
         public void log(String message) {
             if (logger != null) {
                 logger.accept(message);
             }
         }
-        
+
         /**
          * Invoke a service and return the result.
          * Uses the configured ServiceBackend (mock or real LLM).
+         * Automatically consumes API_CREDITS based on service type.
          */
         public ServiceResult invokeService(ServiceType type, Map<String, Object> input) {
             if (!hasService(type)) {
                 return new ServiceResult(false, "Service not allocated: " + type, null, 0);
             }
 
+            // Check and consume API credits for this service call
+            long creditCost = type.getDefaultResourceRequirements()
+                .getOrDefault(ResourceType.API_CREDITS, 1L);
+            if (!tryConsumeResource(ResourceType.API_CREDITS, creditCost)) {
+                return new ServiceResult(false,
+                    "Insufficient API_CREDITS: need " + creditCost +
+                    ", remaining " + getRemainingResource(ResourceType.API_CREDITS),
+                    null, 0);
+            }
+
             long startTime = System.currentTimeMillis();
 
             // Use the pluggable backend (MockServiceBackend or LLMServiceBackend)
             ServiceBackend.InvocationResult result = serviceBackend.invokeByType(type, input);
-            
+
             long latency = System.currentTimeMillis() - startTime;
-            
+
             return new ServiceResult(
                 result.isSuccess(),
                 result.getError(),
@@ -706,13 +765,27 @@ public class RealisticAgentFramework {
                 latency
             );
         }
-        
+
         public long getTimeoutMs() {
             return timeoutMs;
         }
-        
+
         public ServiceRegistry getServiceRegistry() {
             return serviceRegistry;
+        }
+
+        /**
+         * Get a summary of resource consumption.
+         */
+        public String getConsumptionSummary() {
+            StringBuilder sb = new StringBuilder();
+            for (ResourceType type : allocatedResources.keySet()) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(type).append("=")
+                  .append(getConsumedResource(type)).append("/")
+                  .append(getAllocatedResource(type));
+            }
+            return sb.length() > 0 ? sb.toString() : "none";
         }
     }
     
@@ -827,6 +900,7 @@ public class RealisticAgentFramework {
         private final ResourcePool resourcePool;
 
         private final Map<String, RealisticAgent> agents;
+        private final Map<String, Map<ResourceType, Long>> agentAllocations;  // Resource allocations from arbitration
         private final ScheduledExecutorService scheduler;
         private final List<RuntimeListener> listeners;
         private volatile boolean running;
@@ -882,6 +956,7 @@ public class RealisticAgentFramework {
             this.serviceBackend = serviceBackend;
             this.resourcePool = resourcePool;
             this.agents = new ConcurrentHashMap<>();
+            this.agentAllocations = new ConcurrentHashMap<>();
             this.scheduler = Executors.newScheduledThreadPool(4);
             this.listeners = new CopyOnWriteArrayList<>();
             this.tickIntervalMs = tickIntervalMs;
@@ -1036,17 +1111,21 @@ public class RealisticAgentFramework {
             agent.setState(RealisticAgent.AgentState.RUNNING);
             agent.getMetrics().recordGoalAttempt();
             notifyListeners(l -> l.onGoalStarted(agent, goal));
-            
+
             long startTime = System.currentTimeMillis();
-            
+
             try {
                 // Request service slots through arbitration
-                Map<ServiceType, Integer> serviceSlots = 
+                Map<ServiceType, Integer> serviceSlots =
                     requestServicesForAgent(agent);
-                
-                // Create execution context
+
+                // Get resource allocations for this agent (from arbitration)
+                Map<ResourceType, Long> allocations = agentAllocations.getOrDefault(
+                    agent.getAgentId(), new HashMap<>());
+
+                // Create execution context with ACTUAL allocations
                 ExecutionContext context = new ExecutionContext(
-                    new HashMap<>(),  // Resource allocation (simplified)
+                    allocations,  // Use real allocations from arbitration
                     serviceSlots,
                     serviceRegistry,
                     serviceBackend,
@@ -1116,30 +1195,195 @@ public class RealisticAgentFramework {
             if (agent == null) {
                 return GoalResult.failure("Agent not found: " + agentId);
             }
-            
+
             Goal goal = agent.getGoals().stream()
                 .filter(g -> g.getGoalId().equals(goalId))
                 .findFirst()
                 .orElse(null);
-            
+
             if (goal == null) {
                 return GoalResult.failure("Goal not found: " + goalId);
             }
-            
-            // For tool-level agents, execute immediately
+
+            // Get resource allocations for this agent
+            Map<ResourceType, Long> allocations = agentAllocations.getOrDefault(
+                agentId, new HashMap<>());
+
+            // For tool-level agents, execute immediately with actual allocations
             Map<ServiceType, Integer> serviceSlots = requestServicesForAgent(agent);
             ExecutionContext context = new ExecutionContext(
-                new HashMap<>(),
+                allocations,  // Use real allocations
                 serviceSlots,
                 serviceRegistry,
                 serviceBackend,
                 msg -> System.out.println("[" + agent.getAgentId() + "] " + msg),
                 30000
             );
-            
+
             return agent.executeGoal(goal, context);
         }
-        
+
+        // ====================================================================
+        // RESOURCE ALLOCATION MANAGEMENT
+        // ====================================================================
+
+        /**
+         * Set resource allocations for an agent.
+         * These allocations are enforced during goal execution.
+         *
+         * @param agentId The agent ID
+         * @param allocations Map of resource type to allocated amount
+         */
+        public void setAllocations(String agentId, Map<ResourceType, Long> allocations) {
+            agentAllocations.put(agentId, new HashMap<>(allocations));
+        }
+
+        /**
+         * Get current allocations for an agent.
+         */
+        public Map<ResourceType, Long> getAllocations(String agentId) {
+            return new HashMap<>(agentAllocations.getOrDefault(agentId, new HashMap<>()));
+        }
+
+        /**
+         * Clear all allocations (e.g., before re-running arbitration).
+         */
+        public void clearAllocations() {
+            agentAllocations.clear();
+        }
+
+        /**
+         * Run arbitration for all registered agents and store the allocations.
+         * This is the key integration point between arbitration and execution.
+         *
+         * @param detector ContentionDetector to find contention groups
+         * @param arbitrator Arbitrator to calculate fair allocations
+         * @return Map of agent ID to their allocations
+         */
+        public Map<String, Map<ResourceType, Long>> runArbitration(
+                org.carma.arbitration.mechanism.ContentionDetector detector,
+                org.carma.arbitration.mechanism.ProportionalFairnessArbitrator arbitrator) {
+
+            // Convert RealisticAgents to arbitration model Agents
+            List<org.carma.arbitration.model.Agent> arbAgents = new ArrayList<>();
+            for (RealisticAgent ra : agents.values()) {
+                org.carma.arbitration.model.Agent a = new org.carma.arbitration.model.Agent(
+                    ra.getAgentId(),
+                    ra.getName(),
+                    ra.getResourcePreferences(),
+                    ra.getCurrencyBalance().intValue()
+                );
+
+                // Set resource requests based on agent's service requirements
+                for (ServiceType svc : ra.getRequiredServiceTypes()) {
+                    Map<ResourceType, Long> reqs = svc.getDefaultResourceRequirements();
+                    for (Map.Entry<ResourceType, Long> req : reqs.entrySet()) {
+                        long current = a.getIdeal(req.getKey());
+                        a.setRequest(req.getKey(),
+                            Math.max(1, req.getValue() / 2),  // min
+                            current + req.getValue());         // ideal
+                    }
+                }
+                arbAgents.add(a);
+            }
+
+            // Detect contentions
+            List<org.carma.arbitration.mechanism.ContentionDetector.ContentionGroup> groups =
+                detector.detectContentions(arbAgents, resourcePool);
+
+            // Initialize allocations for all agents
+            Map<String, Map<ResourceType, Long>> allAllocations = new HashMap<>();
+            for (org.carma.arbitration.model.Agent a : arbAgents) {
+                allAllocations.put(a.getId(), new HashMap<>());
+            }
+
+            // Run arbitration for each contention group
+            Map<String, java.math.BigDecimal> burns = new HashMap<>();
+            for (org.carma.arbitration.model.Agent a : arbAgents) {
+                burns.put(a.getId(), java.math.BigDecimal.ZERO);
+            }
+
+            for (var group : groups) {
+                for (ResourceType type : group.getResources()) {
+                    List<org.carma.arbitration.model.Agent> competing = group.getAgents().stream()
+                        .filter(a -> a.getIdeal(type) > 0)
+                        .collect(java.util.stream.Collectors.toList());
+
+                    if (competing.isEmpty()) continue;
+
+                    org.carma.arbitration.model.Contention contention =
+                        new org.carma.arbitration.model.Contention(
+                            type, competing, group.getAvailableQuantities().get(type));
+
+                    Map<String, java.math.BigDecimal> groupBurns = new HashMap<>();
+                    for (var a : competing) {
+                        groupBurns.put(a.getId(), burns.get(a.getId()));
+                    }
+
+                    var result = arbitrator.arbitrate(contention, groupBurns);
+
+                    for (var a : competing) {
+                        allAllocations.get(a.getId()).put(type, result.getAllocation(a.getId()));
+                    }
+                }
+            }
+
+            // For agents not in any contention group, give them their full requested resources
+            Set<String> agentsInContention = new HashSet<>();
+            for (var group : groups) {
+                for (var agent : group.getAgents()) {
+                    agentsInContention.add(agent.getId());
+                }
+            }
+
+            for (org.carma.arbitration.model.Agent a : arbAgents) {
+                if (!agentsInContention.contains(a.getId())) {
+                    // No contention - agent gets their ideal amounts
+                    Map<ResourceType, Long> fullAlloc = new HashMap<>();
+                    for (ResourceType type : ResourceType.values()) {
+                        long ideal = a.getIdeal(type);
+                        if (ideal > 0) {
+                            fullAlloc.put(type, ideal);
+                        }
+                    }
+                    // Also give baseline API_CREDITS for service calls
+                    if (!fullAlloc.containsKey(ResourceType.API_CREDITS)) {
+                        fullAlloc.put(ResourceType.API_CREDITS, 10L);  // baseline
+                    }
+                    allAllocations.put(a.getId(), fullAlloc);
+                }
+            }
+
+            // Store allocations in runtime
+            for (var entry : allAllocations.entrySet()) {
+                agentAllocations.put(entry.getKey(), entry.getValue());
+            }
+
+            return allAllocations;
+        }
+
+        /**
+         * Check if an agent has any allocations set.
+         */
+        public boolean hasAllocations(String agentId) {
+            Map<ResourceType, Long> allocs = agentAllocations.get(agentId);
+            return allocs != null && !allocs.isEmpty();
+        }
+
+        /**
+         * Get all registered agents.
+         */
+        public Collection<RealisticAgent> getAgents() {
+            return agents.values();
+        }
+
+        /**
+         * Get the resource pool.
+         */
+        public ResourcePool getResourcePool() {
+            return resourcePool;
+        }
+
         /**
          * Approve checkpoint for an agent.
          */
