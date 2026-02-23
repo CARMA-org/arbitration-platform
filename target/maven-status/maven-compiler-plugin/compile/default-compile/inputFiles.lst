@@ -15,6 +15,7 @@
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/ConfigDrivenDemo.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/IntegratedArbitrationDemo.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/LLMIntegrationTest.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/LongitudinalParetoDemo.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/MultiAgentArbitrationTest.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/RealAgentDemo.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/demo/RealisticAgentDemo.java
@@ -51,6 +52,10 @@
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/model/ServiceRegistry.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/model/ServiceType.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/model/UtilityFunction.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/pareto/AgentStrategy.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/pareto/LongitudinalTracker.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/pareto/ParetoAnalysisSimulation.java
+/Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/pareto/ParetoVerifier.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/runner/ScenarioRunner.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/safety/AGIEmergenceMonitor.java
 /Users/avyaycasheekar/Documents/arbitration-platform/src/main/java/org/carma/arbitration/safety/ConfigurationValidator.java

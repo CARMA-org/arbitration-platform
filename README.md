@@ -26,6 +26,10 @@ mvn clean compile
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
     org.carma.arbitration.demo.IntegratedArbitrationDemo
 
+# Run LONGITUDINAL PARETO analysis (200 rounds, strategy comparison)
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.LongitudinalParetoDemo
+
 # Run config-driven demo (all scenarios)
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
     org.carma.arbitration.demo.ConfigDrivenDemo
@@ -235,6 +239,100 @@ Resource Conservation:
   Compute Units: allocated=59, pool=100 ✓
   API Credits: allocated=26, pool=50 ✓
   Memory Units: allocated=59, pool=200 ✓
+```
+
+### Longitudinal Pareto Analysis
+
+Tests the theoretical properties of WPF arbitration over multiple rounds:
+1. **Do all agents benefit?** - Track cumulative utility across 200 rounds
+2. **Does sacrifice lead to gain?** - Compare aggressive vs conservative currency burning strategies
+
+**Running the Pareto analysis:**
+
+```bash
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.LongitudinalParetoDemo
+```
+
+**Sample output:**
+
+```
+==============================================================================
+   LONGITUDINAL PARETO ANALYSIS
+   Testing WPF Arbitration Over Multiple Rounds
+==============================================================================
+
+CONFIGURATION
+--------------------------------------------------
+  Rounds:            200
+  Agents:            12 (3 per strategy)
+  Resource:          Compute Units (500 units)
+  Initial currency:  100.0 per agent
+
+==============================================================================
+QUESTION 1: IS IT ALL AGENTS TURNING OUT BETTER?
+==============================================================================
+
+Final vs Initial Cumulative Utility:
+
+  Agent     Strategy        Cum. Utility     Avg Alloc
+  --------  --------------  ------------  ------------
+  A3        Aggressive            9919.9          47.4
+  D3        Adaptive              9876.7          47.4
+  C3        Conservative          9600.8          47.1
+  ...
+
+ANSWER: YES - All 12 agents have positive cumulative utility
+        (No agent is worse off compared to not participating)
+
+==============================================================================
+QUESTION 2: DOES SACRIFICE LEAD TO LONG-TERM GAIN?
+==============================================================================
+
+Strategy Effectiveness (averaged across agents):
+
+  Strategy            Avg Cum.Util      Avg Burned   Util/Currency
+  ----------------  --------------  --------------  --------------
+  Aggressive                9395.5           514.2            18.3
+  Adaptive                  9358.2           507.1            18.5
+  Conservative              9127.1           448.3            20.4
+  Sacrifice50               8958.8           411.6            21.8
+
+ANSWER: YES - Aggressive strategy achieved 2.9% MORE total utility
+        However, Conservative is 1.1x more efficient (utility per currency burned)
+        Trade-off: Higher total gain vs. higher efficiency
+
+==============================================================================
+PARETO PROPERTY VERIFICATION
+==============================================================================
+
+Per-Round Pareto Optimality:
+  Rounds verified Pareto optimal: 100% (200/200)
+  (WPF water-filling algorithm guarantees optimality)
+
+Round-over-Round Pareto Improvements:
+  Pareto improvements (weak): 38.2% (76/199)
+  Strict Pareto improvements: 0/199 (0.0%)
+
+==============================================================================
+CONCLUSIONS
+==============================================================================
+
+1. ALL AGENTS BENEFIT: YES
+   Over 200 rounds, every agent accumulated positive total utility.
+   WPF provides universal benefit through fair proportional allocation.
+
+2. SACRIFICE WORKS: YES (with caveats)
+   Aggressive currency burning leads to higher per-round allocations
+   and total utility. However, it depletes currency reserves faster.
+
+3. PARETO OPTIMALITY HOLDS:
+   100% of rounds achieved Pareto optimal allocations.
+
+4. STRATEGY RECOMMENDATIONS:
+   - Short campaigns (<50 rounds): Aggressive burning is optimal
+   - Long campaigns (>100 rounds): Adaptive or sacrifice-and-recover
+   - Infinite horizon: Conservative with selective aggressive bursts
 ```
 
 ---

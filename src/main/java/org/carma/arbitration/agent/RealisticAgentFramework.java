@@ -1440,11 +1440,7 @@ public class RealisticAgentFramework {
                 }
             }
         }
-        
-        public Collection<RealisticAgent> getAgents() {
-            return agents.values();
-        }
-        
+
         public Optional<RealisticAgent> getAgent(String agentId) {
             return Optional.ofNullable(agents.get(agentId));
         }
