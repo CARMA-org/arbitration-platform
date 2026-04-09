@@ -335,6 +335,176 @@ CONCLUSIONS
    - Infinite horizon: Conservative with selective aggressive bursts
 ```
 
+### Pareto Rate Stability Test
+
+Investigates whether the 38.2% weak Pareto improvement rate observed above (which is close to 1 - φ where φ ≈ 1.618 is the golden ratio) is stable across different simulation configurations.
+
+**Running the stability test:**
+
+```bash
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+    org.carma.arbitration.demo.ParetoRateStabilityTest
+```
+
+**What the test does:**
+1. Verifies the simulation is deterministic (no random seeds)
+2. Varies parameters: initial currency, pool size, agent count, round count
+3. Tests different strategy mixes (all conservative, all aggressive, mixed, etc.)
+4. Searches for configurations that produce rates near 38.2%
+5. Reports statistics across all configurations
+
+**Full output:**
+
+```
+==============================================================================
+   PARETO RATE STABILITY TEST
+   Investigating the 38.2% ≈ 1 - φ Conjecture
+==============================================================================
+
+Background:
+  In a 200-round simulation with 12 agents, weak Pareto improvements
+  occurred 38.2% of the time. This is suspiciously close to 1 - φ
+  where φ = 1.6180339887 is the golden ratio (1 - φ = 0.3819660113).
+
+  This test investigates whether 38.2% is stable across configurations
+  or whether it was coincidental from the specific original setup.
+
+PART 1: VERIFYING SIMULATION DETERMINISM
+==============================================================================
+
+Running baseline simulation 3 times to confirm determinism...
+
+  Run 1: Weak Pareto improvements = 76/199 (38.2%)
+  Run 2: Weak Pareto improvements = 76/199 (38.2%)
+  Run 3: Weak Pareto improvements = 76/199 (38.2%)
+
+  ✓ CONFIRMED: Simulation is fully deterministic
+    All runs produce identical results (no random seeds).
+    The 38.2% rate is a property of the specific configuration.
+
+==============================================================================
+PART 2: PARAMETER VARIATION EXPERIMENTS
+==============================================================================
+
+Varying simulation parameters to test if 38.2% is configuration-specific...
+
+  Configuration                              Weak PI     Rate%   Strict PI   Dist to φ
+  ----------------------------------------  --------  --------  ----------  ----------
+  Baseline (200r, 12a, 500c, 100$)                76      38.2           0      0.0001
+  Initial currency = 50                          119      60.3           0      0.2210
+  Initial currency = 200                          40      20.1           0      0.1810
+  Initial currency = 500                          13       6.5           0      0.3166
+  Initial currency = 1000                          3       1.5           0      0.3669
+  Pool size = 200                                  0       0.0           0      0.3820
+  Pool size = 1000                               129      64.8           0      0.2663
+  Pool size = 2000                               117      58.8           0      0.2060
+  Agent count = 8 (2 per strat)                   93      46.7           0      0.0854
+  Agent count = 16 (4 per strat)                  63      31.7           0      0.0654
+  Agent count = 24 (6 per strat)                   0       0.0           0      0.3820
+  Rounds = 100                                    15      15.2           0      0.2305
+  Rounds = 500                                   107      21.4           0      0.1675
+  Rounds = 1000                                  107      10.7           0      0.2749
+
+==============================================================================
+PART 3: SIZE VARIATION (agents and rounds)
+==============================================================================
+
+Grid search over agent counts and round counts (seed=42 baseline)...
+
+  Agents\Rounds         100         200         500
+  --------  ----------  ----------  ----------
+         6       35.4%       53.8%       24.2%
+        12       15.2%       38.2%       21.4%
+        24        0.0%        0.0%        0.0%
+
+==============================================================================
+PART 4: STRATEGY MIX VARIATIONS
+==============================================================================
+
+Testing different strategy mixes...
+
+  Strategy Mix                           Weak PI%   Strict PI   Dist to φ
+  -----------------------------------  ----------  ----------  ----------
+  All Conservative (12)                      0.0%           0      0.3820
+  All Aggressive (12)                        0.0%           0      0.3820
+  All Adaptive (12)                          0.0%           0      0.3820
+  All Sacrifice50 (12)                      73.4%          66      0.3517
+  Equal mix (3+3+3+3)                       39.2%           0      0.0100
+  Heavy Aggressive (6A+2C+2D+2S)            39.2%           0      0.0100
+  Heavy Conservative (6C+2A+2D+2S)          30.7%           0      0.0754
+  A vs C only (6+6)                          0.5%           0      0.3769
+
+==============================================================================
+PART 5: SEARCHING FOR GOLDEN RATIO CONDITIONS
+==============================================================================
+
+Searching for configurations that produce rates near 38.2%...
+
+  Target: 38.2% ± 2.0%  (golden ratio region: 36.2% - 40.2%)
+
+  Configurations near golden ratio (1 - φ ≈ 38.2%):
+  ----------------------------------------------------------------------
+    ✓ Rounds=200, 12 agents, 500 pool, 100$: 38.2%
+    ✓ Rounds=225, 12 agents, 500 pool, 100$: 38.4%
+    ✓ Rounds=250, 12 agents, 500 pool, 100$: 38.2%
+    ✓ 200 rounds, 12 agents, 500 pool, $100: 38.2%
+    ✓ 200 rounds, 12 agents, 500 pool, 100$: 38.2%
+    ✓ 200r, Mix C3/A3/D3/S3, 500 pool: 39.2%
+    ✓ 200r, Mix C4/A4/D2/S2, 500 pool: 37.7%
+    ✓ 200r, Mix C3/A4/D3/S2, 500 pool: 37.7%
+    ✓ 200r, Mix C4/A3/D2/S3, 500 pool: 39.2%
+    ✓ 200r, Mix C3/A2/D4/S3, 500 pool: 38.7%
+    ✓ 200r, Mix C3/A3/D4/S2, 500 pool: 37.7%
+
+  Found 11 configurations producing rates near 38.2%
+
+  Configurations producing exactly 38.2% (76/199):
+  ----------------------------------------------------------------------
+    • Baseline (200r, 12a, 500c, 100$): 38.2%
+    • Rounds=200: 38.2%
+    • Rounds=250: 38.2%
+    • Currency=$100: 38.2%
+    • Pool=500: 38.2%
+
+==============================================================================
+SUMMARY
+==============================================================================
+
+STATISTICS ACROSS ALL CONFIGURATIONS:
+------------------------------------------------------------
+  Configurations tested: 22
+  Mean weak Pareto rate: 25.40%
+  Standard deviation:    23.73%
+  Minimum rate:          0.0% (Pool size = 200)
+  Maximum rate:          73.4% (All Sacrifice50 (12))
+  Range:                 73.4%
+
+  Golden ratio (φ):      1.618034
+  1 - φ (= 1/φ):         0.381966 (38.1966%)
+  Distance from 1-φ:     12.7937 percentage points
+
+CHARACTERIZATION:
+------------------------------------------------------------
+  CONFIGURATION-SENSITIVE
+
+  The weak Pareto improvement rate varies with configuration.
+  Standard deviation: 23.73%, Range: 0.0% to 73.4%
+
+  The 38.2% rate appears under specific conditions:
+    - Baseline configuration (200 rounds, 12 agents, 500 pool, $100)
+    - Mixed strategy populations with diverse burn rates
+    - Moderate contention ratios (demand/supply ≈ 1.4-1.6)
+
+ADDITIONAL OBSERVATIONS:
+------------------------------------------------------------
+  Configurations within 1% of 1-φ: 3/22
+  Outliers (>2σ from mean): 1
+
+==============================================================================
+   PARETO RATE STABILITY TEST COMPLETE
+==============================================================================
+```
+
 ---
 
 ## What's New in v0.7
