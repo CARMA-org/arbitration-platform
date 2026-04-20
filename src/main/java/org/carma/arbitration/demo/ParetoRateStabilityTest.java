@@ -6,6 +6,7 @@ import org.carma.arbitration.pareto.*;
 import org.carma.arbitration.pareto.ParetoAnalysisSimulation.*;
 
 import java.util.*;
+import java.io.*;
 
 /**
  * PARETO RATE STABILITY TEST
@@ -72,6 +73,9 @@ public class ParetoRateStabilityTest {
         System.out.println("SUMMARY");
         System.out.println(SEP);
         printSummary();
+
+        // Export to CSV
+        exportToCSV();
 
         printFooter();
     }
@@ -463,6 +467,54 @@ public class ParetoRateStabilityTest {
             if (Math.abs(r.rate - mean) > 2 * stdDev) outliers++;
         }
         System.out.printf("  Outliers (>2σ from mean): %d%n", outliers);
+    }
+
+    // ========================================================================
+    // CSV Export
+    // ========================================================================
+
+    private static void exportToCSV() {
+        String filename = "pareto_rate_stability_results.csv";
+
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            // Header
+            writer.println("Configuration,Weak_Pareto_Count,Total_Transitions,Rate_Percent,Strict_Pareto_Count,Distance_From_Golden_Ratio");
+
+            // All results from paramResults
+            for (ParameterResult r : paramResults) {
+                int transitions = 199; // default for 200 rounds
+                if (r.name.contains("Rounds = 100") || r.name.contains("Rounds=100")) transitions = 99;
+                if (r.name.contains("Rounds = 500") || r.name.contains("Rounds=500")) transitions = 499;
+                if (r.name.contains("Rounds = 1000") || r.name.contains("Rounds=1000")) transitions = 999;
+
+                int weakCount = (int) Math.round(r.rate * transitions / 100.0);
+                writer.printf("\"%s\",%d,%d,%.2f,0,%.6f%n",
+                    r.name, weakCount, transitions, r.rate, r.distFromPhi);
+            }
+
+            // Results from golden ratio search
+            for (ParameterResult r : goldenResults) {
+                int transitions = 199;
+                if (r.name.contains("Rounds=150")) transitions = 149;
+                if (r.name.contains("Rounds=175")) transitions = 174;
+                if (r.name.contains("Rounds=225")) transitions = 224;
+                if (r.name.contains("Rounds=250")) transitions = 249;
+
+                int weakCount = (int) Math.round(r.rate * transitions / 100.0);
+                writer.printf("\"%s\",%d,%d,%.2f,0,%.6f%n",
+                    r.name, weakCount, transitions, r.rate, r.distFromPhi);
+            }
+
+            System.out.println();
+            System.out.println(SEP);
+            System.out.println("CSV EXPORT");
+            System.out.println(SEP);
+            System.out.println("  Results exported to: " + filename);
+            System.out.println("  Open in Excel, Google Sheets, or any spreadsheet application.");
+
+        } catch (IOException e) {
+            System.err.println("  Error exporting CSV: " + e.getMessage());
+        }
     }
 
     // ========================================================================
