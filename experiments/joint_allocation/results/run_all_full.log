@@ -1,0 +1,259 @@
+=== run_rounding_comparison.py ===
+{
+  "n_instances": 1000,
+  "config": {
+    "n_agents": 6,
+    "n_resources": 3,
+    "cap": 100.0,
+    "lb": 1.0,
+    "ub": 100.0,
+    "dirichlet_alphas": [
+      0.1,
+      0.3,
+      1.0,
+      3.0,
+      10.0
+    ],
+    "per_alpha": 200
+  },
+  "naive": {
+    "capacity_violations": 161,
+    "max_excess": 1.0,
+    "bound_violations": 0,
+    "median_change_weighted_log_welfare": -0.00011892022551762693,
+    "mean_change_weighted_log_welfare": -0.0029665458580431336,
+    "median_geomean_utility_loss": 1.981984116855573e-05,
+    "worst_individual_utility_change": -0.022588086404546976
+  },
+  "largest_remainder": {
+    "capacity_violations": 0,
+    "max_excess": 0.0,
+    "bound_violations": 0,
+    "median_change_weighted_log_welfare": -0.00014908762069687498,
+    "mean_change_weighted_log_welfare": -0.00017756776602569245,
+    "median_geomean_utility_loss": 2.484762807519747e-05,
+    "worst_individual_utility_change": -0.03939613190959591
+  }
+}
+    (6.5s, exit 0)
+=== run_experiment1.py ===
+{
+  "experiment": "experiment1",
+  "tag": "full",
+  "n_train_per_cell": 30,
+  "n_test_per_cell": 100,
+  "tuned_gamma": 2.0,
+  "mean_regret_by_gamma": {
+    "0.0": 2.8116272559821014,
+    "0.25": 1.7131430414367508,
+    "0.5": 1.2510589659202616,
+    "1.0": 0.7972758115766942,
+    "2.0": 0.48017896107410857,
+    "4.0": 0.6218040803370058,
+    "8.0": 1.6495127713652837,
+    "16.0": 3.371675121090332
+  },
+  "raw_csv": "results/raw/experiment1_full.csv",
+  "table_csv": "tables/experiment1_full.csv"
+}
+    (5.4s, exit 0)
+=== run_experiment2.py ===
+{
+  "experiment": "experiment2",
+  "tag": "full",
+  "n_train_per_cell": 40,
+  "n_test_per_cell": 100,
+  "breadths": [
+    1.3,
+    2.0,
+    3.0,
+    3.8
+  ],
+  "lambdas": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "tuned_gamma": 4.0,
+  "mean_regret_by_gamma": {
+    "0.0": 3.3059393909460963,
+    "0.25": 2.127471091566189,
+    "0.5": 1.5221641406742836,
+    "1.0": 0.9144293363040391,
+    "2.0": 0.49010440586612947,
+    "4.0": 0.3214748742371182,
+    "8.0": 0.5093492235898776,
+    "16.0": 1.2278128196339997
+  },
+  "raw_csv": "results/raw/experiment2_full.csv",
+  "table_csv": "tables/experiment2_full.csv"
+}
+    (28.7s, exit 0)
+=== run_experiment3.py ===
+{
+  "experiment": "experiment3",
+  "tag": "full",
+  "n_train_per_cell": 20,
+  "n_test_per_cell": 50,
+  "families": [
+    "CES_-1",
+    "COBB_DOUGLAS",
+    "CES_0.5",
+    "LINEAR",
+    "LEONTIEF"
+  ],
+  "per_family": {
+    "CES_-1": {
+      "tuned_gamma": 0.0,
+      "mean_regret_by_gamma": {
+        "0.0": NaN,
+        "0.25": NaN,
+        "0.5": NaN,
+        "1.0": NaN,
+        "2.0": NaN,
+        "4.0": NaN,
+        "8.0": NaN,
+        "16.0": NaN
+      },
+      "raw_csv": "results/raw/experiment3_CES_-1_full.csv"
+    },
+    "COBB_DOUGLAS": {
+      "tuned_gamma": 1.0,
+      "mean_regret_by_gamma": {
+        "0.0": 2.0975833464982374,
+        "0.25": 0.9083413564594253,
+        "0.5": 0.37516238180072786,
+        "1.0": 0.016890485083980483,
+        "2.0": 0.2673992944656341,
+        "4.0": 1.2411538119791465,
+        "8.0": 2.8305528540471467,
+        "16.0": 4.732183063784054
+      },
+      "raw_csv": "results/raw/experiment3_COBB_DOUGLAS_full.csv"
+    },
+    "CES_0.5": {
+      "tuned_gamma": 2.0,
+      "mean_regret_by_gamma": {
+        "0.0": 2.6653037286180115,
+        "0.25": 1.443012713005211,
+        "0.5": 0.844873745584272,
+        "1.0": 0.28259971444489324,
+        "2.0": 0.02748284766594708,
+        "4.0": 0.216165547410219,
+        "8.0": 0.9334400577708577,
+        "16.0": 2.2510324699843114
+      },
+      "raw_csv": "results/raw/experiment3_CES_0.5_full.csv"
+    },
+    "LINEAR": {
+      "tuned_gamma": 4.0,
+      "mean_regret_by_gamma": {
+        "0.0": 3.774739477957376,
+        "0.25": 2.552730529833615,
+        "0.5": 1.8956236709657854,
+        "1.0": 1.198753694360846,
+        "2.0": 0.6634804583504884,
+        "4.0": 0.3982866519892476,
+        "8.0": 0.5588386604591086,
+        "16.0": 1.4570624565607786
+      },
+      "raw_csv": "results/raw/experiment3_LINEAR_full.csv"
+    },
+    "LEONTIEF": {
+      "tuned_gamma": 1.0,
+      "mean_regret_by_gamma": {
+        "0.0": 3.539999259164444,
+        "0.25": 1.940384099132031,
+        "0.5": 1.048504736048521,
+        "1.0": 0.4531206817656105,
+        "2.0": 3.155660987198173,
+        "4.0": 7.569320442241245,
+        "8.0": 10.703204500390893,
+        "16.0": 13.169840897648005
+      },
+      "raw_csv": "results/raw/experiment3_LEONTIEF_full.csv"
+    }
+  },
+  "cobb_douglas_joint_vs_separable_max_abs_diff": {
+    "n_checked": 30,
+    "welfare_abs_diff": 3.863087094657658e-07,
+    "alloc_max_diff_weighted_columns": 0.0059121663765431265
+  }
+}
+    (97.0s, exit 0)
+=== run_experiment4.py ===
+{
+  "experiment": "experiment4",
+  "tag": "full",
+  "n_train_per_cell": 20,
+  "n_test_per_cell": 60,
+  "representative_cell": {
+    "breadth": 3.0,
+    "lambda": 0.5
+  },
+  "bounds": {
+    "tuned_gamma": 4.0,
+    "mean_regret_by_gamma": {
+      "0.0": 3.0101753728245,
+      "0.25": 2.486727414705557,
+      "0.5": 2.0333919451208575,
+      "1.0": 1.3657540648136663,
+      "2.0": 0.7021540045790285,
+      "4.0": 0.3974585162387859,
+      "8.0": 0.6034496402943554,
+      "16.0": 1.4298466714487965
+    },
+    "raw_csv": "results/raw/experiment4_bounds_full.csv"
+  },
+  "priorities": {
+    "tuned_gamma": 4.0,
+    "mean_regret_by_gamma": {
+      "0.0": 3.285657500328782,
+      "0.25": 2.741195445764241,
+      "0.5": 2.2786127514822194,
+      "1.0": 1.5824657234067512,
+      "2.0": 0.8597208228849439,
+      "4.0": 0.5983992358100264,
+      "8.0": 1.1686638339255448,
+      "16.0": 2.7956392807326784
+    },
+    "raw_csv": "results/raw/experiment4_priorities_full.csv"
+  }
+}
+    (9.7s, exit 0)
+=== run_experiment5.py ===
+{
+  "experiment": "experiment5",
+  "tag": "full",
+  "n_seeds": 100,
+  "summaries": [
+    {
+      "event": "drift",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 1.0,
+      "median_objective_cost_of_commitment": 0.08217458057390026,
+      "p95_objective_cost_of_commitment": 0.43281083058962294,
+      "median_frac_floors_binding": 1.0,
+      "median_worst_incumbent_loss_unrestricted": -0.14858705190106672
+    },
+    {
+      "event": "arrival",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 0.0,
+      "entrant_admission_rate_unrestricted": 1.0
+    },
+    {
+      "event": "capacity",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 0.0
+    }
+  ],
+  "raw_csv": "results/raw/experiment5_full.csv"
+}
+    (6.6s, exit 0)
+=== figures.py ===
+figures written to /Users/avyaycasheekar/Documents/arbitration-platform/experiments/joint_allocation/figures
+    (2.5s, exit 0)
+ALL DONE

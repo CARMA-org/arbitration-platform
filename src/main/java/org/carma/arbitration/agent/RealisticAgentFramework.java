@@ -692,6 +692,11 @@ public class RealisticAgentFramework {
          * If the full amount cannot be consumed, consumes up to the limit and returns false.
          */
         public boolean tryConsumeResource(ResourceType type, long amount) {
+            if (amount < 0) {
+                log("Rejected negative resource request: " + type + " amount " + amount);
+                return false;
+            }
+
             long allocated = getAllocatedResource(type);
             long consumed = getConsumedResource(type);
             long remaining = allocated - consumed;
@@ -714,7 +719,7 @@ public class RealisticAgentFramework {
          * Check if a resource consumption would succeed without actually consuming.
          */
         public boolean canConsumeResource(ResourceType type, long amount) {
-            return amount <= getRemainingResource(type);
+            return amount >= 0 && amount <= getRemainingResource(type);
         }
 
         public int getAllocatedServiceSlots(ServiceType type) {

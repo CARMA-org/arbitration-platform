@@ -441,7 +441,7 @@ public class GroupingPolicyDemo {
         };
 
         System.out.println("  ┌─────────────────────────────────────┬────────┬─────────┬─────────┬──────────┐");
-        System.out.println("  │ Policy                              │ Groups │ MaxSize │ Speedup │ OptLoss  │");
+        System.out.println("  │ Policy                              │ Groups │ MaxSize │ Speedup │ EdgeCut% │");
         System.out.println("  ├─────────────────────────────────────┼────────┼─────────┼─────────┼──────────┤");
 
         for (GroupingPolicy policy : policies) {

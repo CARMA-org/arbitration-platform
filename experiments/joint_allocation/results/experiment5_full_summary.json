@@ -1,0 +1,28 @@
+{
+  "experiment": "experiment5",
+  "tag": "full",
+  "n_seeds": 100,
+  "summaries": [
+    {
+      "event": "drift",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 1.0,
+      "median_objective_cost_of_commitment": 0.08217458057390026,
+      "p95_objective_cost_of_commitment": 0.43281083058962294,
+      "median_frac_floors_binding": 1.0,
+      "median_worst_incumbent_loss_unrestricted": -0.14858705190106672
+    },
+    {
+      "event": "arrival",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 0.0,
+      "entrant_admission_rate_unrestricted": 1.0
+    },
+    {
+      "event": "capacity",
+      "n_seeds": 100,
+      "commitment_feasibility_rate": 0.0
+    }
+  ],
+  "raw_csv": "results/raw/experiment5_full.csv"
+}

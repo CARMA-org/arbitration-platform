@@ -1,0 +1,78 @@
+{
+  "experiment": "experiment3",
+  "tag": "full",
+  "n_train_per_cell": 20,
+  "n_test_per_cell": 50,
+  "families": [
+    "COBB_DOUGLAS",
+    "CES_0.5",
+    "LINEAR",
+    "LEONTIEF"
+  ],
+  "per_family": {
+    "COBB_DOUGLAS": {
+      "tuned_gamma": 1.0,
+      "mean_regret_by_gamma": {
+        "0.0": 2.0975833464982374,
+        "0.25": 0.9083413564594253,
+        "0.5": 0.37516238180072786,
+        "1.0": 0.016890485083980483,
+        "2.0": 0.2673992944656341,
+        "4.0": 1.2411538119791465,
+        "8.0": 2.8305528540471467,
+        "16.0": 4.732183063784054
+      },
+      "raw_csv": "results/raw/experiment3_COBB_DOUGLAS_full.csv"
+    },
+    "CES_0.5": {
+      "tuned_gamma": 2.0,
+      "mean_regret_by_gamma": {
+        "0.0": 2.6653037286180115,
+        "0.25": 1.443012713005211,
+        "0.5": 0.844873745584272,
+        "1.0": 0.28259971444489324,
+        "2.0": 0.02748284766594708,
+        "4.0": 0.216165547410219,
+        "8.0": 0.9334400577708577,
+        "16.0": 2.2510324699843114
+      },
+      "raw_csv": "results/raw/experiment3_CES_0.5_full.csv"
+    },
+    "LINEAR": {
+      "tuned_gamma": 4.0,
+      "mean_regret_by_gamma": {
+        "0.0": 3.774739477957376,
+        "0.25": 2.552730529833615,
+        "0.5": 1.8956236709657854,
+        "1.0": 1.198753694360846,
+        "2.0": 0.6634804583504884,
+        "4.0": 0.3982866519892476,
+        "8.0": 0.5588386604591086,
+        "16.0": 1.4570624565607786
+      },
+      "raw_csv": "results/raw/experiment3_LINEAR_full.csv"
+    },
+    "LEONTIEF": {
+      "tuned_gamma": 1.0,
+      "mean_regret_by_gamma": {
+        "0.0": 3.539999259164444,
+        "0.25": 1.940384099132031,
+        "0.5": 1.048504736048521,
+        "1.0": 0.4531206817656105,
+        "2.0": 3.155660987198173,
+        "4.0": 7.569320442241245,
+        "8.0": 10.703204500390893,
+        "16.0": 13.169840897648005
+      },
+      "raw_csv": "results/raw/experiment3_LEONTIEF_full.csv"
+    }
+  },
+  "omitted_families": {
+    "CES_-1": "CES rho=-1 is supported and validated on small instances (tests/python/test_solver.py matches multi-start SciPy), but at the 8-agent 4-resource scale its pnorm-over-exponential-cone formulation solves only to optimal_inaccurate and occasionally returns points worse than the separable comparator, so objective regret is not reliable. Omitted from the sweep rather than reported from an unreliable solve."
+  },
+  "cobb_douglas_joint_vs_separable": {
+    "n_checked": 30,
+    "welfare_abs_diff": 3.863087094657658e-07,
+    "alloc_max_diff_weighted_columns": 0.0059121663765431265
+  }
+}

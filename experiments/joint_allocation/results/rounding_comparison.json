@@ -1,0 +1,36 @@
+{
+  "n_instances": 1000,
+  "config": {
+    "n_agents": 6,
+    "n_resources": 3,
+    "cap": 100.0,
+    "lb": 1.0,
+    "ub": 100.0,
+    "dirichlet_alphas": [
+      0.1,
+      0.3,
+      1.0,
+      3.0,
+      10.0
+    ],
+    "per_alpha": 200
+  },
+  "naive": {
+    "capacity_violations": 161,
+    "max_excess": 1.0,
+    "bound_violations": 0,
+    "median_change_weighted_log_welfare": -0.00011892022551762693,
+    "mean_change_weighted_log_welfare": -0.0029665458580431336,
+    "median_geomean_utility_loss": 1.981984116855573e-05,
+    "worst_individual_utility_change": -0.022588086404546976
+  },
+  "largest_remainder": {
+    "capacity_violations": 0,
+    "max_excess": 0.0,
+    "bound_violations": 0,
+    "median_change_weighted_log_welfare": -0.00014908762069687498,
+    "mean_change_weighted_log_welfare": -0.00017756776602569245,
+    "median_geomean_utility_loss": 2.484762807519747e-05,
+    "worst_individual_utility_change": -0.03939613190959591
+  }
+}

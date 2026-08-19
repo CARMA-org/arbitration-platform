@@ -1,0 +1,28 @@
+{
+  "experiment": "experiment5",
+  "tag": "smoke",
+  "n_seeds": 20,
+  "summaries": [
+    {
+      "event": "drift",
+      "n_seeds": 20,
+      "commitment_feasibility_rate": 1.0,
+      "median_objective_cost_of_commitment": 0.05830456465856315,
+      "p95_objective_cost_of_commitment": 0.38021922937978325,
+      "median_frac_floors_binding": 1.0,
+      "median_worst_incumbent_loss_unrestricted": -0.13062171210398557
+    },
+    {
+      "event": "arrival",
+      "n_seeds": 20,
+      "commitment_feasibility_rate": 0.0,
+      "entrant_admission_rate_unrestricted": 1.0
+    },
+    {
+      "event": "capacity",
+      "n_seeds": 20,
+      "commitment_feasibility_rate": 0.0
+    }
+  ],
+  "raw_csv": "results/raw/experiment5_smoke.csv"
+}

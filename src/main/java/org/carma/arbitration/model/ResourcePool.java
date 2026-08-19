@@ -101,6 +101,9 @@ public class ResourcePool {
      * @throws IllegalStateException if insufficient resources
      */
     public void allocate(ResourceType type, long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("allocate amount must be nonnegative: " + amount);
+        }
         long current = getAvailable(type);
         if (amount > current) {
             throw new IllegalStateException(
@@ -113,6 +116,9 @@ public class ResourcePool {
      * Release resources back to the pool.
      */
     public void release(ResourceType type, long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("release amount must be nonnegative: " + amount);
+        }
         long current = getAvailable(type);
         long newAvailable = current + amount;
         // Cap at total capacity

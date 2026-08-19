@@ -1,0 +1,32 @@
+{
+  "experiment": "experiment2",
+  "tag": "full",
+  "n_train_per_cell": 40,
+  "n_test_per_cell": 100,
+  "breadths": [
+    1.3,
+    2.0,
+    3.0,
+    3.8
+  ],
+  "lambdas": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "tuned_gamma": 4.0,
+  "mean_regret_by_gamma": {
+    "0.0": 3.3059393909460963,
+    "0.25": 2.127471091566189,
+    "0.5": 1.5221641406742836,
+    "1.0": 0.9144293363040391,
+    "2.0": 0.49010440586612947,
+    "4.0": 0.3214748742371182,
+    "8.0": 0.5093492235898776,
+    "16.0": 1.2278128196339997
+  },
+  "raw_csv": "results/raw/experiment2_full.csv",
+  "table_csv": "tables/experiment2_full.csv"
+}

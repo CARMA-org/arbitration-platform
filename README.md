@@ -1,8 +1,8 @@
-# Arbitration Platform v0.8
+# Arbitration Platform v0.9
 
-**Platform-Mediated Pareto-Optimized Multi-Agent Interaction**
+**Platform-Mediated Multi-Agent Resource Arbitration**
 
-A complete implementation of Weighted Proportional Fairness for resource allocation among competing agents, with theoretical guarantees for Pareto optimality, collusion resistance, and individual rationality. Supports config-driven agent definitions, automatic contention detection, and third-party agent extensibility via Kotlin scripting.
+A research prototype for resource allocation among competing agents. It arbitrates a shared resource pool using a weighted-log (weighted proportional fairness) objective, with config-driven agent definitions, automatic contention detection, and third-party agent extensibility via Kotlin scripting. Exact joint optimization is available through a Python/CVXPY solver; the default runtime path performs continuous joint linear optimization. This repository is an implementation artifact, not a separate research publication.
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
     org.carma.arbitration.demo.ConfigDrivenDemo basic-arbitration
 
-# Run validation demos (mathematical proofs)
+# Run the core arbitration demo
 mvn exec:java -Dexec.mainClass=org.carma.arbitration.Demo
 
 # Run end-to-end demo with REAL LLM integration (requires API key)
@@ -154,6 +154,47 @@ This demo demonstrated:
    DEMO COMPLETE
 ======================================================================
 ```
+
+## What's New in v0.9
+
+### Corrected solver contract
+
+The Python/CVXPY joint solver now returns a structured status
+(`status`, `requested_utility`, `solved_utility`, `solver`, `objective_value`,
+`allocations`, `warnings`, `error_type`, `error_message`) and never silently substitutes
+one utility model for another. Supported utility families are `LINEAR`, `COBB_DOUGLAS`
+(log optimized directly), `CES` (via `pnorm`, with `rho=1` and `rho=0` as explicit
+special cases), and `LEONTIEF` (explicit requirement vector). Seven historical type names
+(SQRT, LOG, THRESHOLD, SATIATION, NESTED_CES, and the two loss-aversion variants) are
+reported as `unsupported_model` rather than approximated. See `docs/MODEL_SUPPORT.md`.
+
+### Accurately stated model support and error handling
+
+The Java arbitrator surfaces solver errors and warnings and no longer falls back to the
+sequential/linear allocator by default; an explicitly enabled fallback names both the
+requested and the actual model.
+
+### Safer enforcement and capacity-preserving rounding
+
+Resource boundaries reject negative quantities without changing recorded consumption.
+Continuous allocations are converted to integers with bounded largest-remainder rounding
+per resource column, which preserves capacity and bounds (zero capacity violations over
+1000 instances) instead of the previous independent cellwise rounding.
+
+### Real tests and reproducible experiments
+
+A Python suite (validation, every supported model, rejection of unsupported models,
+closed forms, independent SciPy checks, rounding) and a Java suite (negative consumption,
+rounding, boundaries, an end-to-end solver integration test) run in CI. A self-contained
+harness under `experiments/joint_allocation/` compares allocation rules with deterministic
+seeds and raw per-instance outputs; see `docs/EXPERIMENTS.md` and `docs/REPRODUCIBILITY.md`.
+
+### Corrected terminology for the former Pareto-transition statistic
+
+The statistic previously framed as a "golden-ratio" weak-Pareto-improvement rate is
+renamed the nondecreasing endogenous-weighted-score transition rate. The reference
+constant is corrected to `1/phi^2 = 2 - phi`, and the sensitivity check reports the full
+range over a predetermined grid without inferring any law or attractor.
 
 ## What's New in v0.8
 
@@ -945,22 +986,26 @@ arbitration-platform/
 └── README.md
 ```
 
-## Validation Scenarios
+## Demonstration Scenarios
 
-| # | Scenario | What It Tests | Result |
-|---|----------|---------------|--------|
-| 1 | Basic Mechanism | Weights affect allocation | ✓ PASS |
-| 2 | Joint vs Separate | PF improves over naive proportional | ✓ PASS (0.40%) |
-| 3 | Collusion Resistance | Victim protected despite 200:1 odds | ✓ PASS |
-| 4 | Complementary Preferences | Specialists + balanced agents benefit | ✓ PASS |
-| 5 | Priority Economy | Earning/burning dynamics | ✓ PASS |
-| 6 | Individual Rationality | All agents ≥ outside option | ✓ PASS |
-| 7 | Starvation Protection | Minnows survive whale attack | ✓ PASS |
-| 8 | Asymptotic Behavior | 15s convergence test with EMA smoothing | ⚠ Expected |
-| 9 | Joint Optimization | "Paretotopia" thesis - cross-resource trades | ✓ PASS (2.73%) |
-| 10 | Diverse Resources | 6 resources, 6 agents, overlapping clusters | ✓ PASS |
-| 11 | AI Service Integration | Service composition and arbitration | ✓ PASS |
-| 12 | Nonlinear Utilities | All 11 utility function types | ✓ PASS |
+These are illustrative demos, not proofs. Each row names the behavior a demo displays on
+its configured inputs. Properties such as collusion resistance and individual rationality
+are not proven anywhere in the repository and are not claimed here.
+
+| # | Scenario | What the demo illustrates |
+|---|----------|---------------------------|
+| 1 | Basic Mechanism | Weights affect allocation |
+| 2 | Joint vs Separate | Weighted-log objective vs naive proportional split |
+| 3 | Minimum-share protection | A low-priority agent keeps its minimum under 200:1 currency odds |
+| 4 | Complementary Preferences | Specialists and balanced agents each receive a bundle |
+| 5 | Priority Economy | Earning/burning dynamics affect priority weights |
+| 6 | Minimums honored | Every agent receives at least its stated minimum |
+| 7 | Starvation Protection | Small agents keep their minimum under a high-demand agent |
+| 8 | Asymptotic Behavior | 15s convergence run with EMA smoothing |
+| 9 | Joint Optimization | Cross-resource trades under the joint solver |
+| 10 | Diverse Resources | 6 resources, 6 agents, overlapping clusters |
+| 11 | AI Service Integration | Service composition and arbitration |
+| 12 | Utility models | LINEAR, COBB_DOUGLAS, CES, LEONTIEF (see docs/MODEL_SUPPORT.md) |
 
 ## Mathematical Foundation
 
@@ -1072,8 +1117,8 @@ Without Clarabel, the system uses pure Java gradient ascent which achieves
 | **v0.6 - A+G+I Safety Monitoring** | ✅ Done | Conjunction risk detection |
 | **v0.6 - Configuration Validation** | ✅ Done | Load-time validation |
 | Grouping Policy | ✅ Done | K-hop limits, size bounds, compatibility matrices |
-| Joint Optimization | ✅ Done | Clarabel working with 2.73% welfare gain |
-| Nonlinear Utilities | ✅ Done | 11 utility types |
+| Joint Optimization | ✅ Done | Clarabel joint solver (continuous) |
+| Utility models | ✅ Done | LINEAR, COBB_DOUGLAS, CES, LEONTIEF (see docs/MODEL_SUPPORT.md) |
 | AI Service Integration | ✅ Done | 15 service types, compositions, arbitration |
 | EMA Smoothing | ✅ Done | α=0.15 dampens oscillations |
 | Transaction Manager | ✅ Done | Atomic commit/rollback |
@@ -1084,7 +1129,8 @@ Without Clarabel, the system uses pure Java gradient ascent which achieves
 
 ## License
 
-MIT License - see LICENSE file for details.
+No license is currently declared for this repository. The licensing decision is left to
+the repository owner; until a `LICENSE` file is added, no license is granted.
 
 ## References
 

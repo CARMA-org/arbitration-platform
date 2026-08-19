@@ -9,19 +9,18 @@ import java.util.*;
 import java.io.*;
 
 /**
- * PARETO RATE STABILITY TEST
+ * NONDECREASING ENDOGENOUS-WEIGHTED-SCORE TRANSITION RATE — SENSITIVITY CHECK
  *
- * Investigates whether the 38.2% weak Pareto improvement rate observed in
- * LongitudinalParetoDemo is stable across different conditions, or if it
- * was coincidental.
+ * Reports the transition rate previously described as a "weak Pareto improvement
+ * rate". Because the underlying statistic uses time-varying priority-weighted
+ * scores, it is not a Pareto-improvement rate under fixed utilities; it is the
+ * fraction of round-to-round transitions in which the endogenous weighted score
+ * does not decrease.
  *
- * 38.2% is suspiciously close to 1 - φ where φ is the golden ratio
- * (1 - 0.61803... = 0.38197...)
- *
- * This test:
- * 1. Confirms the simulation is deterministic (no random seeds)
- * 2. Varies configuration parameters to see if 38.2% is specific to the
- *    original configuration or a more general attractor
+ * A descriptive sensitivity check runs a predetermined parameter grid and reports
+ * the full range of the statistic. The reference value 0.381966... = 1/φ^2 = 2 - φ
+ * is noted only for comparison; proximity is not evidence of a law, attractor,
+ * invariant, or golden-ratio mechanism.
  *
  * Run with:
  *   java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
@@ -32,9 +31,8 @@ public class ParetoRateStabilityTest {
     private static final String SEP = "=".repeat(78);
     private static final String SUBSEP = "-".repeat(60);
 
-    // Golden ratio constant
-    private static final double PHI = (1 + Math.sqrt(5)) / 2;  // 1.618033988749895
-    private static final double ONE_MINUS_PHI = 1 - PHI + 1;   // 0.381966011250105 (= 2 - φ = 1/φ)
+    private static final double PHI = (1 + Math.sqrt(5)) / 2;   // 1.618033988749895
+    private static final double PHI_SQ_RECIP = 2 - PHI;         // 0.381966011250105 = 1/phi^2
 
     public static void main(String[] args) {
         printHeader();
@@ -62,11 +60,11 @@ public class ParetoRateStabilityTest {
         System.out.println(SEP);
         runStrategyMixVariations();
 
-        // Part 5: Fine-grained search for golden ratio conditions
+        // Part 5: Predetermined sensitivity grid
         System.out.println("\n" + SEP);
-        System.out.println("PART 5: SEARCHING FOR GOLDEN RATIO CONDITIONS");
+        System.out.println("PART 5: PREDETERMINED SENSITIVITY GRID");
         System.out.println(SEP);
-        searchForGoldenRatioConditions();
+        runPredeterminedSensitivityGrid();
 
         // Part 6: Summary
         System.out.println("\n" + SEP);
@@ -129,7 +127,7 @@ public class ParetoRateStabilityTest {
 
         // Table header
         System.out.println(String.format("  %-40s  %8s  %8s  %10s  %10s",
-            "Configuration", "Weak PI", "Rate%", "Strict PI", "Dist to φ"));
+            "Configuration", "Weak PI", "Rate%", "Strict PI", "Dist ref "));
         System.out.println("  " + "-".repeat(40) + "  " + "-".repeat(8) + "  " +
             "-".repeat(8) + "  " + "-".repeat(10) + "  " + "-".repeat(10));
 
@@ -167,7 +165,7 @@ public class ParetoRateStabilityTest {
         int weakPI = (int)(result.paretoImprovementRate() * transitions);
         double rate = result.paretoImprovementRate() * 100;
         long strictPI = result.strictImprovementCount();
-        double distToPhi = Math.abs(result.paretoImprovementRate() - ONE_MINUS_PHI);
+        double distToPhi = Math.abs(result.paretoImprovementRate() - PHI_SQ_RECIP);
 
         paramResults.add(new ParameterResult(name, rate, distToPhi));
 
@@ -219,7 +217,7 @@ public class ParetoRateStabilityTest {
         System.out.println("\nTesting different strategy mixes...\n");
 
         System.out.println(String.format("  %-35s  %10s  %10s  %10s",
-            "Strategy Mix", "Weak PI%", "Strict PI", "Dist to φ"));
+            "Strategy Mix", "Weak PI%", "Strict PI", "Dist ref "));
         System.out.println("  " + "-".repeat(35) + "  " + "-".repeat(10) + "  " +
             "-".repeat(10) + "  " + "-".repeat(10));
 
@@ -255,7 +253,7 @@ public class ParetoRateStabilityTest {
 
         double rate = result.paretoImprovementRate() * 100;
         long strictPI = result.strictImprovementCount();
-        double distToPhi = Math.abs(result.paretoImprovementRate() - ONE_MINUS_PHI);
+        double distToPhi = Math.abs(result.paretoImprovementRate() - PHI_SQ_RECIP);
 
         paramResults.add(new ParameterResult(name, rate, distToPhi));
 
@@ -264,108 +262,50 @@ public class ParetoRateStabilityTest {
     }
 
     // ========================================================================
-    // Part 5: Search for Golden Ratio Conditions
+    // Part 5: Predetermined sensitivity grid
     // ========================================================================
 
-    private static List<ParameterResult> goldenResults = new ArrayList<>();
+    private static List<ParameterResult> gridResults = new ArrayList<>();
 
-    private static void searchForGoldenRatioConditions() {
-        System.out.println("\nSearching for configurations that produce rates near 38.2%...\n");
+    private static void runPredeterminedSensitivityGrid() {
+        System.out.println("\nRunning a predetermined grid and reporting the full range of the rate.\n");
 
-        // Find configurations where rate is within 2% of 38.2%
-        double targetRate = 38.2;
-        double tolerance = 2.0;
-
-        System.out.println(String.format("  Target: %.1f%% ± %.1f%%  (golden ratio region: 36.2%% - 40.2%%)",
-            targetRate, tolerance));
-        System.out.println();
-
-        System.out.println("  Configurations near golden ratio (1 - φ ≈ 38.2%):");
-        System.out.println("  " + "-".repeat(70));
-
-        // Test a range of parameters more finely
-        int goldenCount = 0;
-
-        // Test rounds from 150 to 250
         for (int rounds : new int[]{150, 175, 200, 225, 250}) {
-            SimulationResult result = runSimulation(rounds, 3, 500, 100.0, false);
-            double rate = result.paretoImprovementRate() * 100;
-            if (Math.abs(rate - targetRate) <= tolerance) {
-                System.out.printf("    ✓ Rounds=%d, 12 agents, 500 pool, 100$: %.1f%%%n", rounds, rate);
-                goldenResults.add(new ParameterResult("Rounds=" + rounds, rate, Math.abs(rate/100 - ONE_MINUS_PHI)));
-                goldenCount++;
-            }
+            double rate = runSimulation(rounds, 3, 500, 100.0, false).paretoImprovementRate() * 100;
+            gridResults.add(new ParameterResult("Rounds=" + rounds, rate, Math.abs(rate/100 - PHI_SQ_RECIP)));
         }
-
-        // Test initial currency around 100
         for (int currency : new int[]{80, 90, 100, 110, 120, 130, 140, 150}) {
-            SimulationResult result = runSimulation(200, 3, 500, currency, false);
-            double rate = result.paretoImprovementRate() * 100;
-            if (Math.abs(rate - targetRate) <= tolerance) {
-                System.out.printf("    ✓ 200 rounds, 12 agents, 500 pool, $%d: %.1f%%%n", currency, rate);
-                goldenResults.add(new ParameterResult("Currency=$" + currency, rate, Math.abs(rate/100 - ONE_MINUS_PHI)));
-                goldenCount++;
-            }
+            double rate = runSimulation(200, 3, 500, currency, false).paretoImprovementRate() * 100;
+            gridResults.add(new ParameterResult("Currency=$" + currency, rate, Math.abs(rate/100 - PHI_SQ_RECIP)));
         }
-
-        // Test pool sizes
         for (int pool : new int[]{400, 450, 500, 550, 600, 650, 700}) {
-            SimulationResult result = runSimulation(200, 3, pool, 100.0, false);
-            double rate = result.paretoImprovementRate() * 100;
-            if (Math.abs(rate - targetRate) <= tolerance) {
-                System.out.printf("    ✓ 200 rounds, 12 agents, %d pool, 100$: %.1f%%%n", pool, rate);
-                goldenResults.add(new ParameterResult("Pool=" + pool, rate, Math.abs(rate/100 - ONE_MINUS_PHI)));
-                goldenCount++;
-            }
+            double rate = runSimulation(200, 3, pool, 100.0, false).paretoImprovementRate() * 100;
+            gridResults.add(new ParameterResult("Pool=" + pool, rate, Math.abs(rate/100 - PHI_SQ_RECIP)));
         }
-
-        // Test different strategy mixes more thoroughly
         int[][] mixes = {
-            {3, 3, 3, 3},  // Equal
-            {4, 4, 2, 2},  // Heavy A+C
-            {2, 2, 4, 4},  // Heavy D+S
-            {3, 4, 3, 2},  // Slightly more aggressive
-            {4, 3, 2, 3},  // Mixed
-            {2, 4, 3, 3},  // More aggressive
-            {3, 2, 4, 3},  // More adaptive
-            {3, 3, 4, 2},  // Adaptive heavy
+            {3, 3, 3, 3}, {4, 4, 2, 2}, {2, 2, 4, 4}, {3, 4, 3, 2},
+            {4, 3, 2, 3}, {2, 4, 3, 3}, {3, 2, 4, 3}, {3, 3, 4, 2},
         };
-
         for (int[] mix : mixes) {
-            SimulationResult result = runSimulationWithMix(200, 500, 100.0, mix[0], mix[1], mix[2], mix[3]);
-            double rate = result.paretoImprovementRate() * 100;
-            if (Math.abs(rate - targetRate) <= tolerance) {
-                String mixName = String.format("Mix C%d/A%d/D%d/S%d", mix[0], mix[1], mix[2], mix[3]);
-                System.out.printf("    ✓ 200r, %s, 500 pool: %.1f%%%n", mixName, rate);
-                goldenResults.add(new ParameterResult(mixName, rate, Math.abs(rate/100 - ONE_MINUS_PHI)));
-                goldenCount++;
-            }
+            double rate = runSimulationWithMix(200, 500, 100.0, mix[0], mix[1], mix[2], mix[3])
+                .paretoImprovementRate() * 100;
+            String mixName = String.format("Mix C%d/A%d/D%d/S%d", mix[0], mix[1], mix[2], mix[3]);
+            gridResults.add(new ParameterResult(mixName, rate, Math.abs(rate/100 - PHI_SQ_RECIP)));
         }
 
-        System.out.println();
-        System.out.printf("  Found %d configurations producing rates near 38.2%%%n", goldenCount);
-
-        // Also list configurations that are exactly at 38.2%
-        System.out.println();
-        System.out.println("  Configurations producing exactly 38.2% (76/199):");
-        System.out.println("  " + "-".repeat(70));
-
-        int exactCount = 0;
-        for (ParameterResult r : paramResults) {
-            if (Math.abs(r.rate - 38.2) < 0.1) {
-                System.out.printf("    • %s: %.1f%%%n", r.name, r.rate);
-                exactCount++;
-            }
+        double min = Double.MAX_VALUE, max = -Double.MAX_VALUE, sum = 0;
+        int within = 0;
+        for (ParameterResult r : gridResults) {
+            min = Math.min(min, r.rate);
+            max = Math.max(max, r.rate);
+            sum += r.rate;
+            if (Math.abs(r.rate/100 - PHI_SQ_RECIP) <= 0.01) within++;
         }
-        for (ParameterResult r : goldenResults) {
-            if (Math.abs(r.rate - 38.2) < 0.1) {
-                System.out.printf("    • %s: %.1f%%%n", r.name, r.rate);
-                exactCount++;
-            }
-        }
-        if (exactCount == 0) {
-            System.out.println("    (Only the baseline configuration)");
-        }
+        System.out.printf("  Grid size:  %d configurations%n", gridResults.size());
+        System.out.printf("  Full range: %.1f%% to %.1f%%  (mean %.2f%%)%n", min, max, sum / gridResults.size());
+        System.out.printf("  Reference:  1/phi^2 = 2 - phi = %.6f (%.4f%%)%n", PHI_SQ_RECIP, PHI_SQ_RECIP * 100);
+        System.out.printf("  Within 0.01 of the reference: %d of %d configurations%n", within, gridResults.size());
+        System.out.println("  Proximity is descriptive only; no law, attractor, or invariant is inferred.");
     }
 
     // ========================================================================
@@ -394,7 +334,7 @@ public class ParetoRateStabilityTest {
         double mean = sum / n;
         double variance = (sumSq / n) - (mean * mean);
         double stdDev = Math.sqrt(variance);
-        double distFromPhi = Math.abs(mean / 100 - ONE_MINUS_PHI);
+        double distFromPhi = Math.abs(mean / 100 - PHI_SQ_RECIP);
 
         System.out.println("\nSTATISTICS ACROSS ALL CONFIGURATIONS:");
         System.out.println(SUBSEP);
@@ -405,61 +345,36 @@ public class ParetoRateStabilityTest {
         System.out.printf("  Maximum rate:          %.1f%% (%s)%n", max, maxConfig);
         System.out.printf("  Range:                 %.1f%%%n", max - min);
         System.out.println();
-        System.out.printf("  Golden ratio (φ):      %.6f%n", PHI);
-        System.out.printf("  1 - φ (= 1/φ):         %.6f (%.4f%%)%n", ONE_MINUS_PHI, ONE_MINUS_PHI * 100);
-        System.out.printf("  Distance from 1-φ:     %.4f percentage points%n", distFromPhi * 100);
+        System.out.printf("  Reference 1/phi^2 = 2 - phi: %.6f (%.4f%%)%n", PHI_SQ_RECIP, PHI_SQ_RECIP * 100);
+        System.out.printf("  Distance of mean from reference: %.4f percentage points%n", distFromPhi * 100);
 
         System.out.println();
         System.out.println("CHARACTERIZATION:");
         System.out.println(SUBSEP);
 
-        // Criteria from the prompt:
-        // - If stdDev < 2% AND mean within 1% of 38.2% → "STABLE - potentially significant"
-        // - If stdDev < 2% but mean not near 38.2% → "STABLE at a different rate"
-        // - Otherwise → Show configuration sensitivity
-
         boolean stdDevLow = stdDev < 2.0;
-        boolean nearGolden = Math.abs(mean - 38.2) < 1.0;
 
-        if (stdDevLow && nearGolden) {
-            System.out.println("  *** STABLE - POTENTIALLY SIGNIFICANT ***");
-            System.out.println();
-            System.out.println("  The weak Pareto improvement rate is remarkably stable across");
-            System.out.println("  different configurations (σ < 2%) AND the mean is within 1%");
-            System.out.println("  of 38.2% (≈ 1 - φ where φ is the golden ratio).");
-            System.out.println();
-            System.out.println("  This suggests a potential deep structural connection between");
-            System.out.println("  WPF dynamics and the golden ratio that warrants further");
-            System.out.println("  mathematical investigation.");
-        } else if (stdDevLow) {
-            System.out.println("  STABLE AT A DIFFERENT RATE");
-            System.out.println();
-            System.out.printf("  The rate is stable (σ = %.2f%% < 2%%), but the mean (%.2f%%)%n",
-                stdDev, mean);
-            System.out.printf("  differs from 38.2%% (1 - φ).%n");
+        if (stdDevLow) {
+            System.out.printf("  The transition rate is stable across the grid (sigma = %.2f%% < 2%%),%n", stdDev);
+            System.out.printf("  with mean %.2f%% over %d configurations.%n", mean, n);
         } else {
             System.out.println("  CONFIGURATION-SENSITIVE");
-            System.out.println();
-            System.out.printf("  The weak Pareto improvement rate varies with configuration.%n");
-            System.out.printf("  Standard deviation: %.2f%%, Range: %.1f%% to %.1f%%%n", stdDev, min, max);
-            System.out.println();
-            System.out.println("  The 38.2% rate appears under specific conditions:");
-            System.out.println("    - Baseline configuration (200 rounds, 12 agents, 500 pool, $100)");
-            System.out.println("    - Mixed strategy populations with diverse burn rates");
-            System.out.println("    - Moderate contention ratios (demand/supply ≈ 1.4-1.6)");
+            System.out.printf("  The transition rate varies with configuration (sigma = %.2f%%, range %.1f%%-%.1f%%).%n",
+                stdDev, min, max);
         }
+        System.out.println("  The reference value is reported for comparison only; proximity is not");
+        System.out.println("  evidence of a law, attractor, invariant, or golden-ratio mechanism.");
 
         // Additional analysis
         System.out.println();
         System.out.println("ADDITIONAL OBSERVATIONS:");
         System.out.println(SUBSEP);
 
-        // Check for configurations close to golden ratio
-        int closeToGolden = 0;
+        int closeToRef = 0;
         for (ParameterResult r : paramResults) {
-            if (r.distFromPhi < 0.01) closeToGolden++;
+            if (r.distFromPhi < 0.01) closeToRef++;
         }
-        System.out.printf("  Configurations within 1%% of 1-φ: %d/%d%n", closeToGolden, n);
+        System.out.printf("  Configurations within 0.01 of the reference: %d/%d%n", closeToRef, n);
 
         // Check for configurations far from mean
         int outliers = 0;
@@ -478,7 +393,7 @@ public class ParetoRateStabilityTest {
 
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
             // Header
-            writer.println("Configuration,Weak_Pareto_Count,Total_Transitions,Rate_Percent,Strict_Pareto_Count,Distance_From_Golden_Ratio");
+            writer.println("Configuration,Weak_Pareto_Count,Total_Transitions,Rate_Percent,Strict_Pareto_Count,Distance_From_Reference");
 
             // All results from paramResults
             for (ParameterResult r : paramResults) {
@@ -492,8 +407,8 @@ public class ParetoRateStabilityTest {
                     r.name, weakCount, transitions, r.rate, r.distFromPhi);
             }
 
-            // Results from golden ratio search
-            for (ParameterResult r : goldenResults) {
+            // Results from the predetermined sensitivity grid
+            for (ParameterResult r : gridResults) {
                 int transitions = 199;
                 if (r.name.contains("Rounds=150")) transitions = 149;
                 if (r.name.contains("Rounds=175")) transitions = 174;
@@ -618,17 +533,16 @@ public class ParetoRateStabilityTest {
     private static void printHeader() {
         System.out.println();
         System.out.println(SEP);
-        System.out.println("   PARETO RATE STABILITY TEST");
-        System.out.println("   Investigating the 38.2% ≈ 1 - φ Conjecture");
+        System.out.println("   ENDOGENOUS-WEIGHTED-SCORE TRANSITION RATE — SENSITIVITY CHECK");
         System.out.println(SEP);
         System.out.println();
         System.out.println("Background:");
-        System.out.println("  In a 200-round simulation with 12 agents, weak Pareto improvements");
-        System.out.printf("  occurred 38.2%% of the time. This is suspiciously close to 1 - φ%n");
-        System.out.printf("  where φ = %.10f is the golden ratio (1 - φ = %.10f).%n", PHI, ONE_MINUS_PHI);
+        System.out.println("  In a 200-round simulation with 12 agents, the nondecreasing endogenous");
+        System.out.println("  weighted-score transition occurred about 38.2% of the time. Because the");
+        System.out.println("  score uses time-varying priority weights, this is not a Pareto-improvement");
+        System.out.printf("  rate under fixed utilities. For comparison, 1/phi^2 = 2 - phi = %.10f.%n", PHI_SQ_RECIP);
         System.out.println();
-        System.out.println("  This test investigates whether 38.2% is stable across configurations");
-        System.out.println("  or whether it was coincidental from the specific original setup.");
+        System.out.println("  This check reports the full range of the rate across a predetermined grid.");
         System.out.println();
     }
 

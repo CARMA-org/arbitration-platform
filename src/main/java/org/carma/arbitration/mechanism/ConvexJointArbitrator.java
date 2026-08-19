@@ -58,7 +58,7 @@ public class ConvexJointArbitrator implements JointArbitrator {
         this.pythonCommand = pythonCommand;
         this.solverScriptPath = solverScriptPath;
         this.fallback = new SequentialJointArbitrator(economy);
-        this.useFallbackOnError = true;
+        this.useFallbackOnError = false;
     }
 
     public ConvexJointArbitrator() {
@@ -148,8 +148,12 @@ public class ConvexJointArbitrator implements JointArbitrator {
                 System.err.println("[DEBUG] Output JSON: " + outputJson);
             }
             
-            // Parse result (pass resources list for consistent ordering)
-            JointAllocationResult result = parseResult(outputJson, agents, resources, currencyCommitments, startTime);
+            // Parse result (pass resources list and capacities for consistent ordering)
+            long[] capacities = new long[resources.size()];
+            for (int j = 0; j < resources.size(); j++) {
+                capacities[j] = pool.getCapacity(resources.get(j));
+            }
+            JointAllocationResult result = parseResult(outputJson, agents, resources, capacities, currencyCommitments, startTime);
             
             if (debug) {
                 System.err.println("[DEBUG] Parsed result feasible: " + result.isFeasible());
@@ -163,8 +167,15 @@ public class ConvexJointArbitrator implements JointArbitrator {
                 e.printStackTrace(System.err);
             }
             if (useFallbackOnError) {
-                System.err.println("ConvexJointArbitrator failed, using fallback: " + e.getMessage());
-                return fallback.arbitrate(agents, pool, currencyCommitments);
+                System.err.println("ConvexJointArbitrator (requested=JOINT_LINEAR) failed: "
+                    + e.getMessage() + " -- explicit fallback enabled, using actual="
+                    + fallback.getClass().getSimpleName() + " (per-resource sequential)");
+                JointAllocationResult fb = fallback.arbitrate(agents, pool, currencyCommitments);
+                return new JointAllocationResult(
+                    fb.getAllAllocations(), currencyCommitments, fb.getObjectiveValue(),
+                    fb.isFeasible(),
+                    "fallback[requested=JOINT_LINEAR,actual=SEQUENTIAL]: " + fb.getMessage(),
+                    System.currentTimeMillis() - startTime);
             } else {
                 throw new RuntimeException("Joint optimization failed: " + e.getMessage(), e);
             }
@@ -314,56 +325,80 @@ public class ConvexJointArbitrator implements JointArbitrator {
             String json,
             List<Agent> agents,
             List<ResourceType> resources,
+            long[] capacities,
             Map<String, BigDecimal> currencyCommitments,
             long startTime) {
-        
-        // Result storage
+
         Map<String, Map<ResourceType, Long>> allocations = new HashMap<>();
         double objectiveValue = 0;
-        boolean feasible = true;
+        boolean feasible = false;
         String message = "";
-        
+
         try {
-            // Extract status - FIXED: handle whitespace in JSON
             String status = extractJsonString(json, "status");
-            feasible = "optimal".equals(status);
-            message = status;
-            
+            feasible = "optimal".equals(status) || "optimal_inaccurate".equals(status);
+            String requested = extractJsonString(json, "requested_utility");
+            String solved = extractJsonString(json, "solved_utility");
+
             if (debug) {
-                System.err.println("[DEBUG] Parsed status: '" + status + "', feasible: " + feasible);
+                System.err.println("[DEBUG] status='" + status + "' feasible=" + feasible
+                    + " requested=" + requested + " solved=" + solved);
             }
-            
-            // Extract objective
-            objectiveValue = extractJsonDouble(json, "objective");
-            
-            // Extract allocations matrix
-            String allocsJson = extractJsonArray(json, "allocations");
-            List<List<Double>> allocMatrix = parseNestedDoubleArray(allocsJson);
-            
-            if (debug) {
-                System.err.println("[DEBUG] Allocation matrix rows: " + allocMatrix.size());
-                System.err.println("[DEBUG] Resources count: " + resources.size());
-            }
-            
-            for (int i = 0; i < agents.size() && i < allocMatrix.size(); i++) {
-                Agent agent = agents.get(i);
-                Map<ResourceType, Long> agentAllocs = new HashMap<>();
-                List<Double> row = allocMatrix.get(i);
-                
-                for (int j = 0; j < resources.size() && j < row.size(); j++) {
-                    // Round to nearest integer
-                    long alloc = Math.round(row.get(j));
-                    agentAllocs.put(resources.get(j), alloc);
+
+            if (!feasible) {
+                String errType = extractJsonString(json, "error_type");
+                String errMsg = extractJsonString(json, "error_message");
+                StringBuilder m = new StringBuilder(status);
+                if (errType != null && !errType.isEmpty() && !"null".equals(errType)) {
+                    m.append(" [").append(errType).append("]");
                 }
-                
-                allocations.put(agent.getId(), agentAllocs);
+                if (errMsg != null && !errMsg.isEmpty() && !"null".equals(errMsg)) {
+                    m.append(": ").append(errMsg);
+                }
+                return new JointAllocationResult(
+                    allocations, currencyCommitments, 0.0, false, m.toString(),
+                    System.currentTimeMillis() - startTime);
             }
-            
-            // Check for solver warnings
-            if (json.contains("warning")) {
+
+            objectiveValue = extractJsonDouble(json, "objective_value");
+            message = status;
+            if (requested != null && solved != null && !requested.equals(solved)) {
+                message += " (requested=" + requested + ", solved=" + solved + ")";
+            }
+            String warnings = extractJsonArray(json, "warnings");
+            if (warnings != null && !warnings.replaceAll("\\s", "").equals("[]")) {
                 message += " (with warnings)";
             }
-            
+
+            String allocsJson = extractJsonArray(json, "allocations");
+            List<List<Double>> allocMatrix = parseNestedDoubleArray(allocsJson);
+
+            int n = agents.size();
+            int m = resources.size();
+            double[][] cont = new double[n][m];
+            long[][] lower = new long[n][m];
+            long[][] upper = new long[n][m];
+            for (int i = 0; i < n && i < allocMatrix.size(); i++) {
+                Agent agent = agents.get(i);
+                List<Double> row = allocMatrix.get(i);
+                for (int j = 0; j < m && j < row.size(); j++) {
+                    cont[i][j] = row.get(j);
+                    lower[i][j] = agent.getMinimum(resources.get(j));
+                    upper[i][j] = agent.getIdeal(resources.get(j));
+                }
+            }
+
+            long[][] rounded = roundColumnsPreservingCapacity(cont, lower, upper, capacities);
+
+            for (int i = 0; i < n; i++) {
+                Agent agent = agents.get(i);
+                Map<ResourceType, Long> agentAllocs = new HashMap<>();
+                for (int j = 0; j < m; j++) {
+                    agentAllocs.put(resources.get(j), rounded[i][j]);
+                }
+                allocations.put(agent.getId(), agentAllocs);
+            }
+
         } catch (Exception e) {
             if (debug) {
                 System.err.println("[DEBUG] Parse exception: " + e.getMessage());
@@ -371,8 +406,9 @@ public class ConvexJointArbitrator implements JointArbitrator {
             }
             feasible = false;
             message = "Parse error: " + e.getMessage();
+            allocations = new HashMap<>();
         }
-        
+
         return new JointAllocationResult(
             allocations,
             currencyCommitments,
@@ -381,6 +417,66 @@ public class ConvexJointArbitrator implements JointArbitrator {
             message,
             System.currentTimeMillis() - startTime
         );
+    }
+
+    /**
+     * Deterministic, capacity-preserving integer conversion via bounded
+     * largest-remainder rounding applied independently to each resource column.
+     * Guarantees each column sum does not exceed its integer capacity and that
+     * every cell stays within its integer lower and upper bounds.
+     */
+    static long[][] roundColumnsPreservingCapacity(
+            double[][] cont, long[][] lower, long[][] upper, long[] cap) {
+        int n = cont.length;
+        if (n == 0) return new long[0][0];
+        int m = cont[0].length;
+        long[][] out = new long[n][m];
+
+        for (int j = 0; j < m; j++) {
+            long[] base = new long[n];
+            double[] rem = new double[n];
+            long sumBase = 0;
+            double colSum = 0.0;
+            for (int i = 0; i < n; i++) {
+                long f = (long) Math.floor(cont[i][j]);
+                if (f < lower[i][j]) f = lower[i][j];
+                if (f > upper[i][j]) f = upper[i][j];
+                base[i] = f;
+                rem[i] = cont[i][j] - f;
+                sumBase += f;
+                colSum += cont[i][j];
+            }
+            long target = Math.min(cap[j], Math.round(colSum));
+            if (target < sumBase) target = sumBase;
+            long units = target - sumBase;
+
+            while (units > 0) {
+                int pick = -1;
+                double bestRem = Double.NEGATIVE_INFINITY;
+                for (int i = 0; i < n; i++) {
+                    if (base[i] < upper[i][j] && rem[i] > bestRem) {
+                        bestRem = rem[i];
+                        pick = i;
+                    }
+                }
+                if (pick < 0) break;
+                base[pick]++;
+                rem[pick] = Double.NEGATIVE_INFINITY;
+                units--;
+            }
+
+            long finalCol = 0;
+            for (int i = 0; i < n; i++) {
+                out[i][j] = base[i];
+                finalCol += base[i];
+            }
+            if (finalCol > cap[j]) {
+                throw new IllegalStateException(
+                    "capacity-preserving rounding violated capacity on resource " + j
+                    + ": " + finalCol + " > " + cap[j]);
+            }
+        }
+        return out;
     }
 
     // ========================================================================

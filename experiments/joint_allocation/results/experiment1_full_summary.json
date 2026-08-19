@@ -1,0 +1,19 @@
+{
+  "experiment": "experiment1",
+  "tag": "full",
+  "n_train_per_cell": 30,
+  "n_test_per_cell": 100,
+  "tuned_gamma": 2.0,
+  "mean_regret_by_gamma": {
+    "0.0": 2.8116272559821014,
+    "0.25": 1.7131430414367508,
+    "0.5": 1.2510589659202616,
+    "1.0": 0.7972758115766942,
+    "2.0": 0.48017896107410857,
+    "4.0": 0.6218040803370058,
+    "8.0": 1.6495127713652837,
+    "16.0": 3.371675121090332
+  },
+  "raw_csv": "results/raw/experiment1_full.csv",
+  "table_csv": "tables/experiment1_full.csv"
+}

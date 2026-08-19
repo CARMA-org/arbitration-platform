@@ -1,0 +1,19 @@
+{
+  "experiment": "experiment1",
+  "tag": "smoke",
+  "n_train_per_cell": 20,
+  "n_test_per_cell": 20,
+  "tuned_gamma": 2.0,
+  "mean_regret_by_gamma": {
+    "0.0": 2.7952669086156434,
+    "0.25": 1.7287684057168509,
+    "0.5": 1.2718258514256897,
+    "1.0": 0.8115313758079397,
+    "2.0": 0.4844247934923153,
+    "4.0": 0.6196034087444207,
+    "8.0": 1.6642095534868246,
+    "16.0": 3.4521592843207998
+  },
+  "raw_csv": "results/raw/experiment1_smoke.csv",
+  "table_csv": "tables/experiment1_smoke.csv"
+}

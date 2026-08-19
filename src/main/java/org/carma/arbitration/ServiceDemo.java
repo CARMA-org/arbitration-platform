@@ -108,7 +108,15 @@ public class ServiceDemo {
             compatible ? "Compatible via " + overlap : "Not compatible");
 
         System.out.println();
-        System.out.println("  ✓ PASS: Service types defined with resource mappings");
+        boolean allHaveResourceMappings = true;
+        for (ServiceType type : ServiceType.values()) {
+            if (type.getDefaultResourceRequirements().isEmpty()) {
+                allHaveResourceMappings = false;
+                break;
+            }
+        }
+        System.out.println("  " + (allHaveResourceMappings ? "✓ PASS" : "✗ FAIL")
+            + ": every service type defines resource mappings");
         System.out.println();
     }
 
