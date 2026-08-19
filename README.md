@@ -157,7 +157,7 @@ This demo demonstrated:
 
 ## What's New in v0.9
 
-### Corrected solver contract
+### Updated solver contract
 
 The Python/CVXPY joint solver now returns a structured status
 (`status`, `requested_utility`, `solved_utility`, `solver`, `objective_value`,
@@ -168,7 +168,7 @@ special cases), and `LEONTIEF` (explicit requirement vector). Seven historical t
 (SQRT, LOG, THRESHOLD, SATIATION, NESTED_CES, and the two loss-aversion variants) are
 reported as `unsupported_model` rather than approximated. See `docs/MODEL_SUPPORT.md`.
 
-### Accurately stated model support and error handling
+### Updated model support and error handling
 
 The Java arbitrator surfaces solver errors and warnings and no longer falls back to the
 sequential/linear allocator by default; an explicitly enabled fallback names both the
@@ -189,11 +189,11 @@ rounding, boundaries, an end-to-end solver integration test) run in CI. A self-c
 harness under `experiments/joint_allocation/` compares allocation rules with deterministic
 seeds and raw per-instance outputs; see `docs/EXPERIMENTS.md` and `docs/REPRODUCIBILITY.md`.
 
-### Corrected terminology for the former Pareto-transition statistic
+### Updated terminology for the endogenous-weighted-score transition statistic
 
 The statistic previously framed as a "golden-ratio" weak-Pareto-improvement rate is
 renamed the nondecreasing endogenous-weighted-score transition rate. The reference
-constant is corrected to `1/phi^2 = 2 - phi`, and the sensitivity check reports the full
+constant is stated as `1/phi^2 = 2 - phi`, and the sensitivity check reports the full
 range over a predetermined grid without inferring any law or attractor.
 
 ## What's New in v0.8
