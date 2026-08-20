@@ -66,10 +66,10 @@ def main():
     reps = 10 if args.smoke else args.reps
 
     malformed = os.path.join(HERE, "fake_solvers", "malformed.py")
-    slow = os.path.join(HERE, "fake_solvers", "slow_timeout.py")
+    hung = os.path.join(HERE, "fake_solvers", "hung_solver.py")
 
     proc = subprocess.run(
-        ["java", "-cp", classpath(), HARNESS, args.solver_python, malformed, slow, str(reps)],
+        ["java", "-cp", classpath(), HARNESS, args.solver_python, malformed, hung, str(reps)],
         capture_output=True, text=True, cwd=ROOT)
     if proc.returncode != 0:
         sys.stderr.write(proc.stderr)

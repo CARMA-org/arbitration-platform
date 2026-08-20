@@ -164,8 +164,11 @@ def validate_inputs(data):
             r = np.asarray(req, dtype=float)
             if r.shape != (m,):
                 raise ValidationError(f"agent {i}: LEONTIEF requirements shape {r.shape} != ({m},)")
-            if np.any(r <= 0) or not np.all(np.isfinite(r)):
-                raise ValidationError(f"agent {i}: LEONTIEF requirements must be finite and > 0")
+            if not np.all(np.isfinite(r)) or np.any(r < 0):
+                raise ValidationError(f"agent {i}: LEONTIEF requirements must be finite and >= 0")
+            if not np.any(r > 0):
+                raise ValidationError(
+                    f"agent {i}: LEONTIEF requires at least one strictly positive requirement")
 
     return n, m, W, c, Q, mins, ideals, cfgs
 
@@ -201,7 +204,8 @@ def _agent_log_utility_expr(cfg, W, A, i, aux_vars, constraints, meta):
         u = cp.Variable(nonneg=True)
         aux_vars.append(u)
         for j in range(len(r)):
-            constraints.append(u <= row[j] / r[j])
+            if r[j] > 0:
+                constraints.append(u <= row[j] / r[j])
         return cp.log(u)
 
     raise UnsupportedModel(f"utility type {t} is not supported")
@@ -227,7 +231,8 @@ def eval_utility_np(cfg, w, a):
         return float(np.power(max(s, POS_FLOOR), 1.0 / rho))
     if t == "LEONTIEF":
         r = np.asarray(cfg["requirements"], dtype=float)
-        return float(np.min(a / r))
+        pos = r > 0
+        return float(np.min(a[pos] / r[pos]))
     raise UnsupportedModel(f"utility type {t} is not supported")
 
 

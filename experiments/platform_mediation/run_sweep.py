@@ -24,15 +24,18 @@ TABLES = os.path.join(HERE, "tables")
 LOGS = os.path.join(HERE, "logs")
 
 RUN_FIELDS = [
-    "experiment", "cell", "regime", "contention", "seed", "policy", "gamma",
-    "feasible", "declared_welfare", "completion_mean", "completion_min",
-    "completion_p5", "quality_mean", "priority_weighted_slo", "utilization_mean",
+    "experiment", "cell", "regime", "contention", "seed", "policy", "utility_family",
+    "gamma", "feasible", "declared_welfare", "completion_mean", "completion_min",
+    "completion_p5", "optional_refinement_rate", "quality_adjusted_completion",
+    "latency_budget_completion", "utilization_mean", "mandatory_failures_total",
     "blocked_total", "backend_total", "capacity_violation", "bound_violation",
     "alloc_latency_ms",
 ]
 AGENT_FIELDS = [
-    "cell", "regime", "contention", "seed", "policy", "agent", "priority",
-    "completion", "quality", "slo", "backend_calls", "blocked_calls",
+    "cell", "regime", "contention", "seed", "policy", "utility_family", "agent",
+    "archetype", "priority", "completion", "mandatory_failures",
+    "optional_refinement_rate", "quality", "latency_budget", "backend_calls",
+    "blocked_calls", "allocated", "charged", "unused", "exhausted",
 ]
 
 
@@ -55,16 +58,20 @@ def cells(cfg):
 def run_metrics(res):
     comps = [a["completion"] for a in res["agents"]]
     quals = [a["quality"] for a in res["agents"]]
+    refine = [a.get("optional_refinement_rate", 0.0) for a in res["agents"]]
     util = res.get("utilization", {})
     util_mean = float(np.mean(list(util.values()))) if util else 0.0
+    comp_mean = float(np.mean(comps))
     return {
         "declared_welfare": res["declared_welfare"],
-        "completion_mean": float(np.mean(comps)),
+        "completion_mean": comp_mean,
         "completion_min": float(np.min(comps)),
         "completion_p5": float(np.percentile(comps, 5)),
-        "quality_mean": float(np.mean(quals)),
-        "priority_weighted_slo": res["priority_weighted_slo"],
+        "optional_refinement_rate": float(np.mean(refine)),
+        "quality_adjusted_completion": float(np.mean(quals)),
+        "latency_budget_completion": res["priority_weighted_slo"],
         "utilization_mean": util_mean,
+        "mandatory_failures_total": res.get("mandatory_failures_total", 0),
         "blocked_total": res["blocked_calls_total"],
         "backend_total": res["backend_calls_total"],
         "capacity_violation": res["capacity_violation"],
@@ -77,6 +84,7 @@ def calibrate_gamma(cfg, mode, solver_python, log):
     """Pick one global gamma minimizing pooled declared-welfare regret vs joint
     over calibration seeds only."""
     grid = cfg["gamma_grid"]
+    ref = cfg.get("joint_reference", "joint_linear")
     sums = {g: 0.0 for g in grid}
     count = 0
     for regime, cname, ratio, label in cells(cfg):
@@ -84,7 +92,7 @@ def calibrate_gamma(cfg, mode, solver_python, log):
         jobs, meta = [], []
         for seed in calib:
             sc = scenario.base_scenario(regime, cname, ratio, seed, cfg[mode])
-            jobs.append(scenario.make_job(sc, label, seed, "joint", 1.0, solver_python, False))
+            jobs.append(scenario.make_job(sc, label, seed, ref, 1.0, solver_python, False))
             meta.append(("joint", seed, None))
             for g in grid:
                 jobs.append(scenario.make_job(sc, label, seed, "separable", g, solver_python, False))
@@ -135,17 +143,25 @@ def evaluate(cfg, mode, gamma, solver_python, log):
                 continue
             m = run_metrics(r)
             row = {"experiment": "platform_mediation", "cell": label, "regime": regime,
-                   "contention": cname, "seed": seed, "policy": policy, "gamma": g,
+                   "contention": cname, "seed": seed, "policy": policy,
+                   "utility_family": r.get("utility_family", ""), "gamma": g,
                    "feasible": True}
             row.update(m)
             run_rows.append(row)
             for a in r["agents"]:
                 agent_rows.append({
                     "cell": label, "regime": regime, "contention": cname, "seed": seed,
-                    "policy": policy, "agent": a["id"], "priority": a["priority"],
-                    "completion": a["completion"], "quality": a["quality"],
-                    "slo": a["slo"], "backend_calls": a["backend_calls"],
-                    "blocked_calls": a["blocked_calls"]})
+                    "policy": policy, "utility_family": r.get("utility_family", ""),
+                    "agent": a["id"], "archetype": a.get("archetype", ""),
+                    "priority": a["priority"], "completion": a["completion"],
+                    "mandatory_failures": a.get("mandatory_failures", 0),
+                    "optional_refinement_rate": a.get("optional_refinement_rate", 0.0),
+                    "quality": a["quality"], "latency_budget": a["slo"],
+                    "backend_calls": a["backend_calls"], "blocked_calls": a["blocked_calls"],
+                    "allocated": json.dumps(a.get("allocated", {})),
+                    "charged": json.dumps(a.get("charged", {})),
+                    "unused": json.dumps(a.get("unused", {})),
+                    "exhausted": json.dumps(a.get("exhausted", {}))})
     with open(os.path.join(RAW, "runs.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=RUN_FIELDS)
         w.writeheader()
@@ -158,22 +174,26 @@ def evaluate(cfg, mode, gamma, solver_python, log):
 
 
 def aggregate(run_rows, agent_rows, cfg, gamma):
-    metrics = ["completion_mean", "quality_mean", "priority_weighted_slo",
-               "completion_min", "completion_p5", "declared_welfare",
-               "utilization_mean", "blocked_total", "backend_total",
+    metrics = ["completion_mean", "completion_min", "completion_p5",
+               "optional_refinement_rate", "quality_adjusted_completion",
+               "latency_budget_completion", "declared_welfare", "utilization_mean",
+               "mandatory_failures_total", "blocked_total", "backend_total",
                "capacity_violation", "bound_violation", "alloc_latency_ms"]
-    # Per-cell per-policy means.
+    joints = [p for p in cfg["policies"] if p.startswith("joint")]
+    nonlinear = [p for p in joints if p != cfg.get("joint_reference", "joint_linear")]
+    ref = cfg.get("joint_reference", "joint_linear")
+
     cell_table = []
     by_cell_policy = {}
     for r in run_rows:
         by_cell_policy.setdefault((r["cell"], r["policy"]), []).append(r)
     for (cell, policy), rows in sorted(by_cell_policy.items()):
-        rec = {"cell": cell, "policy": policy, "n": len(rows)}
+        rec = {"cell": cell, "policy": policy,
+               "utility_family": rows[0].get("utility_family", ""), "n": len(rows)}
         for mkey in metrics:
             rec[mkey] = float(np.mean([x[mkey] for x in rows]))
         cell_table.append(rec)
 
-    # Paired joint-vs-baseline differences with bootstrap CIs, keyed by cell.
     paired = []
     idx = {}
     for r in run_rows:
@@ -182,31 +202,38 @@ def aggregate(run_rows, agent_rows, cfg, gamma):
     seeds_by_cell = {}
     for r in run_rows:
         seeds_by_cell.setdefault(r["cell"], set()).add(r["seed"])
-    diff_metrics = ["completion_mean", "quality_mean", "priority_weighted_slo",
-                    "completion_min", "completion_p5", "declared_welfare"]
+    diff_metrics = ["completion_mean", "completion_min", "completion_p5",
+                    "optional_refinement_rate", "quality_adjusted_completion"]
+
+    comparisons = []
+    for jp in joints:
+        for base in ["equal", "drf"]:
+            comparisons.append((jp, base))
+    for jp in nonlinear:
+        comparisons.append((jp, ref))
+
     for cell in cells_seen:
         seeds = sorted(seeds_by_cell[cell])
-        for base in ["equal", "drf", "separable"]:
+        for treat, base in comparisons:
             for mkey in diff_metrics:
-                ja, ba = [], []
+                ta, ba = [], []
                 for s in seeds:
-                    j = idx.get((cell, s, "joint"))
+                    t = idx.get((cell, s, treat))
                     b = idx.get((cell, s, base))
-                    if j and b:
-                        ja.append(j[mkey])
+                    if t and b:
+                        ta.append(t[mkey])
                         ba.append(b[mkey])
-                ci = stats.paired_diff_ci(ja, ba)
-                paired.append({"cell": cell, "comparison": "joint_minus_" + base,
+                ci = stats.paired_diff_ci(ta, ba)
+                paired.append({"cell": cell, "comparison": treat + "_minus_" + base,
                                "metric": mkey, "mean_diff": ci["mean"],
                                "ci_lo": ci["lo"], "ci_hi": ci["hi"], "n_pairs": ci["n"]})
 
-    # Individual-agent loss relative to equal quotas (per policy).
     indiv = []
     ag_idx = {}
     for a in agent_rows:
         ag_idx[(a["cell"], a["seed"], a["agent"], a["policy"])] = a
     keys = sorted({(a["cell"], a["seed"], a["agent"]) for a in agent_rows})
-    for policy in ["joint", "separable", "drf"]:
+    for policy in joints + ["separable", "drf"]:
         for cell in cells_seen:
             losses = []
             for (c, s, agent) in keys:

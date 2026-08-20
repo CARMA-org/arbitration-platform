@@ -88,12 +88,12 @@ public class EnforcementFaultInjection {
         record("negative_resource_requests", negativeResourceRequests(), totals);
         record("repeated_over_quota_calls", repeatedOverQuota(), totals);
         record("concurrent_over_quota_calls", concurrentOverQuota(), totals);
-        record("duplicate_requests", duplicateRequests(), totals);
-        record("stale_allocation_replay", staleReplay(), totals);
+        record("duplicate_calls_each_charged", duplicateRequests(), totals);
+        record("stale_context_execution", staleReplay(), totals);
         record("invalid_service_composition", invalidComposition(), totals);
         record("cyclic_service_composition", cyclicComposition(), totals);
         record("malformed_solver_output", craftedSolver(malformedScript, "malformed"), totals);
-        record("solver_timeout", craftedSolver(slowScript, "timeout"), totals);
+        record("hung_solver_process", craftedSolver(slowScript, "hung"), totals);
         record("oversubscribed_minimums", oversubscribedMinimums(), totals);
         record("one_exhausted_resource", oneExhaustedResource(), totals);
 
@@ -276,17 +276,16 @@ public class EnforcementFaultInjection {
         Map<String, BigDecimal> burns = new HashMap<>();
         burns.put("a1", BigDecimal.ONE); burns.put("a2", BigDecimal.ONE);
 
-        // Fail-closed: default arbitrator must NOT silently fall back.
         ConvexJointArbitrator failClosed = new ConvexJointArbitrator(
-            new PriorityEconomy(), solverPython, Paths.get(script));
+            new PriorityEconomy(), solverPython, Paths.get(script)).setTimeoutMillis(2000);
         try {
             JointArbitrator.JointAllocationResult r = failClosed.arbitrate(agents, pool, burns);
-            if (r.isFeasible()) c.incorrectSuccess++;   // must not report success on bad solver
+            if (r.isFeasible()) c.incorrectSuccess++;
         } catch (RuntimeException expected) { /* fail closed */ }
 
-        // With fallback explicitly enabled the result must record requested/actual.
         ConvexJointArbitrator withFallback = new ConvexJointArbitrator(
-            new PriorityEconomy(), solverPython, Paths.get(script)).setUseFallbackOnError(true);
+            new PriorityEconomy(), solverPython, Paths.get(script))
+            .setTimeoutMillis(2000).setUseFallbackOnError(true);
         JointArbitrator.JointAllocationResult fb = withFallback.arbitrate(agents, pool, burns);
         if (fb.isFeasible()) {
             String msg = fb.getMessage();

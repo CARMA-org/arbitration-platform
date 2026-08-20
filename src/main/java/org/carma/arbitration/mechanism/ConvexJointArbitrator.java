@@ -5,34 +5,18 @@ import org.carma.arbitration.model.*;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Joint arbitrator using convex optimization via Python + Clarabel.
- * 
- * This implementation achieves TRUE GLOBAL Pareto optimality by solving
- * the full N×M allocation problem jointly, enabling cross-resource trades.
- * 
- * Mathematical formulation:
- *   maximize: Σᵢ cᵢ · log(Σⱼ wᵢⱼ · aᵢⱼ)
- *   
- *   subject to:
- *     Σᵢ aᵢⱼ ≤ Qⱼ           ∀j  (resource capacity)
- *     aᵢⱼ ≥ minᵢⱼ           ∀i,j (minimum requirements)
- *     aᵢⱼ ≤ idealᵢⱼ         ∀i,j (maximum requests)
- * 
- * REQUIREMENTS:
- *   - Python 3.8+
- *   - cvxpy: pip install cvxpy
- *   - clarabel: pip install clarabel
- *   - numpy: pip install numpy
- * 
- * INSTALLATION:
- *   pip install cvxpy clarabel numpy
- * 
- * The solver script is located at: scripts/joint_solver.py
+ * Joint multi-resource arbitrator that solves one convex program over the full
+ * agent-by-resource allocation matrix by delegating to scripts/joint_solver.py
+ * (cvxpy/Clarabel). The continuous solution is converted to integers by
+ * capacity-preserving rounding. The subprocess runs under a hard timeout and the
+ * arbitrator fails closed unless fallback is explicitly enabled.
  */
 public class ConvexJointArbitrator implements JointArbitrator {
 
@@ -42,6 +26,11 @@ public class ConvexJointArbitrator implements JointArbitrator {
     private final SequentialJointArbitrator fallback;
     private boolean useFallbackOnError;
     private boolean debug = false;
+    private volatile long timeoutMillis = 30000;
+
+    public static class SolverTimeoutException extends IOException {
+        public SolverTimeoutException(String message) { super(message); }
+    }
 
     /**
      * Create with default Python command and script path.
@@ -79,6 +68,15 @@ public class ConvexJointArbitrator implements JointArbitrator {
     public ConvexJointArbitrator setDebug(boolean debug) {
         this.debug = debug;
         return this;
+    }
+
+    public ConvexJointArbitrator setTimeoutMillis(long timeoutMillis) {
+        this.timeoutMillis = timeoutMillis;
+        return this;
+    }
+
+    public long getTimeoutMillis() {
+        return timeoutMillis;
     }
 
     /**
@@ -261,10 +259,41 @@ public class ConvexJointArbitrator implements JointArbitrator {
             sb.append("]");
             if (i < n - 1) sb.append(",");
         }
+        sb.append("],");
+
+        sb.append("\"utility_configs\":[");
+        for (int i = 0; i < n; i++) {
+            sb.append(utilityConfigJson(agents.get(i), resources));
+            if (i < n - 1) sb.append(",");
+        }
         sb.append("]");
-        
+
         sb.append("}");
         return sb.toString();
+    }
+
+    private String utilityConfigJson(Agent agent, List<ResourceType> resources) {
+        UtilityDeclaration decl = agent.getUtilityDeclaration();
+        if (decl == null) {
+            return "{\"type\":\"LINEAR\"}";
+        }
+        switch (decl.getFamily()) {
+            case COBB_DOUGLAS:
+                return "{\"type\":\"COBB_DOUGLAS\"}";
+            case CES:
+                return "{\"type\":\"CES\",\"rho\":" + decl.getRho() + "}";
+            case LEONTIEF:
+                StringBuilder r = new StringBuilder("{\"type\":\"LEONTIEF\",\"requirements\":[");
+                for (int j = 0; j < resources.size(); j++) {
+                    double req = decl.getRequirement(resources.get(j));
+                    r.append(Math.max(0.0, req));
+                    if (j < resources.size() - 1) r.append(",");
+                }
+                r.append("]}");
+                return r.toString();
+            default:
+                return "{\"type\":\"LINEAR\"}";
+        }
     }
 
     /**
@@ -273,48 +302,73 @@ public class ConvexJointArbitrator implements JointArbitrator {
     private String callPythonSolver(String inputJson) throws IOException, InterruptedException {
         ProcessBuilder pb = new ProcessBuilder(pythonCommand, solverScriptPath.toString());
         pb.redirectErrorStream(false);
-        
+
         Process process = pb.start();
-        
-        // Write input
+
+        StringBuilder out = new StringBuilder();
+        StringBuilder err = new StringBuilder();
+        Thread outReader = new Thread(() -> drainStream(process.getInputStream(), out));
+        Thread errReader = new Thread(() -> drainStream(process.getErrorStream(), err));
+        outReader.setDaemon(true);
+        errReader.setDaemon(true);
+        outReader.start();
+        errReader.start();
+
         try (OutputStream os = process.getOutputStream()) {
-            os.write(inputJson.getBytes());
+            os.write(inputJson.getBytes(StandardCharsets.UTF_8));
             os.flush();
-        }
-        
-        // Read output
-        String output;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
+        } catch (IOException writeFailure) {
+            if (debug) {
+                System.err.println("[DEBUG] solver stdin write failed: " + writeFailure.getMessage());
             }
-            output = sb.toString();
         }
-        
-        // Read errors
-        String errors;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
+
+        boolean finished = process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroy();
+            if (!process.waitFor(2, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                process.waitFor(2, TimeUnit.SECONDS);
             }
-            errors = sb.toString();
+            joinQuietly(outReader);
+            joinQuietly(errReader);
+            throw new SolverTimeoutException(
+                "Python solver exceeded timeout of " + timeoutMillis + "ms; process terminated");
         }
-        
-        int exitCode = process.waitFor();
-        
+
+        outReader.join(2000);
+        errReader.join(2000);
+
+        int exitCode = process.exitValue();
+        String output = out.toString();
+        String errors = err.toString();
+
         if (exitCode != 0) {
             throw new IOException("Python solver failed with exit code " + exitCode + ": " + errors);
         }
-        
         if (output.isEmpty()) {
             throw new IOException("Python solver returned empty output. Errors: " + errors);
         }
-        
         return output;
+    }
+
+    private static void drainStream(InputStream in, StringBuilder sink) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sink.append(line);
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static void joinQuietly(Thread thread) {
+        try {
+            thread.join(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

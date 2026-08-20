@@ -53,10 +53,18 @@ def main():
         "python": python_report(pytest_python),
         "enforcement_fault_injection": enforcement_report(),
     }
+    jt = report["java"]["totals"]
+    py = report["python"]
+    enf = report["enforcement_fault_injection"] or {}
     report["all_green"] = (
-        report["java"]["totals"]["failures"] == 0 and report["java"]["totals"]["errors"] == 0
-        and report["python"]["failed"] == 0
-        and (report["enforcement_fault_injection"] or {}).get("all_invariants_zero", False))
+        jt["tests"] > 0
+        and jt["failures"] == 0
+        and jt["errors"] == 0
+        and jt["skipped"] == 0
+        and py["passed"] > 0
+        and py["returncode"] == 0
+        and py["failed"] == 0
+        and enf.get("all_invariants_zero", False))
     out = os.path.join(HERE, "test_report.json")
     with open(out, "w") as f:
         json.dump(report, f, indent=2)

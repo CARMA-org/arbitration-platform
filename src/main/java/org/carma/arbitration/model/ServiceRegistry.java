@@ -368,6 +368,17 @@ public class ServiceRegistry {
         return Optional.empty();
     }
 
+    public Optional<ServiceHandle> acquireHandle(ServiceType type) {
+        for (AIService service : getByType(type)) {
+            if (service.isAvailable() && service.reserveCapacity(1)) {
+                String id = service.getServiceId();
+                return Optional.of(new ServiceHandle(
+                    id, type, service.getResourceRequirements(), () -> releaseSlot(id)));
+            }
+        }
+        return Optional.empty();
+    }
+
     /**
      * Release a single capacity slot previously acquired via {@link #acquireSlot}.
      */

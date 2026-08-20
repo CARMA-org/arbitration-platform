@@ -638,22 +638,22 @@ public class RealisticAgentFramework {
     // EXECUTION CONTEXT
     // ========================================================================
     
-    /**
-     * Context provided to agents during goal execution.
-     * Contains available resources, services, and execution helpers.
-     *
-     * IMPORTANT: This context enforces resource allocations from arbitration.
-     * Agents can only consume up to their allocated amounts.
-     */
     public static class ExecutionContext {
-        private final Map<ResourceType, Long> allocatedResources;
-        private final Map<ResourceType, Long> consumedResources;  // Track consumption
-        private final Map<ResourceType, Long> chargedResources;   // Accounting record
+        public interface ContractGate {
+            String validate();
+        }
+
+        private final String agentId;
+        private final String allocationId;
+        private final long contractVersion;
+        private final ConsumptionLedger ledger;
+        private final Map<ResourceType, Long> chargedResources;
         private final Map<ServiceType, Integer> allocatedServiceSlots;
         private final ServiceRegistry serviceRegistry;
         private final ServiceBackend serviceBackend;
         private final Consumer<String> logger;
         private final long timeoutMs;
+        private final ContractGate gate;
         private int backendInvocations;
         private int blockedCalls;
 
@@ -664,103 +664,87 @@ public class RealisticAgentFramework {
                 ServiceBackend serviceBackend,
                 Consumer<String> logger,
                 long timeoutMs) {
-            this.allocatedResources = new HashMap<>(allocatedResources);
-            this.consumedResources = new HashMap<>();
+            this("adhoc", "adhoc-0", 0L,
+                new ConsumptionLedger("adhoc", 0L, "adhoc-0", allocatedResources),
+                allocatedServiceSlots, serviceRegistry, serviceBackend, logger, timeoutMs, null);
+        }
+
+        public ExecutionContext(
+                String agentId,
+                String allocationId,
+                long contractVersion,
+                ConsumptionLedger ledger,
+                Map<ServiceType, Integer> allocatedServiceSlots,
+                ServiceRegistry serviceRegistry,
+                ServiceBackend serviceBackend,
+                Consumer<String> logger,
+                long timeoutMs,
+                ContractGate gate) {
+            this.agentId = agentId;
+            this.allocationId = allocationId;
+            this.contractVersion = contractVersion;
+            this.ledger = ledger;
             this.chargedResources = new HashMap<>();
             this.allocatedServiceSlots = allocatedServiceSlots;
             this.serviceRegistry = serviceRegistry;
             this.serviceBackend = serviceBackend;
             this.logger = logger;
             this.timeoutMs = timeoutMs;
-
-            // Initialize consumption tracking
+            this.gate = gate;
             for (ResourceType type : ResourceType.values()) {
-                consumedResources.put(type, 0L);
                 chargedResources.put(type, 0L);
             }
         }
 
+        public String getAgentId() { return agentId; }
+        public String getAllocationId() { return allocationId; }
+        public long getContractVersion() { return contractVersion; }
+        public ConsumptionLedger getLedger() { return ledger; }
+
         public long getAllocatedResource(ResourceType type) {
-            return allocatedResources.getOrDefault(type, 0L);
+            return ledger.getBundleAmount(type);
         }
 
         public long getConsumedResource(ResourceType type) {
-            return consumedResources.getOrDefault(type, 0L);
+            return ledger.getConsumed(type);
         }
 
         public long getRemainingResource(ResourceType type) {
-            return getAllocatedResource(type) - getConsumedResource(type);
+            return ledger.getRemaining(type);
         }
 
-        /**
-         * Try to consume a single resource. Returns true and deducts the amount if
-         * it fits within the remaining allocation, otherwise returns false and
-         * leaves all counters unchanged. Over-quota and negative requests never
-         * partially consume the remaining quota.
-         */
         public synchronized boolean tryConsumeResource(ResourceType type, long amount) {
-            if (amount < 0) {
-                log("Rejected negative resource request: " + type + " amount " + amount);
-                return false;
-            }
-            long remaining = getAllocatedResource(type) - getConsumedResource(type);
-            if (amount <= remaining) {
-                consumedResources.put(type, getConsumedResource(type) + amount);
-                chargedResources.merge(type, amount, Long::sum);
-                return true;
-            }
-            log("Resource limit hit: " + type + " requested " + amount +
-                " but only " + remaining + " remaining (nothing consumed)");
-            return false;
+            Map<ResourceType, Long> single = new HashMap<>();
+            single.put(type, amount);
+            return chargeShared(single) == null;
         }
 
-        /**
-         * Atomically check and consume a complete resource bundle. Either every
-         * resource in the bundle fits and all are deducted, or nothing is consumed
-         * and no counter changes. Any negative quantity fails the whole bundle.
-         *
-         * @return null on success; otherwise the first resource that could not be
-         *         satisfied (the exhausted resource)
-         */
         public synchronized ResourceType tryConsumeBundle(Map<ResourceType, Long> bundle) {
-            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
-                if (e.getValue() < 0) {
-                    log("Rejected negative bundle component: " + e.getKey() + "=" + e.getValue());
-                    return e.getKey();
-                }
-            }
-            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
-                long remaining = getAllocatedResource(e.getKey()) - getConsumedResource(e.getKey());
-                if (e.getValue() > remaining) {
-                    return e.getKey();
-                }
-            }
-            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
-                consumedResources.put(e.getKey(), getConsumedResource(e.getKey()) + e.getValue());
-                chargedResources.merge(e.getKey(), e.getValue(), Long::sum);
-            }
-            return null;
+            return chargeShared(bundle);
         }
 
-        /**
-         * Check if a resource consumption would succeed without actually consuming.
-         */
-        public synchronized boolean canConsumeResource(ResourceType type, long amount) {
+        private ResourceType chargeShared(Map<ResourceType, Long> charge) {
+            ResourceType exhausted = ledger.chargeBundle(charge);
+            if (exhausted == null) {
+                for (Map.Entry<ResourceType, Long> e : charge.entrySet()) {
+                    chargedResources.merge(e.getKey(), e.getValue(), Long::sum);
+                }
+            }
+            return exhausted;
+        }
+
+        public boolean canConsumeResource(ResourceType type, long amount) {
             return amount >= 0 && amount <= getRemainingResource(type);
         }
 
-        /** Total number of backend invocations made through this context. */
         public synchronized int getBackendInvocations() { return backendInvocations; }
 
-        /** Number of service calls denied before reaching the backend. */
         public synchronized int getBlockedCalls() { return blockedCalls; }
 
-        /** Total amount of a resource charged through this context. */
         public synchronized long getCharged(ResourceType type) {
             return chargedResources.getOrDefault(type, 0L);
         }
 
-        /** Snapshot of all resources charged through this context. */
         public synchronized Map<ResourceType, Long> getChargedBundle() {
             return new HashMap<>(chargedResources);
         }
@@ -779,63 +763,41 @@ public class RealisticAgentFramework {
             }
         }
 
-        /**
-         * Invoke a service and return the result.
-         *
-         * Enforcement is atomic and fails closed: the call charges the complete
-         * resource vector returned by {@link ServiceType#getDefaultResourceRequirements()}
-         * and acquires a real service-capacity slot before the backend is touched.
-         * If any required resource or the service slot is unavailable, nothing is
-         * consumed, the backend is not invoked, and an explicit denial naming the
-         * exhausted resource is returned with all counters unchanged.
-         */
         public ServiceResult invokeService(ServiceType type, Map<String, Object> input) {
+            if (gate != null) {
+                String reason = gate.validate();
+                if (reason != null) {
+                    synchronized (this) { blockedCalls++; }
+                    return ServiceResult.denial(reason, null);
+                }
+            }
             if (!hasService(type)) {
                 synchronized (this) { blockedCalls++; }
                 return ServiceResult.denial("Service not allocated: " + type, null);
             }
 
-            Map<ResourceType, Long> required = type.getDefaultResourceRequirements();
-            String slotId;
+            ServiceHandle handle = serviceRegistry != null
+                ? serviceRegistry.acquireHandle(type).orElse(null)
+                : ServiceHandle.withoutRegistry(type);
+            if (handle == null) {
+                synchronized (this) { blockedCalls++; }
+                return ServiceResult.denial("Service capacity exhausted: " + type, null);
+            }
 
-            // Atomic gate: check the full vector, acquire a slot, then consume.
+            Map<ResourceType, Long> required = handle.getRequirements();
             synchronized (this) {
-                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
-                    if (e.getValue() < 0) {
-                        blockedCalls++;
-                        return ServiceResult.denial(
-                            "Negative resource requirement: " + e.getKey(), e.getKey());
-                    }
-                }
-                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
-                    long remaining = getAllocatedResource(e.getKey()) - getConsumedResource(e.getKey());
-                    if (e.getValue() > remaining) {
-                        blockedCalls++;
-                        return ServiceResult.denial(
-                            "Insufficient " + e.getKey() + ": need " + e.getValue()
-                            + ", remaining " + remaining, e.getKey());
-                    }
-                }
-                // Acquire an actual service-capacity slot before invoking the backend.
-                java.util.Optional<String> slot = serviceRegistry != null
-                    ? serviceRegistry.acquireSlot(type) : java.util.Optional.of("no-registry");
-                if (slot.isEmpty()) {
+                ResourceType exhausted = chargeShared(required);
+                if (exhausted != null) {
+                    handle.release();
                     blockedCalls++;
                     return ServiceResult.denial(
-                        "Service capacity exhausted: " + type, null);
-                }
-                slotId = slot.get();
-                // All gates passed: consume the complete vector atomically.
-                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
-                    consumedResources.put(e.getKey(), getConsumedResource(e.getKey()) + e.getValue());
-                    chargedResources.merge(e.getKey(), e.getValue(), Long::sum);
+                        "Insufficient " + exhausted + " for " + type, exhausted);
                 }
                 backendInvocations++;
             }
 
             long startTime = System.currentTimeMillis();
             try {
-                // Use the pluggable backend (MockServiceBackend or LLMServiceBackend)
                 ServiceBackend.InvocationResult result = serviceBackend.invokeByType(type, input);
                 long latency = System.currentTimeMillis() - startTime;
                 return new ServiceResult(
@@ -845,9 +807,7 @@ public class RealisticAgentFramework {
                     latency
                 );
             } finally {
-                if (serviceRegistry != null && !"no-registry".equals(slotId)) {
-                    serviceRegistry.releaseSlot(slotId);
-                }
+                handle.release();
             }
         }
 
@@ -859,12 +819,9 @@ public class RealisticAgentFramework {
             return serviceRegistry;
         }
 
-        /**
-         * Get a summary of resource consumption.
-         */
         public String getConsumptionSummary() {
             StringBuilder sb = new StringBuilder();
-            for (ResourceType type : allocatedResources.keySet()) {
+            for (ResourceType type : ledger.getBundle().keySet()) {
                 if (sb.length() > 0) sb.append(", ");
                 sb.append(type).append("=")
                   .append(getConsumedResource(type)).append("/")
@@ -873,10 +830,7 @@ public class RealisticAgentFramework {
             return sb.length() > 0 ? sb.toString() : "none";
         }
     }
-    
-    /**
-     * Result of a service invocation.
-     */
+
     public static class ServiceResult {
         private final boolean success;
         private final String error;
@@ -1005,11 +959,11 @@ public class RealisticAgentFramework {
         private final ResourcePool resourcePool;
 
         private final Map<String, RealisticAgent> agents;
-        private final Map<String, Map<ResourceType, Long>> agentAllocations;  // Resource allocations from arbitration
-        private final Map<String, AllocationContract> contracts;              // Installed enforceable contracts
+        private volatile AllocationSnapshot snapshot = AllocationSnapshot.empty();
         private final Map<String, ExecutionContext> lastContexts = new ConcurrentHashMap<>();
         private final Object installLock = new Object();
-        private long epochCounter = 0;                                        // Monotonic allocation version source
+        private long epochCounter = 0;
+        private volatile java.util.function.LongSupplier clock = System::currentTimeMillis;
         private final ScheduledExecutorService scheduler;
         private final List<RuntimeListener> listeners;
         private volatile boolean running;
@@ -1065,8 +1019,6 @@ public class RealisticAgentFramework {
             this.serviceBackend = serviceBackend;
             this.resourcePool = resourcePool;
             this.agents = new ConcurrentHashMap<>();
-            this.agentAllocations = new ConcurrentHashMap<>();
-            this.contracts = new ConcurrentHashMap<>();
             this.scheduler = Executors.newScheduledThreadPool(4);
             this.listeners = new CopyOnWriteArrayList<>();
             this.tickIntervalMs = tickIntervalMs;
@@ -1150,6 +1102,27 @@ public class RealisticAgentFramework {
             if (agent != null) {
                 agent.setState(RealisticAgent.AgentState.TERMINATED);
             }
+            synchronized (installLock) {
+                AllocationSnapshot current = snapshot;
+                if (!current.hasContract(agentId)) {
+                    return;
+                }
+                ConsumptionLedger dropped = current.getLedger(agentId);
+                if (dropped != null) {
+                    dropped.invalidate();
+                }
+                Map<String, AllocationContract> contracts = new LinkedHashMap<>(current.getContracts());
+                Map<String, ConsumptionLedger> ledgers = new LinkedHashMap<>();
+                for (String id : current.agentIds()) {
+                    if (!id.equals(agentId)) {
+                        ledgers.put(id, current.getLedger(id));
+                    }
+                }
+                contracts.remove(agentId);
+                snapshot = new AllocationSnapshot(current.getVersion(), contracts, ledgers,
+                    current.getPolicyName(), current.getSolverStatus(),
+                    current.getIssueTimeMs(), current.getExpiryTimeMs());
+            }
         }
         
         /**
@@ -1229,22 +1202,9 @@ public class RealisticAgentFramework {
                 Map<ServiceType, Integer> serviceSlots =
                     requestServicesForAgent(agent);
 
-                // Get resource allocations for this agent (from arbitration)
-                Map<ResourceType, Long> allocations = agentAllocations.getOrDefault(
-                    agent.getAgentId(), new HashMap<>());
-
-                // Create execution context with ACTUAL allocations
-                ExecutionContext context = new ExecutionContext(
-                    allocations,  // Use real allocations from arbitration
-                    serviceSlots,
-                    serviceRegistry,
-                    serviceBackend,
-                    msg -> System.out.println("[" + agent.getAgentId() + "] " + msg),
-                    30000  // 30 second timeout
-                );
+                ExecutionContext context = createExecutionContext(agent.getAgentId(), serviceSlots);
                 lastContexts.put(agent.getAgentId(), context);
 
-                // Execute the goal
                 GoalResult result = agent.executeGoal(goal, context);
                 
                 // Record metrics
@@ -1316,52 +1276,135 @@ public class RealisticAgentFramework {
                 return GoalResult.failure("Goal not found: " + goalId);
             }
 
-            // Get resource allocations for this agent
-            Map<ResourceType, Long> allocations = agentAllocations.getOrDefault(
-                agentId, new HashMap<>());
-
-            // For tool-level agents, execute immediately with actual allocations
             Map<ServiceType, Integer> serviceSlots = requestServicesForAgent(agent);
-            ExecutionContext context = new ExecutionContext(
-                allocations,  // Use real allocations
-                serviceSlots,
-                serviceRegistry,
-                serviceBackend,
-                msg -> System.out.println("[" + agent.getAgentId() + "] " + msg),
-                30000
-            );
+            ExecutionContext context = createExecutionContext(agentId, serviceSlots);
             lastContexts.put(agent.getAgentId(), context);
 
             return agent.executeGoal(goal, context);
         }
 
-        // ====================================================================
-        // RESOURCE ALLOCATION MANAGEMENT
-        // ====================================================================
+        public void setClock(java.util.function.LongSupplier clock) {
+            this.clock = clock;
+        }
 
-        /**
-         * Set resource allocations for an agent.
-         * These allocations are enforced during goal execution.
-         *
-         * @param agentId The agent ID
-         * @param allocations Map of resource type to allocated amount
-         */
+        public long now() {
+            return clock.getAsLong();
+        }
+
+        public AllocationSnapshot getSnapshot() {
+            return snapshot;
+        }
+
+        public ExecutionContext createExecutionContext(
+                String agentId, Map<ServiceType, Integer> serviceSlots) {
+            AllocationSnapshot current = snapshot;
+            AllocationContract contract = current.getContract(agentId);
+            ConsumptionLedger ledger = current.getLedger(agentId);
+            String allocationId = contract != null ? contract.getAllocationId() : "none";
+            long version = contract != null ? contract.getVersion() : -1L;
+            if (ledger == null) {
+                ledger = new ConsumptionLedger(agentId, version, allocationId, new HashMap<>());
+            }
+            ExecutionContext.ContractGate gate = () -> validateActiveContract(agentId, allocationId, version);
+            return new ExecutionContext(
+                agentId, allocationId, version, ledger, serviceSlots,
+                serviceRegistry, serviceBackend,
+                msg -> System.out.println("[" + agentId + "] " + msg), 30000, gate);
+        }
+
+        public ExecutionContext newExecutionContext(String agentId) {
+            RealisticAgent agent = agents.get(agentId);
+            Map<ServiceType, Integer> serviceSlots = agent != null
+                ? requestServicesForAgent(agent) : new HashMap<>();
+            return createExecutionContext(agentId, serviceSlots);
+        }
+
+        private String validateActiveContract(String agentId, String allocationId, long version) {
+            if (!agents.containsKey(agentId)) {
+                return "agent not registered: " + agentId;
+            }
+            AllocationSnapshot current = snapshot;
+            AllocationContract contract = current.getContract(agentId);
+            if (contract == null) {
+                return "no active contract for " + agentId;
+            }
+            if (!contract.getAllocationId().equals(allocationId) || contract.getVersion() != version) {
+                return "stale context bound to " + allocationId + "/v" + version
+                    + " but active is " + contract.getAllocationId() + "/v" + contract.getVersion();
+            }
+            if (contract.isExpired(clock.getAsLong())) {
+                return "contract expired for " + agentId;
+            }
+            return null;
+        }
+
         public void setAllocations(String agentId, Map<ResourceType, Long> allocations) {
-            agentAllocations.put(agentId, new HashMap<>(allocations));
+            updateContract(agentId, allocations, "manual", "manual", null);
         }
 
-        /**
-         * Get current allocations for an agent.
-         */
         public Map<ResourceType, Long> getAllocations(String agentId) {
-            return new HashMap<>(agentAllocations.getOrDefault(agentId, new HashMap<>()));
+            AllocationContract contract = snapshot.getContract(agentId);
+            return contract != null ? new HashMap<>(contract.getBundle()) : new HashMap<>();
         }
 
-        /**
-         * Clear all allocations (e.g., before re-running arbitration).
-         */
         public void clearAllocations() {
-            agentAllocations.clear();
+            synchronized (installLock) {
+                AllocationSnapshot current = snapshot;
+                for (String id : current.agentIds()) {
+                    ConsumptionLedger ledger = current.getLedger(id);
+                    if (ledger != null) {
+                        ledger.invalidate();
+                    }
+                }
+                snapshot = new AllocationSnapshot(current.getVersion(),
+                    new LinkedHashMap<>(), new LinkedHashMap<>(),
+                    "none", "none", clock.getAsLong(), null);
+            }
+        }
+
+        public void updateContract(String agentId, Map<ResourceType, Long> bundle,
+                                   String policyName, String solverStatus, Long leaseDurationMs) {
+            if (!agents.containsKey(agentId)) {
+                throw new IllegalStateException("cannot update contract for unregistered agent " + agentId);
+            }
+            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
+                if (e.getValue() == null || e.getValue() < 0) {
+                    throw new IllegalArgumentException(
+                        "negative allocation for " + e.getKey() + " on agent " + agentId);
+                }
+            }
+            synchronized (installLock) {
+                AllocationSnapshot current = snapshot;
+                Map<String, Map<ResourceType, Long>> merged = new LinkedHashMap<>();
+                for (String id : current.agentIds()) {
+                    merged.put(id, new HashMap<>(current.getContract(id).getBundle()));
+                }
+                merged.put(agentId, new HashMap<>(bundle));
+                checkConservation(merged);
+
+                long version = ++epochCounter;
+                long issue = clock.getAsLong();
+                Long expiry = leaseDurationMs != null ? issue + leaseDurationMs : null;
+
+                Map<String, AllocationContract> contracts = new LinkedHashMap<>(current.getContracts());
+                Map<String, ConsumptionLedger> ledgers = new LinkedHashMap<>();
+                for (String id : current.agentIds()) {
+                    if (!id.equals(agentId)) {
+                        ledgers.put(id, current.getLedger(id));
+                    }
+                }
+                ConsumptionLedger old = current.getLedger(agentId);
+                if (old != null) {
+                    old.invalidate();
+                }
+                String allocationId = "AC-" + version + "-" + agentId;
+                AllocationContract contract = new AllocationContract(
+                    allocationId, version, agentId, bundle, issue, expiry, policyName, solverStatus);
+                contracts.put(agentId, contract);
+                ledgers.put(agentId, new ConsumptionLedger(agentId, version, allocationId, bundle));
+                snapshot = new AllocationSnapshot(version, contracts, ledgers,
+                    policyName, solverStatus, issue, expiry);
+            }
         }
 
         /**
@@ -1466,11 +1509,20 @@ public class RealisticAgentFramework {
                 }
             }
 
-            // Store allocations in runtime
-            for (var entry : allAllocations.entrySet()) {
-                agentAllocations.put(entry.getKey(), entry.getValue());
+            Map<ResourceType, Long> remaining = new HashMap<>();
+            for (ResourceType type : ResourceType.values()) {
+                remaining.put(type, resourcePool.getCapacity(type));
             }
-
+            for (var m : allAllocations.values()) {
+                for (var e : m.entrySet()) {
+                    long left = remaining.getOrDefault(e.getKey(), 0L);
+                    if (e.getValue() > left) {
+                        e.setValue(Math.max(0L, left));
+                    }
+                    remaining.put(e.getKey(), remaining.getOrDefault(e.getKey(), 0L) - e.getValue());
+                }
+            }
+            installContracts(allAllocations, "ProportionalFairnessArbitrator", "sequential", null);
             return allAllocations;
         }
 
@@ -1639,25 +1691,32 @@ public class RealisticAgentFramework {
 
             checkConservation(allocations);
             synchronized (installLock) {
+                AllocationSnapshot current = snapshot;
                 long version = ++epochCounter;
-                long now = System.currentTimeMillis();
+                long now = clock.getAsLong();
                 Long expiry = leaseDurationMs != null ? now + leaseDurationMs : null;
 
                 List<AllocationContract> prepared = new ArrayList<>();
+                Map<String, AllocationContract> contractMap = new LinkedHashMap<>();
+                Map<String, ConsumptionLedger> ledgerMap = new LinkedHashMap<>();
                 for (var e : allocations.entrySet()) {
-                    AllocationContract existing = contracts.get(e.getKey());
-                    if (existing != null && version <= existing.getVersion()) {
-                        throw new IllegalStateException("stale allocation version " + version
-                            + " <= installed " + existing.getVersion() + " for " + e.getKey());
+                    String allocationId = "AC-" + version + "-" + e.getKey();
+                    AllocationContract c = new AllocationContract(
+                        allocationId, version, e.getKey(),
+                        e.getValue(), now, expiry, policyName, solverStatus);
+                    prepared.add(c);
+                    contractMap.put(e.getKey(), c);
+                    ledgerMap.put(e.getKey(), new ConsumptionLedger(
+                        e.getKey(), version, allocationId, e.getValue()));
+                }
+                for (String id : current.agentIds()) {
+                    ConsumptionLedger old = current.getLedger(id);
+                    if (old != null) {
+                        old.invalidate();
                     }
-                    prepared.add(new AllocationContract(
-                        "AC-" + version + "-" + e.getKey(), version, e.getKey(),
-                        e.getValue(), now, expiry, policyName, solverStatus));
                 }
-                for (AllocationContract c : prepared) {
-                    contracts.put(c.getAgentId(), c);
-                    agentAllocations.put(c.getAgentId(), new HashMap<>(c.getBundle()));
-                }
+                snapshot = new AllocationSnapshot(version, contractMap, ledgerMap,
+                    policyName, solverStatus, now, expiry);
                 return prepared;
             }
         }
@@ -1670,13 +1729,38 @@ public class RealisticAgentFramework {
          */
         public boolean installContract(AllocationContract c) {
             synchronized (installLock) {
-                AllocationContract existing = contracts.get(c.getAgentId());
+                AllocationSnapshot current = snapshot;
+                AllocationContract existing = current.getContract(c.getAgentId());
                 if (existing != null && c.getVersion() <= existing.getVersion()) {
                     return false;
                 }
-                contracts.put(c.getAgentId(), c);
-                agentAllocations.put(c.getAgentId(), new HashMap<>(c.getBundle()));
+                Map<String, Map<ResourceType, Long>> merged = new LinkedHashMap<>();
+                for (String id : current.agentIds()) {
+                    if (!id.equals(c.getAgentId())) {
+                        merged.put(id, new HashMap<>(current.getContract(id).getBundle()));
+                    }
+                }
+                merged.put(c.getAgentId(), new HashMap<>(c.getBundle()));
+                checkConservation(merged);
+
+                Map<String, AllocationContract> contractMap = new LinkedHashMap<>(current.getContracts());
+                Map<String, ConsumptionLedger> ledgerMap = new LinkedHashMap<>();
+                for (String id : current.agentIds()) {
+                    if (!id.equals(c.getAgentId())) {
+                        ledgerMap.put(id, current.getLedger(id));
+                    }
+                }
+                ConsumptionLedger old = current.getLedger(c.getAgentId());
+                if (old != null) {
+                    old.invalidate();
+                }
+                contractMap.put(c.getAgentId(), c);
+                ledgerMap.put(c.getAgentId(), new ConsumptionLedger(
+                    c.getAgentId(), c.getVersion(), c.getAllocationId(), c.getBundle()));
                 if (c.getVersion() > epochCounter) epochCounter = c.getVersion();
+                snapshot = new AllocationSnapshot(Math.max(current.getVersion(), c.getVersion()),
+                    contractMap, ledgerMap, c.getPolicyName(), c.getSolverStatus(),
+                    c.getIssueTimeMs(), c.getExpiryTimeMs());
                 return true;
             }
         }
@@ -1688,12 +1772,12 @@ public class RealisticAgentFramework {
 
         /** Get the installed contract for an agent, or null. */
         public AllocationContract getContract(String agentId) {
-            return contracts.get(agentId);
+            return snapshot.getContract(agentId);
         }
 
         /** Whether an enforceable contract is installed for an agent. */
         public boolean hasContract(String agentId) {
-            return contracts.containsKey(agentId);
+            return snapshot.hasContract(agentId);
         }
 
         /** The most recent execution context created for an agent (accounting record). */
@@ -1705,8 +1789,8 @@ public class RealisticAgentFramework {
          * Check if an agent has any allocations set.
          */
         public boolean hasAllocations(String agentId) {
-            Map<ResourceType, Long> allocs = agentAllocations.get(agentId);
-            return allocs != null && !allocs.isEmpty();
+            AllocationContract contract = snapshot.getContract(agentId);
+            return contract != null && !contract.getBundle().isEmpty();
         }
 
         /**

@@ -32,6 +32,7 @@ public class Agent {
     private final Map<ResourceType, Long> minimumRequests;
     private final Map<ResourceType, Long> idealRequests;
     private final Map<ResourceType, Long> currentAllocations;
+    private UtilityDeclaration utilityDeclaration = UtilityDeclaration.linear();
 
     public Agent(String id, String name, PreferenceFunction preferences, double initialCurrency) {
         this.id = Objects.requireNonNull(id, "Agent ID cannot be null");
@@ -41,6 +42,14 @@ public class Agent {
         this.minimumRequests = new HashMap<>();
         this.idealRequests = new HashMap<>();
         this.currentAllocations = new HashMap<>();
+    }
+
+    public UtilityDeclaration getUtilityDeclaration() {
+        return utilityDeclaration;
+    }
+
+    public void setUtilityDeclaration(UtilityDeclaration declaration) {
+        this.utilityDeclaration = Objects.requireNonNull(declaration, "declaration");
     }
 
     /**

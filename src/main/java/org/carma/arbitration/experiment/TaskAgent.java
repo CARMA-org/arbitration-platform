@@ -6,16 +6,8 @@ import org.carma.arbitration.model.ServiceType;
 
 import java.util.*;
 
-/**
- * A concrete agent that executes a fixed, externally supplied queue of tasks
- * through the canonical constrained-execution path. Task completion, quality and
- * SLO attainment are defined by the task specification, not by any allocator
- * objective, and are computed here from the results of the enforced service
- * calls. The allocator never observes these outcomes.
- */
 public class TaskAgent extends RealisticAgent {
 
-    /** One task: mandatory steps must all succeed to complete; optional steps refine quality. */
     public static final class Task {
         final String id;
         final List<ServiceType> mandatory;
@@ -37,18 +29,51 @@ public class TaskAgent extends RealisticAgent {
 
     private final List<Task> tasks;
     private int tasksDone;
+    private int mandatoryFailures;
+    private int optionalRefinementsDone;
+    private int optionalRefinementsPossible;
     private double qualitySum;
     private double sloAttainedSum;
+    private final Map<ResourceType, Integer> exhaustedCounts = new EnumMap<>(ResourceType.class);
 
     private TaskAgent(Builder builder) {
         super(builder);
         this.tasks = builder.tasks;
     }
 
+    private Map<ResourceType, Long> mandatoryBundle(Task task) {
+        Map<ResourceType, Long> bundle = new EnumMap<>(ResourceType.class);
+        for (ServiceType step : task.mandatory) {
+            for (Map.Entry<ResourceType, Long> e : step.getDefaultResourceRequirements().entrySet()) {
+                bundle.merge(e.getKey(), e.getValue(), Long::sum);
+            }
+        }
+        return bundle;
+    }
+
+    private ResourceType firstUnaffordable(ExecutionContext context, Map<ResourceType, Long> bundle) {
+        for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
+            if (context.getRemainingResource(e.getKey()) < e.getValue()) {
+                return e.getKey();
+            }
+        }
+        return null;
+    }
+
     @Override
     protected GoalResult executeGoal(Goal goal, ExecutionContext context) {
         List<String> servicesUsed = new ArrayList<>();
-        for (Task task : tasks) {
+        boolean[] mandatoryComplete = new boolean[tasks.size()];
+        long[] mandatoryLatency = new long[tasks.size()];
+
+        for (int t = 0; t < tasks.size(); t++) {
+            Task task = tasks.get(t);
+            ResourceType shortResource = firstUnaffordable(context, mandatoryBundle(task));
+            if (shortResource != null) {
+                mandatoryFailures++;
+                exhaustedCounts.merge(shortResource, 1, Integer::sum);
+                continue;
+            }
             boolean completed = true;
             long latency = 0;
             for (ServiceType step : task.mandatory) {
@@ -56,39 +81,68 @@ public class TaskAgent extends RealisticAgent {
                 servicesUsed.add(step.name());
                 if (!r.isSuccess()) {
                     completed = false;
+                    if (r.getExhaustedResource() != null) {
+                        exhaustedCounts.merge(r.getExhaustedResource(), 1, Integer::sum);
+                    }
                     break;
                 }
                 latency += step.getBaseLatencyMs();
             }
-            if (!completed) {
-                continue; // task failed; quality 0, SLO not attained
+            if (completed) {
+                mandatoryComplete[t] = true;
+                mandatoryLatency[t] = latency;
+                tasksDone++;
+            } else {
+                mandatoryFailures++;
             }
+        }
+
+        for (int t = 0; t < tasks.size(); t++) {
+            if (!mandatoryComplete[t]) {
+                continue;
+            }
+            Task task = tasks.get(t);
+            optionalRefinementsPossible += task.optional.size();
             int optionalDone = 0;
+            long latency = mandatoryLatency[t];
             for (ServiceType step : task.optional) {
                 ServiceResult r = context.invokeService(step, Map.of("prompt", task.id));
                 servicesUsed.add(step.name());
                 if (r.isSuccess()) {
                     optionalDone++;
+                    optionalRefinementsDone++;
                     latency += step.getBaseLatencyMs();
+                } else if (r.getExhaustedResource() != null) {
+                    exhaustedCounts.merge(r.getExhaustedResource(), 1, Integer::sum);
                 }
             }
             double optionalFraction = task.optional.isEmpty()
                 ? 0.0 : (double) optionalDone / task.optional.size();
             double quality = Math.min(1.0, task.baseQuality + task.refinementBonus * optionalFraction);
-            tasksDone++;
             qualitySum += quality;
             if (latency <= task.sloMs) {
                 sloAttainedSum += 1.0;
             }
         }
-        return GoalResult.success("executed " + tasks.size() + " tasks", new HashMap<>(), 0, servicesUsed);
+
+        boolean anyProgress = tasksDone > 0;
+        return new GoalResult(anyProgress, "completed " + tasksDone + "/" + tasks.size() + " tasks",
+            new HashMap<>(), 0, servicesUsed);
     }
 
     public int getTasksTotal() { return tasks.size(); }
     public int getTasksDone() { return tasksDone; }
+    public int getMandatoryFailures() { return mandatoryFailures; }
+    public int getOptionalRefinementsDone() { return optionalRefinementsDone; }
+    public int getOptionalRefinementsPossible() { return optionalRefinementsPossible; }
     public double getCompletion() { return tasks.isEmpty() ? 0.0 : (double) tasksDone / tasks.size(); }
     public double getMeanQuality() { return tasks.isEmpty() ? 0.0 : qualitySum / tasks.size(); }
     public double getSloAttainment() { return tasks.isEmpty() ? 0.0 : sloAttainedSum / tasks.size(); }
+    public double getOptionalRefinementRate() {
+        return optionalRefinementsPossible == 0
+            ? 0.0 : (double) optionalRefinementsDone / optionalRefinementsPossible;
+    }
+    public Map<ResourceType, Integer> getExhaustedCounts() { return exhaustedCounts; }
 
     @Override
     public Set<ServiceType> getRequiredServiceTypes() {

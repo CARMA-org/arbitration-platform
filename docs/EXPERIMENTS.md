@@ -1,79 +1,68 @@
 # Experiments
 
-The self-contained harness lives in `experiments/joint_allocation/`. It compares
-allocation rules under the weighted-log objective and reports both objective regret and
-non-objective outcome metrics. It does not depend on any values copied from a paper.
+Three current experiments run through the canonical Java runtime, plus one
+preserved historical experiment. Seeds are derived deterministically by hashing
+labels with SHA-256; calibration and test seed sets are disjoint, and every
+policy in a cell sees the same seed and scenario.
 
-## Layout
+## Platform mediation (`experiments/platform_mediation/`)
 
-    experiments/joint_allocation/
-      requirements.txt        version-pinned dependencies
-      lib/                    solver wrapper, generators, rules, metrics, rounding, seeds
-      run_experiment{1..5}.py per-experiment drivers (--smoke for a fast pass)
-      run_rounding_comparison.py
-      run_all.py              runs everything and the figures
-      aggregate via lib/aggregate.py -> tables/
-      figures.py -> figures/
-      results/                summaries and raw/ CSVs (raw is gitignored)
-      tables/                 aggregated CSV tables (committed)
+The primary experiment. It asks whether, when tasks require complementary
+resource bundles, a utility declaration that represents complementarity produces
+more completed work than a linear substitute-resource declaration.
 
-## Allocation rules compared
+- Four task archetypes (research, code review, document processing, monitoring),
+  each with a mandatory service sequence and an optional refinement sequence. The
+  exact resource bundles are derived from the selected service instances.
+- Capacities are sized from the aggregate mandatory workload so that mandatory
+  demand exceeds supply at a moderate (1.3) and a high (1.9) contention ratio;
+  realized ratios after integer conversion are recorded.
+- Policies: equal quotas; Dominant Resource Fairness on the mandatory demand
+  bundle; a separable water-filling family whose exponent is tuned on calibration
+  seeds only; and joint weighted proportional fairness under linear,
+  Cobb–Douglas, CES (`ρ = 0.5`), and Leontief utilities. Linear, Cobb–Douglas,
+  and CES use normalized resource-footprint weights; Leontief uses the mandatory
+  bundle proportions as its requirement vector.
+- Regimes: identical, nearly specialized, broad heterogeneous, and complementary
+  archetypes.
+- Primary outcomes: task completion rate, minimum and fifth-percentile per-agent
+  completion, and optional refinement rate. Declared welfare is reported only
+  within a utility family. Latency is a budget of service constants and is
+  labelled latency-budget completion, not observed SLO attainment.
+- Analysis: paired seed-level differences with 95% bootstrap confidence
+  intervals for each joint model minus equal quotas, minus DRF, and each
+  nonlinear joint model minus joint linear; individual-agent completion change,
+  fraction of agents harmed, and worst per-agent loss.
 
-1. Equal shares and priority-weighted shares (bounded).
-2. The original proportional-to-weight rule (`gamma = 1`).
-3. A prespecified separable family: bounded per-column water-filling with scores
-   `s_ij = c_i * max(beta_ij, eps)^gamma`, `gamma in {0, 0.25, 0.5, 1, 2, 4, 8, 16}`.
-   Each resource is allocated independently using only that resource's weights,
-   priorities, bounds, and capacity; residual capacity is redistributed after agents
-   reach their caps.
-4. Joint weighted-Nash allocation (the Python solver).
+Run: `python3 run_sweep.py --full` (use `--smoke` for a fast pass).
 
-Reported separable comparators: the original `gamma = 1`; a single globally tuned
-`gamma` selected on training seeds and evaluated on disjoint test seeds; and the per-cell
-upper envelope over the family (an explicitly labelled oracle sensitivity bound). Tuning
-and evaluation never share seeds.
+## Dynamic allocation (`experiments/dynamic_allocation/`)
 
-## Metrics
+A secondary experiment on operational contract behaviour under a prebuilt event
+schedule (arrivals, departures, preference changes, capacity loss and
+restoration, lease expiry). It compares unrestricted reoptimization, permanent
+accepted-utility floors, time-limited leases, and leases with proportional
+shortfall under capacity loss, and records floor violations, expired contracts,
+stale-context denials, admissions, waiting time, churn, incumbent utility loss,
+and shortfall magnitude.
 
-The weighted-log objective is the criterion the joint rule optimizes, so a separable
-rule's shortfall is reported as **objective regret** (joint minus rule); the joint rule's
-100% win rate on this metric is definitional, not an empirical discovery. For every rule
-the harness also reports non-objective metrics: arithmetic mean, minimum, and median of
-normalized agent utility; fraction of agents worse off than equal shares and than the
-strongest separable comparator; worst and fifth-percentile individual change; capacity
-utilization; fraction of cells at lower bound, interior, and upper bound; and solve time.
-Utility is normalized within each family by each agent's utility at its ideal bundle;
-raw magnitudes are never compared across families. Distributions are summarized by
-median, IQR, fifth and ninety-fifth percentiles.
+Run: `python3 run_dynamic.py --full`.
 
-## Experiments
+## Enforcement fault injection (`experiments/enforcement/`)
 
-- **Experiment 1** reproduces the five Dirichlet concentration settings and adds the new
-  comparators and metrics, to see how much of the original near-uniform / interior-peak
-  story survives a stronger resource-local comparator.
-- **Experiment 2** independently varies breadth `B in {1.3, 2.0, 3.0, 3.8}` and an
-  asymmetry parameter `lambda in {0, 0.25, 0.5, 0.75, 1}` using a shared/idiosyncratic
-  construction with per-row temperature fitting so breadth is held fixed while
-  orientation changes. Achieved breadth and pairwise cosine dissimilarity are recorded
-  per cell. Primary output: a heatmap of tuned-separable objective regret.
-- **Experiment 3** compares utility families (`CES rho=-1`, `COBB_DOUGLAS`,
-  `CES rho=0.5`, `LINEAR`, and explicit `LEONTIEF` with requirement vector `r = beta`).
-  It numerically verifies that joint Cobb-Douglas welfare equals the per-resource
-  separable solution.
-- **Experiment 4** varies caps (`h/Q`), floors (`l/Q`), and lognormal priority
-  dispersion on a representative broad, asymmetric cell, using the priority-aware
-  comparators.
-- **Experiment 5** is a small reallocation study: preference drift, new-agent arrival,
-  and capacity reduction, comparing unrestricted reoptimization with
-  commitment-preserving reoptimization whose floors use the old accepted utility
-  representation.
+A deterministic fault-injection suite over the runtime and solver: negative
+bundles, repeated and concurrent over-quota calls, stale-context and duplicate
+calls, invalid and cyclic compositions, malformed solver output, a genuinely
+hung solver process terminated by the Java timeout, oversubscribed minimums,
+one-resource-short calls, and unsupported utility declarations. Each case reports
+invariant counters with explicit denominators; the targets are all zero. These
+are test results, not estimates of real-world failure rates, and are not evidence
+of strategyproofness, collusion resistance, or protection against a hostile
+operator.
 
-## Running
+Run: `python3 run_enforcement.py --reps 100`.
 
-    pip install -r experiments/joint_allocation/requirements.txt
-    cd experiments/joint_allocation
-    python run_all.py --smoke      # fast pass
-    python run_all.py              # full pass
+## Historical joint allocation (`experiments/joint_allocation/`)
 
-Seeds are derived deterministically (SHA-256 of labels) in `lib/seeds.py`; train and
-test seed sets are disjoint by construction.
+The v0.9 joint-allocation study is preserved unchanged as a historical artifact.
+Run: `python run_all.py`.

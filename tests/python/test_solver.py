@@ -118,6 +118,27 @@ def test_leontief_balanced_bundle():
     assert A[1] >= 50.0 - 0.5
 
 
+def test_leontief_allows_zero_requirement_and_skips_it():
+    data = dict(n_agents=1, n_resources=3, preferences=[[1.0, 1.0, 1.0]],
+                priority_weights=[1.0], capacities=[100.0, 100.0, 100.0],
+                minimums=[[0.0, 0.0, 0.0]], ideals=[[100.0, 100.0, 100.0]],
+                utility_configs=[{"type": "LEONTIEF", "requirements": [1.0, 2.0, 0.0]}])
+    r = js.solve_joint_allocation(data)
+    assert r["status"] == "optimal"
+    A = np.array(r["allocations"])[0]
+    assert min(A[0] / 1.0, A[1] / 2.0) == pytest.approx(50.0, abs=0.5)
+
+
+def test_leontief_all_zero_requirements_rejected():
+    data = dict(n_agents=1, n_resources=2, preferences=[[1.0, 1.0]],
+                priority_weights=[1.0], capacities=[100.0, 100.0],
+                minimums=[[0.0, 0.0]], ideals=[[100.0, 100.0]],
+                utility_configs=[{"type": "LEONTIEF", "requirements": [0.0, 0.0]}])
+    r = js.solve_joint_allocation(data)
+    assert r["status"] == "validation_error"
+    assert "strictly positive" in r["error_message"]
+
+
 def test_ces_rho1_is_linear_special_case():
     ces = solve({"type": "CES", "rho": 1.0})
     lin = solve({"type": "LINEAR"})

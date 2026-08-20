@@ -100,9 +100,15 @@ def base_scenario(regime, contention_name, contention_ratio, seed, cfg):
         for t in tasks:
             used_services.update(t["mandatory"])
             used_services.update(t["optional"])
+        mfp = mand_fp[i]
+        total_mfp = sum(mfp[r] for r in RESOURCES)
+        leontief_req = {r: (mfp[r] / total_mfp if total_mfp > 0 else 0.0) for r in RESOURCES}
+        total_ffp = sum(full_fp[r] for r in RESOURCES)
+        util_weights = {r: (full_fp[r] / total_ffp if total_ffp > 0 else 0.0) for r in RESOURCES}
         agents.append({
             "id": "a%d" % i, "archetype": arc, "prefs": prefs,
             "min": mn, "upper": up, "priority": tier, "tasks": tasks,
+            "leontief_req": leontief_req, "util_weights": util_weights,
         })
 
     services = {s: 100000 for s in sorted(used_services)}
@@ -116,7 +122,9 @@ def make_job(scenario, cell, seed, policy, gamma, solver_python, execute):
         "solverPython": solver_python, "execute": bool(execute),
         "capacities": scenario["capacities"], "services": scenario["services"],
         "agents": [{
-            "id": a["id"], "prefs": a["prefs"], "min": a["min"], "upper": a["upper"],
-            "priority": a["priority"], "tasks": a["tasks"],
+            "id": a["id"], "archetype": a["archetype"], "prefs": a["prefs"],
+            "min": a["min"], "upper": a["upper"], "priority": a["priority"],
+            "tasks": a["tasks"], "leontief_req": a["leontief_req"],
+            "util_weights": a["util_weights"],
         } for a in scenario["agents"]],
     }

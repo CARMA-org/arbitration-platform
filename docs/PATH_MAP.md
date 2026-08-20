@@ -1,74 +1,50 @@
-# Execution Path Map (verified from source, not README)
+# Execution Path Map
 
-Starting point: `release/v0.9` @ `5f0fe8cf4ac450c393f9aaa7ceec4d5e84ac56ea`.
-This map is the audit deliverable for the platform-mediation work. Every claim
-below was read from source and cross-checked against the test suite.
+This map describes the current platform-mediation path from agent declarations to
+enforced execution.
 
-## Named runtime concepts vs. actual classes
+## Runtime concepts and classes
 
-| Audit name              | Actual class / member                                                    |
-|-------------------------|--------------------------------------------------------------------------|
-| AgentRuntime            | `agent.RealisticAgentFramework.AgentRuntime`                             |
-| ExecutionContext        | `agent.RealisticAgentFramework.ExecutionContext`                        |
-| allocation storage      | `AgentRuntime.agentAllocations` (`Map<String,Map<ResourceType,Long>>`)  |
-| service-slot allocation | `AIService.reserveCapacity/releaseCapacity`, `ServiceRegistry.*`         |
-| resource consumption    | `ExecutionContext.tryConsumeResource` / `.invokeService`                 |
-| backend invocation      | `ServiceBackend.invokeByType` (Mock/LLM)                                 |
-| priority burns          | `PriorityEconomy.calculatePriorityWeight` (currency commitments)         |
-| transaction handling    | `mechanism.TransactionManager`, `EmbargoQueue` (not on the exec path)    |
-| allocation release      | `AgentRuntime.clearAllocations`; `ResourcePool.release`                  |
+| Concept | Class / member |
+|---------|----------------|
+| Runtime | `agent.RealisticAgentFramework.AgentRuntime` |
+| Execution context | `agent.RealisticAgentFramework.ExecutionContext` |
+| Active allocation | `model.AllocationSnapshot` (one immutable snapshot per epoch) |
+| Per-agent contract | `model.AllocationContract` (id, version, bundle, issue/expiry) |
+| Consumption ledger | `model.ConsumptionLedger` (shared per agent and contract version) |
+| Service capacity handle | `model.ServiceHandle`; `ServiceRegistry.acquireHandle` |
+| Utility declaration | `model.UtilityDeclaration` (linear, Cobb–Douglas, CES, Leontief) |
+| Backend invocation | `ServiceBackend.invokeByType` (mock or LLM) |
+| Priority weighting | `PriorityEconomy.calculatePriorityWeight` |
 
-## Arbitration paths
+## Allocation path
 
-1. **Per-resource, single-resource water-filling (NOT joint despite naming):**
-   - `AgentRuntime.runArbitration(detector, ProportionalFairnessArbitrator)`:
-     for each contention group, loops `for type in group.getResources()` and
-     builds a single-resource `Contention` solved by `ProportionalFairnessArbitrator`
-     (water-filling `max Σ cᵢ log aᵢ` per resource). No cross-resource coupling.
-     Used by `IntegratedArbitrationDemo`.
-   - `ServiceArbitrator.arbitrate(requests)` → `arbitrateServiceType(type,…)` per
-     type, each via `ProportionalFairnessArbitrator`. Per-resource.
-   - `ServiceArbitrator.arbitrateJoint(...)` hardcodes `new SequentialJointArbitrator(economy)`,
-     which itself iterates resources independently. So even the method named
-     "joint" is per-resource in v0.9.
+1. Agents are converted to arbitration-model `Agent`s with per-resource
+   minimum/ideal requests and a `UtilityDeclaration`.
+2. `ContentionDetector` groups agents that share contended resources.
+3. For each group, `ConvexJointArbitrator.arbitrate` builds one solver input over
+   the complete agent-by-resource matrix, including each agent's `utility_configs`,
+   runs `scripts/joint_solver.py` under a hard timeout, and applies
+   capacity-preserving integer rounding. It throws on failure unless fallback is
+   explicitly enabled, in which case the result records the requested and actual
+   policy.
+4. `AgentRuntime.installContracts` checks aggregate conservation against pool
+   capacity, assigns a monotonically increasing epoch, builds one contract and one
+   fresh ledger per agent, and publishes the complete `AllocationSnapshot` by a
+   single atomic reference replacement. Agents absent from the new snapshot are no
+   longer executable.
 
-2. **Genuine joint (global `max Σ cᵢ log Φᵢ(a_i)` over the full N×M problem):**
-   - `ConvexJointArbitrator.arbitrate(group|agents,pool, burns)` → JSON of the full
-     matrix → `scripts/joint_solver.py` (cvxpy/Clarabel) → capacity-preserving
-     rounding. Fails closed (throws) unless `setUseFallbackOnError(true)`; the
-     explicit fallback result is tagged `requested=JOINT_LINEAR,actual=SEQUENTIAL`.
-   - In v0.9 this class is only exercised by `JointSolverIntegrationTest` and the
-     Python `experiments/joint_allocation` harness (which calls `joint_solver`
-     directly, not through the Java runtime).
+Comparison policies (equal quotas, DRF, separable water-filling) are computed by
+`PlatformMediationHarness` and installed and executed through the same runtime.
 
-## Service execution / consumption (v0.9 defects, pre-change)
+## Enforcement path
 
-`ExecutionContext.invokeService(type,input)`:
-- checks `hasService(type)` (slot count > 0) but **does not acquire a real
-  `ServiceRegistry` capacity slot** before invoking the backend;
-- consumes **only `API_CREDITS`**, ignoring the `COMPUTE/MEMORY/DATASET` entries of
-  `ServiceType.getDefaultResourceRequirements()`;
-- `tryConsumeResource` on an over-quota amount sets `consumed = allocated`
-  (**partial deduction of the remainder**) then returns `false`;
-- backend picks "best available" `AIService` but never reserves/releases it, so
-  **concurrent calls can exceed service capacity**.
-
-Correct in v0.9: negative amounts already rejected without state change
-(`tryConsumeResource`/`canConsumeResource`); `ResourcePool.allocate/release`
-reject negatives.
-
-## Contention detection
-
-`ContentionDetector.detectContentions` → Union-Find connected components; a group
-`requiresJointOptimization()` iff `resources > 1 && agents > 1`.
-
-## Canonical path introduced by this work
-
-`AgentRuntime.runArbitration(detector, JointArbitrator)` calls the selected joint
-arbitrator **once per complete contention group**, validates conservation, then
-installs versioned `AllocationContract`s atomically. `ExecutionContext.invokeService`
-atomically checks+consumes the full resource vector and acquires/releases a real
-service-capacity slot, failing closed on any shortfall. `ConvexJointArbitrator` is
-the canonical policy; the `ProportionalFairnessArbitrator` overload and
-`SequentialJointArbitrator` remain available only as explicitly named comparison
-policies.
+`AgentRuntime.createExecutionContext` binds a context to an agent id, allocation
+id, contract version, and the shared ledger. Before every service call the
+context validates that the agent is still registered, the contract still exists,
+the bound allocation id and version still match the active contract, and the
+contract has not expired under the injected clock. On success it acquires a
+specific service capacity slot, charges that service instance's configured
+resource vector against the shared ledger all-or-nothing, invokes the backend,
+and releases the slot in all outcomes. A denied call consumes nothing and never
+reaches the backend.
