@@ -1,7 +1,7 @@
 {
   "java": {
     "totals": {
-      "tests": 43,
+      "tests": 54,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -30,7 +30,7 @@
       },
       {
         "suite": "org.carma.arbitration.agent.PlatformContractEnforcementTest",
-        "tests": 11,
+        "tests": 13,
         "failures": 0,
         "errors": 0,
         "skipped": 0
@@ -38,6 +38,27 @@
       {
         "suite": "org.carma.arbitration.agent.ServiceExecutionEnforcementTest",
         "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ServiceInstanceBindingTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.experiment.DRFComparatorTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.experiment.DeclarationRuntimePathTest",
+        "tests": 2,
         "failures": 0,
         "errors": 0,
         "skipped": 0
@@ -87,7 +108,7 @@
     ]
   },
   "python": {
-    "passed": 29,
+    "passed": 36,
     "failed": 0,
     "returncode": 0
   },

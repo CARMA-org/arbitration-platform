@@ -1,9 +1,9 @@
 {
-  "generated_utc": "2026-08-20T20:09:53Z",
-  "source_commit": "b04e1c4ee9dc9e9d153acf79a218ce9c5cd6a79b",
-  "source_tree_sha1": "ae0300cdd9531eb7268d716fcccb8ffc12802743",
+  "generated_utc": "2026-08-20T22:56:44Z",
+  "source_commit": "a7778c0786ec8eb2226190ba451f5466ec8e2172",
+  "source_tree_sha1": "f1410cb1c77449a1cbb4a5e47f8272e65b6d88bb",
   "config_hashes": {
-    "experiments/platform_mediation/config/experiment.json": "d2aa75728fa7984e3106a3b729cad29f2d431a1af8b1cfda9f757536c8c52b97"
+    "experiments/platform_mediation/config/experiment.json": "39d780fdce7d557cd4e4995bde0f219eca96cd613bf5f8c085b339ccfddfd056"
   },
   "environment": {
     "python_executable": "/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3",
@@ -21,21 +21,21 @@
   },
   "seed_derivation": "SHA-256 of pipe-joined string labels, low 64 bits mod 2**32; disjoint calibration and test splits; same seed and scenario per policy in a cell",
   "run_counts": {
-    "platform_mediation_test_runs": 5600,
-    "platform_mediation_calibration_pairs": 240,
+    "platform_mediation_test_runs": 3200,
+    "platform_mediation_calibration_pairs": 120,
     "dynamic_seeds": 100,
     "dynamic_epochs": 100,
     "enforcement_reps": 100
   },
   "test_counts": {
     "java": {
-      "tests": 43,
+      "tests": 54,
       "failures": 0,
       "errors": 0,
       "skipped": 0
     },
     "python": {
-      "passed": 29,
+      "passed": 36,
       "failed": 0,
       "returncode": 0
     },
@@ -48,7 +48,7 @@
   "experiments": {
     "platform_mediation": {
       "mode": "full",
-      "selected_gamma": 2.0,
+      "selected_separable_gamma": 2.0,
       "gamma_grid": [
         0.0,
         0.5,
@@ -58,27 +58,74 @@
         8.0
       ],
       "gamma_mean_regret": {
-        "0.0": 4.159870705113334,
-        "0.5": 2.481569366818174,
-        "1.0": 2.1534235594006086,
-        "2.0": 2.032507642622231,
-        "4.0": 2.0512865788884813,
-        "8.0": 3.447562981054263
+        "0.0": 1.588495211030974,
+        "0.5": 1.2236445744661069,
+        "1.0": 1.0512470152412732,
+        "2.0": 0.9450417201970822,
+        "4.0": 1.150273533635925,
+        "8.0": 2.12935242695454
       },
-      "calibration_pairs": 240,
-      "n_cells": 8,
+      "calibration_pairs": 120,
+      "compositions": [
+        "homogeneous",
+        "mixed_bundle"
+      ],
+      "contention": {
+        "moderate": 1.3,
+        "high": 1.9
+      },
+      "realized_contention_ratio": {
+        "homogeneous__moderate": {
+          "COMPUTE": 1.300398406374502,
+          "MEMORY": 1.2997198879551821,
+          "API_CREDITS": 1.2993630573248407,
+          "DATASET": 1.3016949152542372
+        },
+        "homogeneous__high": {
+          "COMPUTE": 1.8998835855646101,
+          "MEMORY": 1.8990450204638472,
+          "API_CREDITS": 1.902097902097902,
+          "DATASET": 1.900990099009901
+        },
+        "mixed_bundle__moderate": {
+          "COMPUTE": 1.300275482093664,
+          "MEMORY": 1.3004926108374384,
+          "API_CREDITS": 1.2991452991452992,
+          "DATASET": 1.2972972972972974
+        },
+        "mixed_bundle__high": {
+          "COMPUTE": 1.8993963782696177,
+          "MEMORY": 1.8992805755395683,
+          "API_CREDITS": 1.9,
+          "DATASET": 1.900990099009901
+        }
+      },
+      "n_cells": 4,
       "n_calibration_seeds_per_cell": 30,
       "n_test_seeds_per_cell": 100,
+      "n_agents": 6,
+      "tasks_per_agent": 8,
       "policies": [
         "equal",
         "drf",
-        "separable",
+        "decomposed_cobb_douglas",
+        "joint_linear",
+        "joint_cobb_douglas",
+        "joint_ces",
+        "joint_leontief",
+        "separable"
+      ],
+      "primary_policies": [
+        "equal",
+        "drf",
+        "decomposed_cobb_douglas",
         "joint_linear",
         "joint_cobb_douglas",
         "joint_ces",
         "joint_leontief"
       ],
-      "total_test_runs": 5600,
+      "total_test_runs": 3200,
+      "n_agent_records": 19200,
       "capacity_violations_total": 0,
       "bound_violations_total": 0
     },
@@ -94,63 +141,80 @@
       ],
       "lease_len": 10,
       "capacity_loss_frac": 0.3,
+      "n_rows": 400,
       "capacity_violations_total": 0,
       "aggregate": [
         {
           "policy": "reoptimize",
           "n_seeds": 100,
-          "task_completion": 0.1550132619047619,
-          "task_quality": 0.14453539777790972,
-          "entrant_admission_rate": 1.0,
+          "admissions": 5.0,
           "mean_waiting_time": 0.0,
-          "worst_incumbent_loss": -0.794,
-          "mean_churn_frac": 0.09212856872310725,
-          "mean_binding_commitments": 0.0,
           "commitment_infeasibility": 0.0,
-          "mean_utilization": 0.08502633468127523,
-          "capacity_violations_total": 0
+          "floor_violations": 0.0,
+          "floor_shortfall_total": 0.0,
+          "lease_expiries": 0.0,
+          "mean_churn_frac": 0.0669226577443912,
+          "binding_commitments": 0.0,
+          "mean_incumbent_utility_change": -0.03529113856878413,
+          "worst_incumbent_loss": -46.89611013986015,
+          "shortfall_epochs": 0.0,
+          "mean_shortfall_scale": 1.0,
+          "noop_events": 5.11,
+          "capacity_violations": 0.0
         },
         {
           "policy": "permanent_floors",
           "n_seeds": 100,
-          "task_completion": 0.17445809523809522,
-          "task_quality": 0.1613017745886509,
-          "entrant_admission_rate": 1.0,
-          "mean_waiting_time": 3.2460000000000004,
-          "worst_incumbent_loss": -0.8220000000000001,
-          "mean_churn_frac": 0.08343570821281066,
-          "mean_binding_commitments": 0.7762,
-          "commitment_infeasibility": 15.47,
-          "mean_utilization": 0.10103252490286647,
-          "capacity_violations_total": 0
+          "admissions": 4.99,
+          "mean_waiting_time": 0.8200000000000002,
+          "commitment_infeasibility": 15.35,
+          "floor_violations": 136.7,
+          "floor_shortfall_total": 61.22164335664323,
+          "lease_expiries": 0.0,
+          "mean_churn_frac": 0.06427330029213257,
+          "binding_commitments": 52.81,
+          "mean_incumbent_utility_change": 0.2805646064075519,
+          "worst_incumbent_loss": -63.064018065268066,
+          "shortfall_epochs": 0.0,
+          "mean_shortfall_scale": 1.0,
+          "noop_events": 5.13,
+          "capacity_violations": 0.0
         },
         {
           "policy": "leases",
           "n_seeds": 100,
-          "task_completion": 0.15988327777777778,
-          "task_quality": 0.1488590208051059,
-          "entrant_admission_rate": 1.0,
-          "mean_waiting_time": 0.3859999999999999,
-          "worst_incumbent_loss": -0.828,
-          "mean_churn_frac": 0.09521837833326138,
-          "mean_binding_commitments": 1.5213999999999999,
-          "commitment_infeasibility": 1.2,
-          "mean_utilization": 0.0893505656598731,
-          "capacity_violations_total": 0
+          "admissions": 4.99,
+          "mean_waiting_time": 0.21,
+          "commitment_infeasibility": 0.55,
+          "floor_violations": 118.67,
+          "floor_shortfall_total": 46.76920163170158,
+          "lease_expiries": 42.49,
+          "mean_churn_frac": 0.07281789785433665,
+          "binding_commitments": 136.87,
+          "mean_incumbent_utility_change": 0.46884095473272763,
+          "worst_incumbent_loss": -77.09636655011654,
+          "shortfall_epochs": 0.0,
+          "mean_shortfall_scale": 1.0,
+          "noop_events": 5.12,
+          "capacity_violations": 0.0
         },
         {
           "policy": "leases_shortfall",
           "n_seeds": 100,
-          "task_completion": 0.16033257936507936,
-          "task_quality": 0.1493346620634492,
-          "entrant_admission_rate": 1.0,
-          "mean_waiting_time": 0.352,
-          "worst_incumbent_loss": -0.83,
-          "mean_churn_frac": 0.09643533831253868,
-          "mean_binding_commitments": 1.5113999999999999,
-          "commitment_infeasibility": 0.94,
-          "mean_utilization": 0.09011961657505772,
-          "capacity_violations_total": 0
+          "admissions": 4.99,
+          "mean_waiting_time": 0.21,
+          "commitment_infeasibility": 0.37,
+          "floor_violations": 119.54,
+          "floor_shortfall_total": 47.25676091516207,
+          "lease_expiries": 42.49,
+          "mean_churn_frac": 0.0733543802328426,
+          "binding_commitments": 136.77,
+          "mean_incumbent_utility_change": 0.46826090795297015,
+          "worst_incumbent_loss": -80.38150932400931,
+          "shortfall_epochs": 0.37,
+          "mean_shortfall_scale": 0.9910047043694391,
+          "noop_events": 5.12,
+          "capacity_violations": 0.0
         }
       ]
     },
@@ -163,27 +227,27 @@
       "incorrect_success": 0
     }
   },
-  "artifact_count": 34,
+  "artifact_count": 33,
   "artifacts": [
     {
       "path": "experiments/platform_mediation/results/raw/agents.csv",
-      "sha256": "dc3ddcbd83d5f44588ccbde68312164f883d0d96d0c202f5afa80c230b3930ab",
-      "bytes": 12756170
+      "sha256": "a8a88f2eb1155a7f7e9ccc4c20f3f40665da8a5cd64d60c186d15ca082e54080",
+      "bytes": 7338752
     },
     {
       "path": "experiments/platform_mediation/results/raw/runs.csv",
-      "sha256": "81d778a6d0ba12c9ff6b7b2bad24dcd212ee83b54dab441cdd3c4aa5b025bb52",
-      "bytes": 1270850
+      "sha256": "7b6ad7327ff1928e563fa71b4fe5c005106745bf6193577e7dc8b95b50d4d851",
+      "bytes": 767034
     },
     {
-      "path": "experiments/platform_mediation/results/recomputed_headline.json",
-      "sha256": "877b204032cf70ce862b7e214d2f7de778e441bf7a3bb1487c38d97e6c8d847a",
-      "bytes": 2120
+      "path": "experiments/platform_mediation/results/headline.json",
+      "sha256": "e90e1cf2a06d6b588fe1fdeb2da57cde244e3c9595cc69205b9894a89caafe26",
+      "bytes": 4207
     },
     {
       "path": "experiments/platform_mediation/results/resolved_config_full.json",
-      "sha256": "b9a21ea1808e050e3924d47b462b92db310e79bf4b9d561b1acfaadf5a1a59cb",
-      "bytes": 1038
+      "sha256": "ca4a80b639fbeb2cdb110ff66d416354769674b2b7aacf241f5d45b4dd480dc6",
+      "bytes": 1108
     },
     {
       "path": "experiments/platform_mediation/results/resolved_config_smoke.json",
@@ -191,9 +255,14 @@
       "bytes": 930
     },
     {
+      "path": "experiments/platform_mediation/results/summary.json",
+      "sha256": "a2e1d7f2ee6a746d7d715832775691bdae9094b2f52164b336f4daaea7c44506",
+      "bytes": 1848
+    },
+    {
       "path": "experiments/platform_mediation/results/summary_full.json",
-      "sha256": "b3269f05aad88d9d9cf01953534ac935351e58034f44247fa643dc455e4a1499",
-      "bytes": 684
+      "sha256": "a2e1d7f2ee6a746d7d715832775691bdae9094b2f52164b336f4daaea7c44506",
+      "bytes": 1848
     },
     {
       "path": "experiments/platform_mediation/results/summary_smoke.json",
@@ -201,39 +270,44 @@
       "bytes": 608
     },
     {
+      "path": "experiments/platform_mediation/tables/aggregate_paired.csv",
+      "sha256": "8dae5f0cd56806fd7d14cfc62b6b74848d72742595202edfa3c86491e26f6f90",
+      "bytes": 3963
+    },
+    {
       "path": "experiments/platform_mediation/tables/cell_policy_means.csv",
-      "sha256": "cffc6e533615866afe8901e87cb563b8a600b4532cf7c047d47658cad485e623",
-      "bytes": 10972
+      "sha256": "77f77448d0989947dea78a71255d5f99d9a8efe960d53547461a374db14b7e08",
+      "bytes": 6052
     },
     {
       "path": "experiments/platform_mediation/tables/individual_loss.csv",
-      "sha256": "e2a9e3061556ddfb4cb647ad338e0837d1efb004e0838c0432c87f86ac2da07f",
-      "bytes": 3599
+      "sha256": "798935d03e1048b33788f9cf15ebae1c810e303e15486bcbcd766c9577f85859",
+      "bytes": 1517
     },
     {
       "path": "experiments/platform_mediation/tables/paired_differences.csv",
-      "sha256": "235e0a0c53a7667bf11a08e3e14b1f0e6c7b57a7b22db00e7187d0ba2235f596",
-      "bytes": 52874
+      "sha256": "0db830ff2eedced21ab8eab9eefba47f82afdc5f119196a694afa68bdefb4b23",
+      "bytes": 24068
     },
     {
       "path": "experiments/platform_mediation/figures/fig1_completion_by_policy.png",
-      "sha256": "b4bc54713a0487fb8c7af86c0819b1a4a19684b8a73ed24dfa86ade2119ee12a",
-      "bytes": 39936
+      "sha256": "b916355733e26d41efa95def407935ec4a2ab96b8645737e205991a52f78a285",
+      "bytes": 39097
     },
     {
       "path": "experiments/platform_mediation/figures/fig2_nonlinear_vs_linear.png",
-      "sha256": "1c7e491f175fcde3dca1d53ebfebbf7af6f35eee991e5dc7341a0022748055fd",
-      "bytes": 46440
+      "sha256": "d304ed214256a6a6498b19fc8cf442a5fd53c5d9300cb8c9428889109a9420cb",
+      "bytes": 43191
     },
     {
       "path": "experiments/platform_mediation/figures/fig3_individual_loss.png",
-      "sha256": "531c16e6821b75c653ef9b216abe770b863d9efc180bf214071d1c436adaa182",
-      "bytes": 48049
+      "sha256": "88cd6066c1b773dfaa3733ee82759f9146cdfccca9fc0a2061708a374d06b60c",
+      "bytes": 46197
     },
     {
       "path": "experiments/platform_mediation/config/experiment.json",
-      "sha256": "d2aa75728fa7984e3106a3b729cad29f2d431a1af8b1cfda9f757536c8c52b97",
-      "bytes": 788
+      "sha256": "39d780fdce7d557cd4e4995bde0f219eca96cd613bf5f8c085b339ccfddfd056",
+      "bytes": 896
     },
     {
       "path": "experiments/platform_mediation/logs/full_console.log",
@@ -242,8 +316,8 @@
     },
     {
       "path": "experiments/platform_mediation/logs/sweep_full.log",
-      "sha256": "622567296df832efeac5da97dfa808a2133e674dfdfb29ee72b34b8a5cb50019",
-      "bytes": 814
+      "sha256": "a6512548a3aa2330076117c903c357c659aad5a40adf5e53cce4fa9432b1b90f",
+      "bytes": 638
     },
     {
       "path": "experiments/platform_mediation/logs/sweep_smoke.log",
@@ -252,23 +326,13 @@
     },
     {
       "path": "experiments/platform_mediation/test_report.json",
-      "sha256": "d1aa785e4c6a9474e5e7aa7eb37e9320d9a284258ca8c12b26e411849d5783a9",
-      "bytes": 2911
-    },
-    {
-      "path": "experiments/dynamic_allocation/results/raw/epochs_full.csv",
-      "sha256": "40e908545d0398e99bc504eb377ac359be1b6017b5be054a9aa2124fa55c1495",
-      "bytes": 2794419
-    },
-    {
-      "path": "experiments/dynamic_allocation/results/raw/epochs_smoke.csv",
-      "sha256": "96c480ec4a89bfa11f69e8702ed36c555e2dcdc080a90e0502f6e761b8586435",
-      "bytes": 27931
+      "sha256": "8d399f45812daee15bb2d90778adb13ea9bc04b8be92208e69638f1908f53fb8",
+      "bytes": 3443
     },
     {
       "path": "experiments/dynamic_allocation/results/raw/policy_seed_full.csv",
-      "sha256": "5556978ffce08b501a77cb1d5795dddeec6b100daa1b7f04e33fbf11e498d4e1",
-      "bytes": 49722
+      "sha256": "bf0faab01d2cc6174d9f07df1907a5925656913e7bf7662695e64677d05c058d",
+      "bytes": 50733
     },
     {
       "path": "experiments/dynamic_allocation/results/raw/policy_seed_smoke.csv",
@@ -276,9 +340,14 @@
       "bytes": 2596
     },
     {
+      "path": "experiments/dynamic_allocation/results/summary.json",
+      "sha256": "db77b11f3d3fc041853be1f5426756ae42ef3b13dfcb4b81a5e3e2499d4cbdf7",
+      "bytes": 2674
+    },
+    {
       "path": "experiments/dynamic_allocation/results/summary_full.json",
-      "sha256": "3e0935fd31051f55e5fa5371f5bed48b8d32268dca155347263a45de1f3c43f3",
-      "bytes": 2215
+      "sha256": "db77b11f3d3fc041853be1f5426756ae42ef3b13dfcb4b81a5e3e2499d4cbdf7",
+      "bytes": 2674
     },
     {
       "path": "experiments/dynamic_allocation/results/summary_smoke.json",
@@ -286,19 +355,9 @@
       "bytes": 2169
     },
     {
-      "path": "experiments/dynamic_allocation/tables/paired_vs_reoptimize_full.csv",
-      "sha256": "f89590e1a2bfaa8a496ea3531faf4483a3ef6f026bc23eaca5998deb8789045b",
-      "bytes": 2779
-    },
-    {
-      "path": "experiments/dynamic_allocation/tables/paired_vs_reoptimize_smoke.csv",
-      "sha256": "270602ead8b2767e5e83d619b6e31291c72ba805f3ed4c693551dda5c158001e",
-      "bytes": 2448
-    },
-    {
       "path": "experiments/dynamic_allocation/tables/policy_means_full.csv",
-      "sha256": "a1602bd27aa577f92b33520371a50266d6442ae47c849381b07269d61a5d6e10",
-      "bytes": 783
+      "sha256": "3b77e9139a93ca29bc924b1839463121cb2d609ded11315f6e7ca8763c00770d",
+      "bytes": 870
     },
     {
       "path": "experiments/dynamic_allocation/tables/policy_means_smoke.csv",
@@ -307,8 +366,8 @@
     },
     {
       "path": "experiments/dynamic_allocation/logs/dynamic_full.log",
-      "sha256": "dcbf5d92365060afc03c6d0868e8561e46273ebee80529bd30e8c8c36b029717",
-      "bytes": 400
+      "sha256": "eaf0c8ad36664d97ba3995b1a7fd4d7ddc90c4c89ab6047065f940868d46b601",
+      "bytes": 422
     },
     {
       "path": "experiments/dynamic_allocation/logs/dynamic_smoke.log",

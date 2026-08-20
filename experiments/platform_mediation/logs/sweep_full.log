@@ -1,11 +1,7 @@
-15:28:29 Platform-mediation sweep: mode=full solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3
-15:31:06 Calibration: pooled 240 seeds; mean declared-welfare regret by gamma: {0.0: 4.1599, 0.5: 2.4816, 1.0: 2.1534, 2.0: 2.0325, 4.0: 2.0513, 8.0: 3.4476}
-15:31:06 Selected separable gamma = 2.0
-15:35:46   cell identical__moderate: 700 runs in 279.7s
-15:40:24   cell identical__high: 700 runs in 277.6s
-15:45:00   cell nearly_specialized__moderate: 700 runs in 275.8s
-15:49:26   cell nearly_specialized__high: 700 runs in 265.8s
-15:53:42   cell broad_heterogeneous__moderate: 700 runs in 255.9s
-15:57:57   cell broad_heterogeneous__high: 700 runs in 255.4s
-16:02:12   cell complementary__moderate: 700 runs in 254.9s
-16:06:27   cell complementary__high: 700 runs in 254.6s
+18:36:50 Platform-mediation sweep: mode=full solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3
+18:38:18 Calibration: pooled 120 seeds; separable declared-linear-welfare regret by gamma: {0.0: 1.5885, 0.5: 1.2236, 1.0: 1.0512, 2.0: 0.945, 4.0: 1.1503, 8.0: 2.1294}
+18:38:18 Selected appendix separable gamma = 2.0 (tuned against declared linear welfare, not completion)
+18:42:57   cell homogeneous__moderate: 800 runs in 279.2s
+18:47:34   cell homogeneous__high: 800 runs in 276.7s
+18:51:55   cell mixed_bundle__moderate: 800 runs in 260.7s
+18:56:11   cell mixed_bundle__high: 800 runs in 255.9s
