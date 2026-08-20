@@ -29,8 +29,12 @@
     "equal",
     "drf",
     "separable",
-    "joint"
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
   ],
+  "joint_reference": "joint_linear",
   "smoke": {
     "n_agents": 4,
     "tasks_per_agent": 3,
@@ -48,5 +52,5 @@
     "upper_frac": 0.55
   },
   "mode": "full",
-  "selected_gamma": 4.0
+  "selected_gamma": 2.0
 }

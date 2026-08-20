@@ -29,7 +29,7 @@
       "incorrect_success": 0
     },
     {
-      "case": "duplicate_requests",
+      "case": "duplicate_calls_each_charged",
       "backend_after_denial": 0,
       "quota_violations": 0,
       "capacity_violations": 0,
@@ -38,7 +38,7 @@
       "incorrect_success": 0
     },
     {
-      "case": "stale_allocation_replay",
+      "case": "stale_context_execution",
       "backend_after_denial": 0,
       "quota_violations": 0,
       "capacity_violations": 0,
@@ -74,7 +74,7 @@
       "incorrect_success": 0
     },
     {
-      "case": "solver_timeout",
+      "case": "hung_solver_process",
       "backend_after_denial": 0,
       "quota_violations": 0,
       "capacity_violations": 0,

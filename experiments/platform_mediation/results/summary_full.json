@@ -1,6 +1,6 @@
 {
   "mode": "full",
-  "selected_gamma": 4.0,
+  "selected_gamma": 2.0,
   "gamma_grid": [
     0.0,
     0.5,
@@ -10,12 +10,12 @@
     8.0
   ],
   "gamma_mean_regret": {
-    "0.0": 9.344385429846621,
-    "0.5": 6.341128463207306,
-    "1.0": 4.5450195628016585,
-    "2.0": 2.8121576128819283,
-    "4.0": 1.9977435512830097,
-    "8.0": 3.243294708475756
+    "0.0": 4.159870705113334,
+    "0.5": 2.481569366818174,
+    "1.0": 2.1534235594006086,
+    "2.0": 2.032507642622231,
+    "4.0": 2.0512865788884813,
+    "8.0": 3.447562981054263
   },
   "calibration_pairs": 240,
   "n_cells": 8,
@@ -25,9 +25,12 @@
     "equal",
     "drf",
     "separable",
-    "joint"
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
   ],
-  "total_test_runs": 3200,
+  "total_test_runs": 5600,
   "capacity_violations_total": 0,
   "bound_violations_total": 0
 }

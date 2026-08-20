@@ -1,7 +1,7 @@
 {
   "java": {
     "totals": {
-      "tests": 30,
+      "tests": 43,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -24,6 +24,13 @@
       {
         "suite": "org.carma.arbitration.agent.NegativeConsumptionTest",
         "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.PlatformContractEnforcementTest",
+        "tests": 11,
         "failures": 0,
         "errors": 0,
         "skipped": 0
@@ -57,6 +64,13 @@
         "skipped": 0
       },
       {
+        "suite": "org.carma.arbitration.mechanism.SolverTimeoutTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
         "suite": "org.carma.arbitration.model.CompositionValidationTest",
         "tests": 3,
         "failures": 0,
@@ -73,7 +87,7 @@
     ]
   },
   "python": {
-    "passed": 27,
+    "passed": 29,
     "failed": 0,
     "returncode": 0
   },
@@ -91,12 +105,12 @@
       "negative_resource_requests",
       "repeated_over_quota_calls",
       "concurrent_over_quota_calls",
-      "duplicate_requests",
-      "stale_allocation_replay",
+      "duplicate_calls_each_charged",
+      "stale_context_execution",
       "invalid_service_composition",
       "cyclic_service_composition",
       "malformed_solver_output",
-      "solver_timeout",
+      "hung_solver_process",
       "oversubscribed_minimums",
       "one_exhausted_resource",
       "unsupported_utility_requests"
