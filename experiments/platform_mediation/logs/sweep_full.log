@@ -1,0 +1,11 @@
+12:16:30 Platform-mediation sweep: mode=full solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python
+12:19:11 Calibration: pooled 240 seeds; mean declared-welfare regret by gamma: {0.0: 9.3444, 0.5: 6.3411, 1.0: 4.545, 2.0: 2.8122, 4.0: 1.9977, 8.0: 3.2433}
+12:19:11 Selected separable gamma = 4.0
+12:20:19   cell identical__moderate: 400 runs in 67.9s
+12:21:27   cell identical__high: 400 runs in 67.1s
+12:22:33   cell nearly_specialized__moderate: 400 runs in 66.5s
+12:23:40   cell nearly_specialized__high: 400 runs in 67.2s
+12:24:47   cell broad_heterogeneous__moderate: 400 runs in 66.3s
+12:25:53   cell broad_heterogeneous__high: 400 runs in 66.5s
+12:27:00   cell complementary__moderate: 400 runs in 67.1s
+12:28:08   cell complementary__high: 400 runs in 67.3s

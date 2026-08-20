@@ -352,6 +352,30 @@ public class ServiceRegistry {
     }
 
     /**
+     * Atomically acquire a single capacity slot on an available service of the
+     * given type. Each candidate is reserved through {@link AIService#reserveCapacity}
+     * which is itself synchronized, so concurrent callers can never collectively
+     * exceed the aggregate capacity of that type.
+     *
+     * @return the serviceId that granted the slot, or empty if none was available
+     */
+    public Optional<String> acquireSlot(ServiceType type) {
+        for (AIService service : getByType(type)) {
+            if (service.isAvailable() && service.reserveCapacity(1)) {
+                return Optional.of(service.getServiceId());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Release a single capacity slot previously acquired via {@link #acquireSlot}.
+     */
+    public void releaseSlot(String serviceId) {
+        get(serviceId).ifPresent(s -> s.releaseCapacity(1));
+    }
+
+    /**
      * Release capacity for a composition.
      */
     public void releaseCapacityFor(ServiceComposition composition) {

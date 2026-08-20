@@ -1,0 +1,72 @@
+{
+  "mode": "smoke",
+  "seeds": 5,
+  "epochs": 20,
+  "policies": [
+    "reoptimize",
+    "permanent_floors",
+    "leases",
+    "leases_shortfall"
+  ],
+  "lease_len": 10,
+  "capacity_loss_frac": 0.3,
+  "capacity_violations_total": 0,
+  "aggregate": [
+    {
+      "policy": "reoptimize",
+      "n_seeds": 5,
+      "task_completion": 0.02616666666666667,
+      "task_quality": 0.022002493032006458,
+      "entrant_admission_rate": 1.0,
+      "mean_waiting_time": 0.0,
+      "worst_incumbent_loss": -0.25,
+      "mean_churn_frac": 0.1771910103583946,
+      "mean_binding_commitments": 0.0,
+      "commitment_infeasibility": 0.0,
+      "mean_utilization": 0.0645903496217656,
+      "capacity_violations_total": 0
+    },
+    {
+      "policy": "permanent_floors",
+      "n_seeds": 5,
+      "task_completion": 0.03445833333333333,
+      "task_quality": 0.03036439700932147,
+      "entrant_admission_rate": 0.9,
+      "mean_waiting_time": 1.9,
+      "worst_incumbent_loss": -0.3,
+      "mean_churn_frac": 0.15540899549932147,
+      "mean_binding_commitments": 1.1099999999999999,
+      "commitment_infeasibility": 6.0,
+      "mean_utilization": 0.08123992861391141,
+      "capacity_violations_total": 0
+    },
+    {
+      "policy": "leases",
+      "n_seeds": 5,
+      "task_completion": 0.03416666666666667,
+      "task_quality": 0.028612354769246943,
+      "entrant_admission_rate": 1.0,
+      "mean_waiting_time": 0.8,
+      "worst_incumbent_loss": -0.4,
+      "mean_churn_frac": 0.18255306602622304,
+      "mean_binding_commitments": 0.9700000000000001,
+      "commitment_infeasibility": 4.0,
+      "mean_utilization": 0.0743287144833208,
+      "capacity_violations_total": 0
+    },
+    {
+      "policy": "leases_shortfall",
+      "n_seeds": 5,
+      "task_completion": 0.037000000000000005,
+      "task_quality": 0.03128749258831024,
+      "entrant_admission_rate": 1.0,
+      "mean_waiting_time": 0.8,
+      "worst_incumbent_loss": -0.4,
+      "mean_churn_frac": 0.18438946001620632,
+      "mean_binding_commitments": 0.9700000000000001,
+      "commitment_infeasibility": 4.0,
+      "mean_utilization": 0.0815845790450947,
+      "capacity_violations_total": 0
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Platform-mediation sweep: joint WPF through the canonical Java runtime vs equal quotas, DRF, and a held-out tuned separable water-filling family.",
+  "resources": ["COMPUTE", "MEMORY", "API_CREDITS", "DATASET"],
+  "regimes": ["identical", "nearly_specialized", "broad_heterogeneous", "complementary"],
+  "contention": {"moderate": 1.3, "high": 1.9},
+  "gamma_grid": [0.0, 0.5, 1.0, 2.0, 4.0, 8.0],
+  "upper_frac": 0.55,
+  "policies": ["equal", "drf", "separable", "joint"],
+  "smoke": {"n_agents": 4, "tasks_per_agent": 3, "n_calibration": 3, "n_test": 6, "chunk": 200},
+  "full": {"n_agents": 6, "tasks_per_agent": 8, "n_calibration": 30, "n_test": 100, "chunk": 300}
+}

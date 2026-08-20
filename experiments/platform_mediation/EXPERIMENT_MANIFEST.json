@@ -1,0 +1,287 @@
+{
+  "generated_utc": "2026-08-20T17:28:14Z",
+  "git_commit": "5f0fe8cf4ac450c393f9aaa7ceec4d5e84ac56ea",
+  "solver_python": "/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python",
+  "canonical_runtime_entrypoints": [
+    "org.carma.arbitration.experiment.PlatformMediationHarness",
+    "org.carma.arbitration.experiment.EnforcementFaultInjection"
+  ],
+  "experiments": {
+    "platform_mediation": {
+      "mode": "full",
+      "selected_gamma": 4.0,
+      "gamma_grid": [
+        0.0,
+        0.5,
+        1.0,
+        2.0,
+        4.0,
+        8.0
+      ],
+      "gamma_mean_regret": {
+        "0.0": 9.344385429846621,
+        "0.5": 6.341128463207306,
+        "1.0": 4.5450195628016585,
+        "2.0": 2.8121576128819283,
+        "4.0": 1.9977435512830097,
+        "8.0": 3.243294708475756
+      },
+      "calibration_pairs": 240,
+      "n_cells": 8,
+      "n_calibration_seeds_per_cell": 30,
+      "n_test_seeds_per_cell": 100,
+      "policies": [
+        "equal",
+        "drf",
+        "separable",
+        "joint"
+      ],
+      "total_test_runs": 3200,
+      "capacity_violations_total": 0,
+      "bound_violations_total": 0
+    },
+    "dynamic_allocation": {
+      "mode": "full",
+      "seeds": 100,
+      "epochs": 100,
+      "policies": [
+        "reoptimize",
+        "permanent_floors",
+        "leases",
+        "leases_shortfall"
+      ],
+      "lease_len": 10,
+      "capacity_loss_frac": 0.3,
+      "capacity_violations_total": 0,
+      "aggregate": [
+        {
+          "policy": "reoptimize",
+          "n_seeds": 100,
+          "task_completion": 0.1416461746031746,
+          "task_quality": 0.1371553494204888,
+          "entrant_admission_rate": 1.0,
+          "mean_waiting_time": 0.0,
+          "worst_incumbent_loss": -0.5880000000000001,
+          "mean_churn_frac": 0.09212856872310725,
+          "mean_binding_commitments": 0.0,
+          "commitment_infeasibility": 0.0,
+          "mean_utilization": 0.10537886075843766,
+          "capacity_violations_total": 0
+        },
+        {
+          "policy": "permanent_floors",
+          "n_seeds": 100,
+          "task_completion": 0.15734809523809526,
+          "task_quality": 0.1518400833759238,
+          "entrant_admission_rate": 1.0,
+          "mean_waiting_time": 3.2460000000000004,
+          "worst_incumbent_loss": -0.6539999999999999,
+          "mean_churn_frac": 0.08343570821281066,
+          "mean_binding_commitments": 0.7762,
+          "commitment_infeasibility": 15.47,
+          "mean_utilization": 0.126239414852189,
+          "capacity_violations_total": 0
+        },
+        {
+          "policy": "leases",
+          "n_seeds": 100,
+          "task_completion": 0.14629993650793652,
+          "task_quality": 0.14149492344141612,
+          "entrant_admission_rate": 1.0,
+          "mean_waiting_time": 0.3859999999999999,
+          "worst_incumbent_loss": -0.6300000000000001,
+          "mean_churn_frac": 0.09521837833326138,
+          "mean_binding_commitments": 1.5213999999999999,
+          "commitment_infeasibility": 1.2,
+          "mean_utilization": 0.11160811758698845,
+          "capacity_violations_total": 0
+        },
+        {
+          "policy": "leases_shortfall",
+          "n_seeds": 100,
+          "task_completion": 0.14692600793650792,
+          "task_quality": 0.1420668359477324,
+          "entrant_admission_rate": 1.0,
+          "mean_waiting_time": 0.352,
+          "worst_incumbent_loss": -0.642,
+          "mean_churn_frac": 0.09643533831253868,
+          "mean_binding_commitments": 1.5113999999999999,
+          "commitment_infeasibility": 0.94,
+          "mean_utilization": 0.1125145683951588,
+          "capacity_violations_total": 0
+        }
+      ]
+    },
+    "enforcement": {
+      "backend_after_denial": 0,
+      "quota_violations": 0,
+      "capacity_violations": 0,
+      "partial_deductions": 0,
+      "silent_fallbacks": 0,
+      "incorrect_success": 0
+    }
+  },
+  "artifact_count": 32,
+  "artifacts": [
+    {
+      "path": "experiments/platform_mediation/results/raw/agents.csv",
+      "sha256": "b3f62764f7c27c00a3ff0c44d137342aa174f85007b3eeae353d07c0ca7ac395",
+      "bytes": 1924621
+    },
+    {
+      "path": "experiments/platform_mediation/results/raw/runs.csv",
+      "sha256": "101bc7e6cdd213c22cdf93c6b3947f2fab9b721209031af07418116e1c721fc8",
+      "bytes": 618243
+    },
+    {
+      "path": "experiments/platform_mediation/results/resolved_config_full.json",
+      "sha256": "e05ee3adf1fd7fc746a0a1733a8011a75a83849d0882134aca633a4f955598f3",
+      "bytes": 929
+    },
+    {
+      "path": "experiments/platform_mediation/results/resolved_config_smoke.json",
+      "sha256": "6841ba5ac822e014d6c5950a793acdb964f17f3b5aaf4490a4599c03eb32c2fb",
+      "bytes": 930
+    },
+    {
+      "path": "experiments/platform_mediation/results/summary_full.json",
+      "sha256": "78859133c555a980bce5582e7ff6c9ee7a3e23552c409b3e58fde438d6b0f0da",
+      "bytes": 613
+    },
+    {
+      "path": "experiments/platform_mediation/results/summary_smoke.json",
+      "sha256": "f19facd8652233a24773c675d2f2ed1511a9bd1b2ad102c37b41cc7c2d3395b5",
+      "bytes": 608
+    },
+    {
+      "path": "experiments/platform_mediation/tables/cell_policy_means.csv",
+      "sha256": "318da424b92c74d139e512830c62f03ddfd53fffd4ac0adf21c71b8c2d99e41d",
+      "bytes": 5130
+    },
+    {
+      "path": "experiments/platform_mediation/tables/individual_loss.csv",
+      "sha256": "60fc9783f2b59ab191c3fdac5f753adae4384c352a9d5a131e9d685bbab4021d",
+      "bytes": 1737
+    },
+    {
+      "path": "experiments/platform_mediation/tables/paired_differences.csv",
+      "sha256": "294b874ac1df9f584e323b4e2177cdc744301c792485d3f429bf524ce28291ad",
+      "bytes": 15918
+    },
+    {
+      "path": "experiments/platform_mediation/figures/fig1_completion_vs_welfare.png",
+      "sha256": "61320b612eb52b87689d2b17033d4d30971eee087641b91b2357e3808aa6103a",
+      "bytes": 73281
+    },
+    {
+      "path": "experiments/platform_mediation/figures/fig2_welfare_vs_completion_tradeoff.png",
+      "sha256": "7e8784e52674462e33ead56ef681e289b04fb9036e9cad23f6d6322a3c591599",
+      "bytes": 63326
+    },
+    {
+      "path": "experiments/platform_mediation/figures/fig3_individual_loss.png",
+      "sha256": "86496f7218fe5c33958962b82c7980d841d3825f748e4187b1ae9bdef70cbe99",
+      "bytes": 64910
+    },
+    {
+      "path": "experiments/platform_mediation/config/experiment.json",
+      "sha256": "6ff9aafb72dcaa9f023cd0706401289da4caa4c822843f4fa898a66c6005c757",
+      "bytes": 691
+    },
+    {
+      "path": "experiments/platform_mediation/logs/full_console.log",
+      "sha256": "d482888ef8e233ef662fa8a7ad261de2ef72c506e5c9f67f404190e73baf509a",
+      "bytes": 891
+    },
+    {
+      "path": "experiments/platform_mediation/logs/sweep_full.log",
+      "sha256": "6e8c5bf82ba5fac7a0d5d3f32d2e42e9605bc75484357aab1b40ec8d5a7c4d9f",
+      "bytes": 804
+    },
+    {
+      "path": "experiments/platform_mediation/logs/sweep_smoke.log",
+      "sha256": "b2a8cc41e92e8269d1c1dc0bcd0ee44bc19cfdc93f937eef9600a89a1ca5acda",
+      "bytes": 788
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/raw/epochs_full.csv",
+      "sha256": "46d83e65117decbb789402c441e7de570d7990a9c287267b930411efff70749c",
+      "bytes": 2793313
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/raw/epochs_smoke.csv",
+      "sha256": "8d4f5a21ce36071754782c409703ad21539416bcb73063f32cb3a3cbdce30829",
+      "bytes": 27858
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/raw/policy_seed_full.csv",
+      "sha256": "887ef43f4fb776939c586875a2e2c6dfd6aac4b08fb3d193841506cda193569f",
+      "bytes": 49952
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/raw/policy_seed_smoke.csv",
+      "sha256": "756c5bb9cad5999e41af14088c3a4d831e895d40ab498d9feeb8635eff2777c2",
+      "bytes": 2602
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/summary_full.json",
+      "sha256": "c22a1fb30c6aff4c14a693f3dfb4d79060edf99b80718dfd3350ff30bd4ddf4b",
+      "bytes": 2240
+    },
+    {
+      "path": "experiments/dynamic_allocation/results/summary_smoke.json",
+      "sha256": "f02b8f7794c66eff21dabf758636128408ad55f71e30a5960be3756dcee825a5",
+      "bytes": 2167
+    },
+    {
+      "path": "experiments/dynamic_allocation/tables/paired_vs_reoptimize_full.csv",
+      "sha256": "178542184784cc5dabd41e7a8c59295b930f04178bcbd67fff3320806cc3c4d6",
+      "bytes": 2800
+    },
+    {
+      "path": "experiments/dynamic_allocation/tables/paired_vs_reoptimize_smoke.csv",
+      "sha256": "46025def03b676c7af67a50aaa8370097c8722c3376d04de38b2d234e65cdd09",
+      "bytes": 2474
+    },
+    {
+      "path": "experiments/dynamic_allocation/tables/policy_means_full.csv",
+      "sha256": "51833931e64bbfefc49db7e9e78457d041ea936ffcdad9fe732ed0a3846d6a93",
+      "bytes": 808
+    },
+    {
+      "path": "experiments/dynamic_allocation/tables/policy_means_smoke.csv",
+      "sha256": "519f07dd1ac58e595e955a46e6216731fdeba3edcb053dea3c0e1d23f4911223",
+      "bytes": 737
+    },
+    {
+      "path": "experiments/dynamic_allocation/logs/dynamic_full.log",
+      "sha256": "89eefa24f535d179c1296aca813c2eea52257445eb351af536d41fca700bfcf6",
+      "bytes": 400
+    },
+    {
+      "path": "experiments/dynamic_allocation/logs/dynamic_smoke.log",
+      "sha256": "2bb398fa2bf5b1f3627aaafab8c46623c1b647af9e76fea5b998e584a4eedd38",
+      "bytes": 212
+    },
+    {
+      "path": "experiments/enforcement/results/enforcement_report_full.json",
+      "sha256": "ff2560b2b5b3addd0fd2ab585b7c0a779837a119dba043959cc5b9e3c43d94c8",
+      "bytes": 3180
+    },
+    {
+      "path": "experiments/enforcement/results/enforcement_report_smoke.json",
+      "sha256": "d34d3be3650fe69b8236c1d6443992391b447c9f703072c17803e7cef2a01f41",
+      "bytes": 3179
+    },
+    {
+      "path": "experiments/enforcement/results/enforcement_cases_full.csv",
+      "sha256": "774afa5aa3a38ba1aaf39496ae2377cd0d0d6518a2cc8e8524190fcffe2a1fcd",
+      "bytes": 568
+    },
+    {
+      "path": "experiments/enforcement/results/enforcement_cases_smoke.csv",
+      "sha256": "774afa5aa3a38ba1aaf39496ae2377cd0d0d6518a2cc8e8524190fcffe2a1fcd",
+      "bytes": 568
+    }
+  ]
+}

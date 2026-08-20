@@ -1,0 +1,33 @@
+{
+  "mode": "full",
+  "selected_gamma": 4.0,
+  "gamma_grid": [
+    0.0,
+    0.5,
+    1.0,
+    2.0,
+    4.0,
+    8.0
+  ],
+  "gamma_mean_regret": {
+    "0.0": 9.344385429846621,
+    "0.5": 6.341128463207306,
+    "1.0": 4.5450195628016585,
+    "2.0": 2.8121576128819283,
+    "4.0": 1.9977435512830097,
+    "8.0": 3.243294708475756
+  },
+  "calibration_pairs": 240,
+  "n_cells": 8,
+  "n_calibration_seeds_per_cell": 30,
+  "n_test_seeds_per_cell": 100,
+  "policies": [
+    "equal",
+    "drf",
+    "separable",
+    "joint"
+  ],
+  "total_test_runs": 3200,
+  "capacity_violations_total": 0,
+  "bound_violations_total": 0
+}

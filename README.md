@@ -196,6 +196,41 @@ renamed the nondecreasing endogenous-weighted-score transition rate. The referen
 constant is stated as `1/phi^2 = 2 - phi`, and the sensitivity check reports the full
 range over a predetermined grid without inferring any law or attractor.
 
+## Platform Mediation (updated)
+
+The runtime arbitration interface is updated to accept any `JointArbitrator`, not
+only the single-resource `ProportionalFairnessArbitrator`. `AgentRuntime.runArbitration`
+now calls the selected joint arbitrator once per complete contention group over the
+whole resource set, installs the result as a versioned, conservation-checked
+`AllocationContract`, and enforces it during execution. `ConvexJointArbitrator` is
+the canonical policy; the separable water-filling allocators remain available only
+as explicitly named comparison policies. Solver failure fails closed unless a
+fallback is explicitly enabled, and any fallback result records both the requested
+and the actual policy.
+
+Service execution is updated so that each call atomically checks and charges the
+complete resource vector from `ServiceType.getDefaultResourceRequirements()` and
+acquires a real service-capacity slot before the backend is invoked. If any
+resource or slot is unavailable the call consumes nothing, does not reach the
+backend, and returns an explicit denial naming the exhausted resource; over-quota
+and negative requests never partially consume quota, and concurrent calls never
+exceed the agent bundle or the service capacity.
+
+```bash
+# Canonical mediation path, end to end
+java -cp "target/classes:$(cat cp.txt)" org.carma.arbitration.demo.IntegratedArbitrationDemo
+
+# Platform evaluation (smoke first, then full)
+python experiments/platform_mediation/run_sweep.py --smoke
+python experiments/platform_mediation/run_sweep.py --full
+python experiments/dynamic_allocation/run_dynamic.py --full
+python experiments/enforcement/run_enforcement.py --reps 100
+```
+
+See `docs/PLATFORM_EVALUATION.md` for the canonical path and full reproduction
+steps, and `experiments/platform_mediation/RESULTS_FOR_PAPER.md` for the findings,
+including null and negative results.
+
 ## What's New in v0.8
 
 ### Integrated Arbitration and Execution

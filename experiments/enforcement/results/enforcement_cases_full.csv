@@ -1,0 +1,13 @@
+case,backend_after_denial,quota_violations,capacity_violations,partial_deductions,silent_fallbacks,incorrect_success
+negative_resource_requests,0,0,0,0,0,0
+repeated_over_quota_calls,0,0,0,0,0,0
+concurrent_over_quota_calls,0,0,0,0,0,0
+duplicate_requests,0,0,0,0,0,0
+stale_allocation_replay,0,0,0,0,0,0
+invalid_service_composition,0,0,0,0,0,0
+cyclic_service_composition,0,0,0,0,0,0
+malformed_solver_output,0,0,0,0,0,0
+solver_timeout,0,0,0,0,0,0
+oversubscribed_minimums,0,0,0,0,0,0
+one_exhausted_resource,0,0,0,0,0,0
+unsupported_utility_requests,0,0,0,0,0,0

@@ -264,6 +264,20 @@ def solve_joint_allocation(data):
     except Exception as e:
         return _err("model_error", type(e).__name__, str(e), data)
 
+    # Optional commitment floors on declared LINEAR utility (Phi_i >= floor_i).
+    # Only supported for LINEAR agents; a None entry means no floor for that agent.
+    floors = data.get("utility_floors")
+    if floors is not None:
+        for i in range(n):
+            fi = floors[i]
+            if fi is None:
+                continue
+            if cfgs[i].get("type", "LINEAR") != "LINEAR":
+                return _err("unsupported_model", "UnsupportedModel",
+                            f"agent {i}: utility_floors are only supported for LINEAR utilities",
+                            data)
+            constraints.append(W[i, :] @ A[i, :] >= float(fi))
+
     problem = cp.Problem(cp.Maximize(cp.sum(obj_terms)), constraints)
 
     if not problem.is_dcp():

@@ -57,17 +57,21 @@ public class IntegratedArbitrationDemo {
         System.out.println("PHASE 1: RESOURCE POOL SETUP");
         System.out.println(SUBSEP);
 
-        // Create a SCARCE resource pool to force contention
+        // Create a SCARCE resource pool to force multi-resource contention so the
+        // joint arbitrator is actually exercised. DATASET is included because the
+        // knowledge/vector services declare it.
         ResourcePool pool = new ResourcePool(Map.of(
-            ResourceType.COMPUTE, 100L,
-            ResourceType.API_CREDITS, 50L,
-            ResourceType.MEMORY, 200L
+            ResourceType.COMPUTE, 45L,
+            ResourceType.API_CREDITS, 20L,
+            ResourceType.MEMORY, 45L,
+            ResourceType.DATASET, 25L
         ));
 
         System.out.println("Resource Pool:");
-        System.out.println("  COMPUTE:     100 units");
-        System.out.println("  API_CREDITS:  50 units");
-        System.out.println("  MEMORY:      200 units");
+        System.out.println("  COMPUTE:     45 units");
+        System.out.println("  API_CREDITS: 20 units");
+        System.out.println("  MEMORY:      45 units");
+        System.out.println("  DATASET:     25 units");
         System.out.println();
 
         // ================================================================
@@ -162,18 +166,36 @@ public class IntegratedArbitrationDemo {
         System.out.println(SUBSEP);
 
         ContentionDetector detector = new ContentionDetector();
-        ProportionalFairnessArbitrator arbitrator = new ProportionalFairnessArbitrator(economy);
 
-        System.out.println("Running arbitration via AgentRuntime.runArbitration()...");
+        // Canonical joint policy: ConvexJointArbitrator solves each complete
+        // contention group at once. The printed policy name is the actual class.
+        String solverPython = System.getenv().getOrDefault("SOLVER_PYTHON", "python3");
+        ConvexJointArbitrator jointArbitrator = new ConvexJointArbitrator(
+            economy, solverPython, java.nio.file.Paths.get("scripts/joint_solver.py"));
+        String policyName = jointArbitrator.getClass().getSimpleName();
+
+        System.out.println("Running arbitration via AgentRuntime.runArbitration(JointArbitrator)...");
+        System.out.println("  Policy (requested = actual): " + policyName);
         System.out.println();
 
-        Map<String, Map<ResourceType, Long>> allocations = runtime.runArbitration(detector, arbitrator);
+        Map<String, Map<ResourceType, Long>> allocations =
+            runtime.runArbitration(detector, jointArbitrator, policyName, null);
 
-        System.out.println("Allocations computed and stored in runtime:");
+        System.out.println("Allocations computed and installed as versioned contracts:");
         for (var entry : allocations.entrySet()) {
             System.out.println("  " + entry.getKey() + ":");
             for (var alloc : entry.getValue().entrySet()) {
                 System.out.println("    " + alloc.getKey() + ": " + alloc.getValue() + " units");
+            }
+        }
+        System.out.println();
+
+        System.out.println("Installed allocation contracts:");
+        for (RealisticAgent agent : runtime.getAgents()) {
+            AllocationContract c = runtime.getContract(agent.getAgentId());
+            if (c != null) {
+                System.out.println("  " + c.getAllocationId() + " v" + c.getVersion()
+                    + " policy=" + c.getPolicyName() + " status=" + c.getSolverStatus());
             }
         }
         System.out.println();
@@ -207,6 +229,17 @@ public class IntegratedArbitrationDemo {
         System.out.println("  Services Used: " + result.getServicesUsed());
         System.out.println();
 
+        // Accounting record: the full multi-resource charge and backend usage that
+        // the constrained execution produced for this agent.
+        var acct = runtime.getLastExecutionContext("summarizer-agent");
+        if (acct != null) {
+            System.out.println("Accounting Record (summarizer-agent):");
+            System.out.println("  Backend invocations: " + acct.getBackendInvocations());
+            System.out.println("  Blocked calls:       " + acct.getBlockedCalls());
+            System.out.println("  Resources charged:   " + acct.getChargedBundle());
+            System.out.println();
+        }
+
         // Show allocation enforcement
         System.out.println("Allocation Enforcement:");
         Map<ResourceType, Long> summarizerAlloc = runtime.getAllocations("summarizer-agent");
@@ -226,10 +259,10 @@ public class IntegratedArbitrationDemo {
         System.out.println();
         System.out.println("  ✓ Agents registered with AgentRuntime");
         System.out.println("  ✓ ContentionDetector found resource conflicts");
-        System.out.println("  ✓ ProportionalFairnessArbitrator calculated allocations");
-        System.out.println("  ✓ Allocations stored in AgentRuntime.agentAllocations");
+        System.out.println("  ✓ ConvexJointArbitrator solved each contention group jointly");
+        System.out.println("  ✓ Allocations installed as versioned AllocationContracts");
         System.out.println("  ✓ ExecutionContext created with actual allocations");
-        System.out.println("  ✓ Resource consumption tracked and enforced");
+        System.out.println("  ✓ Full multi-resource vector charged and enforced per call");
         System.out.println();
 
         // Verify allocation storage
@@ -247,7 +280,8 @@ public class IntegratedArbitrationDemo {
         // Show total allocations respect pool limits
         System.out.println();
         System.out.println("Resource Conservation:");
-        for (ResourceType type : List.of(ResourceType.COMPUTE, ResourceType.API_CREDITS, ResourceType.MEMORY)) {
+        for (ResourceType type : List.of(ResourceType.COMPUTE, ResourceType.API_CREDITS,
+                ResourceType.MEMORY, ResourceType.DATASET)) {
             long totalAllocated = allocations.values().stream()
                 .mapToLong(m -> m.getOrDefault(type, 0L))
                 .sum();

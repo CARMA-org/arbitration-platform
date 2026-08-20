@@ -648,11 +648,14 @@ public class RealisticAgentFramework {
     public static class ExecutionContext {
         private final Map<ResourceType, Long> allocatedResources;
         private final Map<ResourceType, Long> consumedResources;  // Track consumption
+        private final Map<ResourceType, Long> chargedResources;   // Accounting record
         private final Map<ServiceType, Integer> allocatedServiceSlots;
         private final ServiceRegistry serviceRegistry;
         private final ServiceBackend serviceBackend;
         private final Consumer<String> logger;
         private final long timeoutMs;
+        private int backendInvocations;
+        private int blockedCalls;
 
         public ExecutionContext(
                 Map<ResourceType, Long> allocatedResources,
@@ -663,6 +666,7 @@ public class RealisticAgentFramework {
                 long timeoutMs) {
             this.allocatedResources = new HashMap<>(allocatedResources);
             this.consumedResources = new HashMap<>();
+            this.chargedResources = new HashMap<>();
             this.allocatedServiceSlots = allocatedServiceSlots;
             this.serviceRegistry = serviceRegistry;
             this.serviceBackend = serviceBackend;
@@ -672,6 +676,7 @@ public class RealisticAgentFramework {
             // Initialize consumption tracking
             for (ResourceType type : ResourceType.values()) {
                 consumedResources.put(type, 0L);
+                chargedResources.put(type, 0L);
             }
         }
 
@@ -688,38 +693,76 @@ public class RealisticAgentFramework {
         }
 
         /**
-         * Try to consume resources. Returns true if successful, false if would exceed allocation.
-         * If the full amount cannot be consumed, consumes up to the limit and returns false.
+         * Try to consume a single resource. Returns true and deducts the amount if
+         * it fits within the remaining allocation, otherwise returns false and
+         * leaves all counters unchanged. Over-quota and negative requests never
+         * partially consume the remaining quota.
          */
-        public boolean tryConsumeResource(ResourceType type, long amount) {
+        public synchronized boolean tryConsumeResource(ResourceType type, long amount) {
             if (amount < 0) {
                 log("Rejected negative resource request: " + type + " amount " + amount);
                 return false;
             }
-
-            long allocated = getAllocatedResource(type);
-            long consumed = getConsumedResource(type);
-            long remaining = allocated - consumed;
-
+            long remaining = getAllocatedResource(type) - getConsumedResource(type);
             if (amount <= remaining) {
-                consumedResources.put(type, consumed + amount);
+                consumedResources.put(type, getConsumedResource(type) + amount);
+                chargedResources.merge(type, amount, Long::sum);
                 return true;
-            } else {
-                // Consume what we can, but return false to indicate constraint hit
-                if (remaining > 0) {
-                    consumedResources.put(type, allocated);
-                    log("Resource limit hit: " + type + " consumed " + remaining +
-                        " of " + amount + " requested (allocation: " + allocated + ")");
-                }
-                return false;
             }
+            log("Resource limit hit: " + type + " requested " + amount +
+                " but only " + remaining + " remaining (nothing consumed)");
+            return false;
+        }
+
+        /**
+         * Atomically check and consume a complete resource bundle. Either every
+         * resource in the bundle fits and all are deducted, or nothing is consumed
+         * and no counter changes. Any negative quantity fails the whole bundle.
+         *
+         * @return null on success; otherwise the first resource that could not be
+         *         satisfied (the exhausted resource)
+         */
+        public synchronized ResourceType tryConsumeBundle(Map<ResourceType, Long> bundle) {
+            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
+                if (e.getValue() < 0) {
+                    log("Rejected negative bundle component: " + e.getKey() + "=" + e.getValue());
+                    return e.getKey();
+                }
+            }
+            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
+                long remaining = getAllocatedResource(e.getKey()) - getConsumedResource(e.getKey());
+                if (e.getValue() > remaining) {
+                    return e.getKey();
+                }
+            }
+            for (Map.Entry<ResourceType, Long> e : bundle.entrySet()) {
+                consumedResources.put(e.getKey(), getConsumedResource(e.getKey()) + e.getValue());
+                chargedResources.merge(e.getKey(), e.getValue(), Long::sum);
+            }
+            return null;
         }
 
         /**
          * Check if a resource consumption would succeed without actually consuming.
          */
-        public boolean canConsumeResource(ResourceType type, long amount) {
+        public synchronized boolean canConsumeResource(ResourceType type, long amount) {
             return amount >= 0 && amount <= getRemainingResource(type);
+        }
+
+        /** Total number of backend invocations made through this context. */
+        public synchronized int getBackendInvocations() { return backendInvocations; }
+
+        /** Number of service calls denied before reaching the backend. */
+        public synchronized int getBlockedCalls() { return blockedCalls; }
+
+        /** Total amount of a resource charged through this context. */
+        public synchronized long getCharged(ResourceType type) {
+            return chargedResources.getOrDefault(type, 0L);
+        }
+
+        /** Snapshot of all resources charged through this context. */
+        public synchronized Map<ResourceType, Long> getChargedBundle() {
+            return new HashMap<>(chargedResources);
         }
 
         public int getAllocatedServiceSlots(ServiceType type) {
@@ -738,37 +781,74 @@ public class RealisticAgentFramework {
 
         /**
          * Invoke a service and return the result.
-         * Uses the configured ServiceBackend (mock or real LLM).
-         * Automatically consumes API_CREDITS based on service type.
+         *
+         * Enforcement is atomic and fails closed: the call charges the complete
+         * resource vector returned by {@link ServiceType#getDefaultResourceRequirements()}
+         * and acquires a real service-capacity slot before the backend is touched.
+         * If any required resource or the service slot is unavailable, nothing is
+         * consumed, the backend is not invoked, and an explicit denial naming the
+         * exhausted resource is returned with all counters unchanged.
          */
         public ServiceResult invokeService(ServiceType type, Map<String, Object> input) {
             if (!hasService(type)) {
-                return new ServiceResult(false, "Service not allocated: " + type, null, 0);
+                synchronized (this) { blockedCalls++; }
+                return ServiceResult.denial("Service not allocated: " + type, null);
             }
 
-            // Check and consume API credits for this service call
-            long creditCost = type.getDefaultResourceRequirements()
-                .getOrDefault(ResourceType.API_CREDITS, 1L);
-            if (!tryConsumeResource(ResourceType.API_CREDITS, creditCost)) {
-                return new ServiceResult(false,
-                    "Insufficient API_CREDITS: need " + creditCost +
-                    ", remaining " + getRemainingResource(ResourceType.API_CREDITS),
-                    null, 0);
+            Map<ResourceType, Long> required = type.getDefaultResourceRequirements();
+            String slotId;
+
+            // Atomic gate: check the full vector, acquire a slot, then consume.
+            synchronized (this) {
+                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
+                    if (e.getValue() < 0) {
+                        blockedCalls++;
+                        return ServiceResult.denial(
+                            "Negative resource requirement: " + e.getKey(), e.getKey());
+                    }
+                }
+                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
+                    long remaining = getAllocatedResource(e.getKey()) - getConsumedResource(e.getKey());
+                    if (e.getValue() > remaining) {
+                        blockedCalls++;
+                        return ServiceResult.denial(
+                            "Insufficient " + e.getKey() + ": need " + e.getValue()
+                            + ", remaining " + remaining, e.getKey());
+                    }
+                }
+                // Acquire an actual service-capacity slot before invoking the backend.
+                java.util.Optional<String> slot = serviceRegistry != null
+                    ? serviceRegistry.acquireSlot(type) : java.util.Optional.of("no-registry");
+                if (slot.isEmpty()) {
+                    blockedCalls++;
+                    return ServiceResult.denial(
+                        "Service capacity exhausted: " + type, null);
+                }
+                slotId = slot.get();
+                // All gates passed: consume the complete vector atomically.
+                for (Map.Entry<ResourceType, Long> e : required.entrySet()) {
+                    consumedResources.put(e.getKey(), getConsumedResource(e.getKey()) + e.getValue());
+                    chargedResources.merge(e.getKey(), e.getValue(), Long::sum);
+                }
+                backendInvocations++;
             }
 
             long startTime = System.currentTimeMillis();
-
-            // Use the pluggable backend (MockServiceBackend or LLMServiceBackend)
-            ServiceBackend.InvocationResult result = serviceBackend.invokeByType(type, input);
-
-            long latency = System.currentTimeMillis() - startTime;
-
-            return new ServiceResult(
-                result.isSuccess(),
-                result.getError(),
-                result.getOutput(),
-                latency
-            );
+            try {
+                // Use the pluggable backend (MockServiceBackend or LLMServiceBackend)
+                ServiceBackend.InvocationResult result = serviceBackend.invokeByType(type, input);
+                long latency = System.currentTimeMillis() - startTime;
+                return new ServiceResult(
+                    result.isSuccess(),
+                    result.getError(),
+                    result.getOutput(),
+                    latency
+                );
+            } finally {
+                if (serviceRegistry != null && !"no-registry".equals(slotId)) {
+                    serviceRegistry.releaseSlot(slotId);
+                }
+            }
         }
 
         public long getTimeoutMs() {
@@ -802,16 +882,36 @@ public class RealisticAgentFramework {
         private final String error;
         private final Map<String, Object> output;
         private final long latencyMs;
-        
-        public ServiceResult(boolean success, String error, 
+        private final boolean denied;
+        private final ResourceType exhaustedResource;
+
+        public ServiceResult(boolean success, String error,
                             Map<String, Object> output, long latencyMs) {
+            this(success, error, output, latencyMs, false, null);
+        }
+
+        public ServiceResult(boolean success, String error, Map<String, Object> output,
+                            long latencyMs, boolean denied, ResourceType exhaustedResource) {
             this.success = success;
             this.error = error;
             this.output = output;
             this.latencyMs = latencyMs;
+            this.denied = denied;
+            this.exhaustedResource = exhaustedResource;
         }
-        
+
+        /**
+         * Build an explicit denial that consumed nothing and never reached the
+         * backend. {@code exhaustedResource} names the resource that was short, or
+         * null when the denial was due to an unavailable service slot.
+         */
+        public static ServiceResult denial(String message, ResourceType exhaustedResource) {
+            return new ServiceResult(false, message, null, 0, true, exhaustedResource);
+        }
+
         public boolean isSuccess() { return success; }
+        public boolean isDenied() { return denied; }
+        public ResourceType getExhaustedResource() { return exhaustedResource; }
         public String getError() { return error; }
         public Map<String, Object> getOutput() { return output; }
         public long getLatencyMs() { return latencyMs; }
@@ -906,6 +1006,10 @@ public class RealisticAgentFramework {
 
         private final Map<String, RealisticAgent> agents;
         private final Map<String, Map<ResourceType, Long>> agentAllocations;  // Resource allocations from arbitration
+        private final Map<String, AllocationContract> contracts;              // Installed enforceable contracts
+        private final Map<String, ExecutionContext> lastContexts = new ConcurrentHashMap<>();
+        private final Object installLock = new Object();
+        private long epochCounter = 0;                                        // Monotonic allocation version source
         private final ScheduledExecutorService scheduler;
         private final List<RuntimeListener> listeners;
         private volatile boolean running;
@@ -962,6 +1066,7 @@ public class RealisticAgentFramework {
             this.resourcePool = resourcePool;
             this.agents = new ConcurrentHashMap<>();
             this.agentAllocations = new ConcurrentHashMap<>();
+            this.contracts = new ConcurrentHashMap<>();
             this.scheduler = Executors.newScheduledThreadPool(4);
             this.listeners = new CopyOnWriteArrayList<>();
             this.tickIntervalMs = tickIntervalMs;
@@ -1137,7 +1242,8 @@ public class RealisticAgentFramework {
                     msg -> System.out.println("[" + agent.getAgentId() + "] " + msg),
                     30000  // 30 second timeout
                 );
-                
+                lastContexts.put(agent.getAgentId(), context);
+
                 // Execute the goal
                 GoalResult result = agent.executeGoal(goal, context);
                 
@@ -1224,6 +1330,7 @@ public class RealisticAgentFramework {
                 msg -> System.out.println("[" + agent.getAgentId() + "] " + msg),
                 30000
             );
+            lastContexts.put(agent.getAgentId(), context);
 
             return agent.executeGoal(goal, context);
         }
@@ -1365,6 +1472,233 @@ public class RealisticAgentFramework {
             }
 
             return allAllocations;
+        }
+
+        /**
+         * Canonical mediation path: run arbitration through a {@link JointArbitrator}.
+         *
+         * For every contention group the selected joint arbitrator is called exactly
+         * once on the complete group (all resources at once) rather than looping over
+         * resource types with a single-resource allocator. The result is checked for
+         * conservation and installed as versioned {@link AllocationContract}s.
+         *
+         * Solver failure fails closed: an infeasible group aborts the whole run.
+         */
+        public Map<String, Map<ResourceType, Long>> runArbitration(
+                org.carma.arbitration.mechanism.ContentionDetector detector,
+                org.carma.arbitration.mechanism.JointArbitrator arbitrator) {
+            return runArbitration(detector, arbitrator,
+                arbitrator.getClass().getSimpleName(), null);
+        }
+
+        /**
+         * Canonical mediation path with an explicit policy label and optional lease
+         * duration (milliseconds) after which the installed contracts expire.
+         */
+        public Map<String, Map<ResourceType, Long>> runArbitration(
+                org.carma.arbitration.mechanism.ContentionDetector detector,
+                org.carma.arbitration.mechanism.JointArbitrator arbitrator,
+                String policyName,
+                Long leaseDurationMs) {
+
+            List<org.carma.arbitration.model.Agent> arbAgents = buildArbitrationAgents();
+
+            List<org.carma.arbitration.mechanism.ContentionDetector.ContentionGroup> groups =
+                detector.detectContentions(arbAgents, resourcePool);
+
+            Map<String, Map<ResourceType, Long>> allAllocations = new HashMap<>();
+            for (org.carma.arbitration.model.Agent a : arbAgents) {
+                allAllocations.put(a.getId(), new HashMap<>());
+            }
+
+            Map<String, java.math.BigDecimal> burns = new HashMap<>();
+            for (org.carma.arbitration.model.Agent a : arbAgents) {
+                burns.put(a.getId(), java.math.BigDecimal.ZERO);
+            }
+
+            String solverStatus = groups.isEmpty() ? "no_contention" : "optimal";
+            for (var group : groups) {
+                Map<String, java.math.BigDecimal> groupBurns = new HashMap<>();
+                for (var a : group.getAgents()) {
+                    groupBurns.put(a.getId(), burns.get(a.getId()));
+                }
+
+                // Call the joint arbitrator ONCE on the complete contention group.
+                org.carma.arbitration.mechanism.JointArbitrator.JointAllocationResult r =
+                    arbitrator.arbitrate(group, groupBurns);
+
+                if (!r.isFeasible()) {
+                    throw new IllegalStateException(
+                        "Joint arbitration failed closed for group " + group.getGroupId()
+                        + ": " + r.getMessage());
+                }
+                solverStatus = r.getMessage();
+                for (var a : group.getAgents()) {
+                    allAllocations.get(a.getId()).putAll(r.getAllocations(a.getId()));
+                }
+            }
+
+            fillNonContentionAgents(arbAgents, groups, allAllocations);
+            installContracts(allAllocations, policyName, solverStatus, leaseDurationMs);
+            return allAllocations;
+        }
+
+        /**
+         * Build arbitration-model agents from the registered runtime agents, deriving
+         * per-resource min/ideal requests from their service requirements. Shared by
+         * the joint canonical path.
+         */
+        private List<org.carma.arbitration.model.Agent> buildArbitrationAgents() {
+            List<org.carma.arbitration.model.Agent> arbAgents = new ArrayList<>();
+            for (RealisticAgent ra : agents.values()) {
+                org.carma.arbitration.model.Agent a = new org.carma.arbitration.model.Agent(
+                    ra.getAgentId(), ra.getName(), ra.getResourcePreferences(),
+                    ra.getCurrencyBalance().intValue());
+                for (ServiceType svc : ra.getRequiredServiceTypes()) {
+                    Map<ResourceType, Long> reqs = svc.getDefaultResourceRequirements();
+                    for (Map.Entry<ResourceType, Long> req : reqs.entrySet()) {
+                        long current = a.getIdeal(req.getKey());
+                        a.setRequest(req.getKey(),
+                            Math.max(1, req.getValue() / 2),
+                            current + req.getValue());
+                    }
+                }
+                arbAgents.add(a);
+            }
+            return arbAgents;
+        }
+
+        /**
+         * Give agents outside any contention group their ideal request, but never
+         * more than the capacity remaining after the contended groups are served, so
+         * conservation always holds. Agents are served in a deterministic id order.
+         */
+        private void fillNonContentionAgents(
+                List<org.carma.arbitration.model.Agent> arbAgents,
+                List<org.carma.arbitration.mechanism.ContentionDetector.ContentionGroup> groups,
+                Map<String, Map<ResourceType, Long>> allAllocations) {
+
+            Set<String> inContention = new HashSet<>();
+            for (var group : groups) {
+                for (var agent : group.getAgents()) inContention.add(agent.getId());
+            }
+
+            Map<ResourceType, Long> remaining = new HashMap<>();
+            for (ResourceType type : ResourceType.values()) {
+                long used = 0;
+                for (var m : allAllocations.values()) used += m.getOrDefault(type, 0L);
+                remaining.put(type, resourcePool.getCapacity(type) - used);
+            }
+
+            List<org.carma.arbitration.model.Agent> ordered = new ArrayList<>(arbAgents);
+            ordered.sort(Comparator.comparing(org.carma.arbitration.model.Agent::getId));
+            for (org.carma.arbitration.model.Agent a : ordered) {
+                if (inContention.contains(a.getId())) continue;
+                Map<ResourceType, Long> alloc = allAllocations.get(a.getId());
+                for (ResourceType type : ResourceType.values()) {
+                    long want = a.getIdeal(type);
+                    if (want <= 0 && type == ResourceType.API_CREDITS) {
+                        want = 10L; // baseline credits so tool agents can call services
+                    }
+                    if (want <= 0) continue;
+                    long grant = Math.min(want, Math.max(0, remaining.get(type)));
+                    if (grant > 0) {
+                        alloc.put(type, grant);
+                        remaining.put(type, remaining.get(type) - grant);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Validate that no resource is over-allocated relative to pool capacity.
+         * Called before any contract is installed.
+         */
+        private void checkConservation(Map<String, Map<ResourceType, Long>> allocations) {
+            for (ResourceType type : ResourceType.values()) {
+                long total = 0;
+                for (var m : allocations.values()) total += m.getOrDefault(type, 0L);
+                long cap = resourcePool.getCapacity(type);
+                if (total > cap) {
+                    throw new IllegalStateException("conservation violated for " + type
+                        + ": allocated " + total + " > capacity " + cap);
+                }
+            }
+        }
+
+        /**
+         * Install a complete allocation as versioned contracts atomically. Conservation
+         * is checked first; a fresh monotonically increasing epoch is assigned; any
+         * agent whose currently installed contract has a newer or equal version causes
+         * the stale install to be rejected. On success both the contract store and the
+         * enforcement allocations are swapped under a single lock.
+         */
+        public List<AllocationContract> installContracts(
+                Map<String, Map<ResourceType, Long>> allocations,
+                String policyName, String solverStatus, Long leaseDurationMs) {
+
+            checkConservation(allocations);
+            synchronized (installLock) {
+                long version = ++epochCounter;
+                long now = System.currentTimeMillis();
+                Long expiry = leaseDurationMs != null ? now + leaseDurationMs : null;
+
+                List<AllocationContract> prepared = new ArrayList<>();
+                for (var e : allocations.entrySet()) {
+                    AllocationContract existing = contracts.get(e.getKey());
+                    if (existing != null && version <= existing.getVersion()) {
+                        throw new IllegalStateException("stale allocation version " + version
+                            + " <= installed " + existing.getVersion() + " for " + e.getKey());
+                    }
+                    prepared.add(new AllocationContract(
+                        "AC-" + version + "-" + e.getKey(), version, e.getKey(),
+                        e.getValue(), now, expiry, policyName, solverStatus));
+                }
+                for (AllocationContract c : prepared) {
+                    contracts.put(c.getAgentId(), c);
+                    agentAllocations.put(c.getAgentId(), new HashMap<>(c.getBundle()));
+                }
+                return prepared;
+            }
+        }
+
+        /**
+         * Install a single pre-built contract, rejecting it if a newer or equal
+         * version is already installed for that agent.
+         *
+         * @return true if installed, false if rejected as stale
+         */
+        public boolean installContract(AllocationContract c) {
+            synchronized (installLock) {
+                AllocationContract existing = contracts.get(c.getAgentId());
+                if (existing != null && c.getVersion() <= existing.getVersion()) {
+                    return false;
+                }
+                contracts.put(c.getAgentId(), c);
+                agentAllocations.put(c.getAgentId(), new HashMap<>(c.getBundle()));
+                if (c.getVersion() > epochCounter) epochCounter = c.getVersion();
+                return true;
+            }
+        }
+
+        /** Reserve and return the next monotonically increasing allocation epoch. */
+        public long nextEpoch() {
+            synchronized (installLock) { return ++epochCounter; }
+        }
+
+        /** Get the installed contract for an agent, or null. */
+        public AllocationContract getContract(String agentId) {
+            return contracts.get(agentId);
+        }
+
+        /** Whether an enforceable contract is installed for an agent. */
+        public boolean hasContract(String agentId) {
+            return contracts.containsKey(agentId);
+        }
+
+        /** The most recent execution context created for an agent (accounting record). */
+        public ExecutionContext getLastExecutionContext(String agentId) {
+            return lastContexts.get(agentId);
         }
 
         /**

@@ -1,0 +1,106 @@
+{
+  "java": {
+    "totals": {
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suites": [
+      {
+        "suite": "org.carma.arbitration.agent.CanonicalMediationTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ConcurrencyEnforcementTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.NegativeConsumptionTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ServiceExecutionEnforcementTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.CapacityPreservingRoundingTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.JointPolicyEnforcementTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.JointSolverIntegrationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.model.CompositionValidationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.model.ResourcePoolBoundaryTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "python": {
+    "passed": 27,
+    "failed": 0,
+    "returncode": 0
+  },
+  "enforcement_fault_injection": {
+    "totals": {
+      "backend_after_denial": 0,
+      "quota_violations": 0,
+      "capacity_violations": 0,
+      "partial_deductions": 0,
+      "silent_fallbacks": 0,
+      "incorrect_success": 0
+    },
+    "all_invariants_zero": true,
+    "cases": [
+      "negative_resource_requests",
+      "repeated_over_quota_calls",
+      "concurrent_over_quota_calls",
+      "duplicate_requests",
+      "stale_allocation_replay",
+      "invalid_service_composition",
+      "cyclic_service_composition",
+      "malformed_solver_output",
+      "solver_timeout",
+      "oversubscribed_minimums",
+      "one_exhausted_resource",
+      "unsupported_utility_requests"
+    ]
+  },
+  "all_green": true
+}
