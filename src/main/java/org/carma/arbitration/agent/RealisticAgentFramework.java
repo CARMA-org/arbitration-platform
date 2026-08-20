@@ -367,6 +367,10 @@ public class RealisticAgentFramework {
         protected final Map<ResourceType, Double> resourcePreferences;
         protected final List<OutputChannel> outputChannels;
         protected final AgentMetrics metrics;
+        protected final UtilityDeclaration utilityDeclaration;
+        protected final Map<ResourceType, Long> declaredMinimums;
+        protected final Map<ResourceType, Long> declaredUpperBounds;
+        protected final double operatorPriority;
         
         // State
         protected AgentState state;
@@ -436,7 +440,27 @@ public class RealisticAgentFramework {
             this.metrics = new AgentMetrics();
             this.state = AgentState.IDLE;
             this.currencyBalance = builder.initialCurrency;
+            this.utilityDeclaration = builder.utilityDeclaration;
+            this.declaredMinimums = new HashMap<>(builder.declaredMinimums);
+            this.declaredUpperBounds = new HashMap<>(builder.declaredUpperBounds);
+            this.operatorPriority = builder.operatorPriority;
         }
+
+        public UtilityDeclaration getUtilityDeclaration() { return utilityDeclaration; }
+
+        public Map<ResourceType, Long> getDeclaredMinimums() {
+            return Collections.unmodifiableMap(declaredMinimums);
+        }
+
+        public Map<ResourceType, Long> getDeclaredUpperBounds() {
+            return Collections.unmodifiableMap(declaredUpperBounds);
+        }
+
+        public boolean hasBoundDeclarations() {
+            return !declaredMinimums.isEmpty() || !declaredUpperBounds.isEmpty();
+        }
+
+        public double getOperatorPriority() { return operatorPriority; }
         
         // ========================================================================
         // Abstract Methods - Implement in subclasses
@@ -584,10 +608,34 @@ public class RealisticAgentFramework {
             protected final Map<ResourceType, Double> resourcePreferences = new HashMap<>();
             protected final List<OutputChannel> outputChannels = new ArrayList<>();
             protected BigDecimal initialCurrency = BigDecimal.valueOf(100);
-            
+            protected UtilityDeclaration utilityDeclaration = UtilityDeclaration.linear();
+            protected final Map<ResourceType, Long> declaredMinimums = new HashMap<>();
+            protected final Map<ResourceType, Long> declaredUpperBounds = new HashMap<>();
+            protected double operatorPriority = 0.0;
+
             public Builder(String agentId) {
                 this.agentId = agentId;
                 this.name = agentId;
+            }
+
+            public T utilityDeclaration(UtilityDeclaration declaration) {
+                this.utilityDeclaration = declaration;
+                return self();
+            }
+
+            public T declaredMinimum(ResourceType type, long amount) {
+                this.declaredMinimums.put(type, amount);
+                return self();
+            }
+
+            public T declaredUpperBound(ResourceType type, long amount) {
+                this.declaredUpperBounds.put(type, amount);
+                return self();
+            }
+
+            public T operatorPriority(double priority) {
+                this.operatorPriority = priority;
+                return self();
             }
             
             @SuppressWarnings("unchecked")
@@ -798,7 +846,9 @@ public class RealisticAgentFramework {
 
             long startTime = System.currentTimeMillis();
             try {
-                ServiceBackend.InvocationResult result = serviceBackend.invokeByType(type, input);
+                ServiceBackend.InvocationResult result = serviceRegistry != null
+                    ? serviceBackend.invoke(handle.getServiceId(), input)
+                    : serviceBackend.invokeByType(type, input);
                 long latency = System.currentTimeMillis() - startTime;
                 return new ServiceResult(
                     result.isSuccess(),
@@ -964,6 +1014,7 @@ public class RealisticAgentFramework {
         private final Object installLock = new Object();
         private long epochCounter = 0;
         private volatile java.util.function.LongSupplier clock = System::currentTimeMillis;
+        private final Map<String, java.math.BigDecimal> operatorPriorities = new ConcurrentHashMap<>();
         private final ScheduledExecutorService scheduler;
         private final List<RuntimeListener> listeners;
         private volatile boolean running;
@@ -1287,6 +1338,14 @@ public class RealisticAgentFramework {
             this.clock = clock;
         }
 
+        public void setOperatorPriority(String agentId, java.math.BigDecimal priority) {
+            operatorPriorities.put(agentId, priority);
+        }
+
+        public void clearOperatorPriorities() {
+            operatorPriorities.clear();
+        }
+
         public long now() {
             return clock.getAsLong();
         }
@@ -1565,7 +1624,7 @@ public class RealisticAgentFramework {
 
             Map<String, java.math.BigDecimal> burns = new HashMap<>();
             for (org.carma.arbitration.model.Agent a : arbAgents) {
-                burns.put(a.getId(), java.math.BigDecimal.ZERO);
+                burns.put(a.getId(), operatorPriorityFor(a));
             }
 
             String solverStatus = groups.isEmpty() ? "no_contention" : "optimal";
@@ -1606,18 +1665,42 @@ public class RealisticAgentFramework {
                 org.carma.arbitration.model.Agent a = new org.carma.arbitration.model.Agent(
                     ra.getAgentId(), ra.getName(), ra.getResourcePreferences(),
                     ra.getCurrencyBalance().intValue());
-                for (ServiceType svc : ra.getRequiredServiceTypes()) {
-                    Map<ResourceType, Long> reqs = svc.getDefaultResourceRequirements();
-                    for (Map.Entry<ResourceType, Long> req : reqs.entrySet()) {
-                        long current = a.getIdeal(req.getKey());
-                        a.setRequest(req.getKey(),
-                            Math.max(1, req.getValue() / 2),
-                            current + req.getValue());
+                if (ra.hasBoundDeclarations()) {
+                    Set<ResourceType> declared = new HashSet<>();
+                    declared.addAll(ra.getDeclaredMinimums().keySet());
+                    declared.addAll(ra.getDeclaredUpperBounds().keySet());
+                    for (ResourceType type : declared) {
+                        long min = ra.getDeclaredMinimums().getOrDefault(type, 0L);
+                        long upper = ra.getDeclaredUpperBounds().getOrDefault(type, min);
+                        a.setRequest(type, min, Math.max(min, upper));
                     }
+                } else {
+                    for (ServiceType svc : ra.getRequiredServiceTypes()) {
+                        Map<ResourceType, Long> reqs = svc.getDefaultResourceRequirements();
+                        for (Map.Entry<ResourceType, Long> req : reqs.entrySet()) {
+                            long current = a.getIdeal(req.getKey());
+                            a.setRequest(req.getKey(),
+                                Math.max(1, req.getValue() / 2),
+                                current + req.getValue());
+                        }
+                    }
+                }
+                if (ra.getUtilityDeclaration() != null) {
+                    a.setUtilityDeclaration(ra.getUtilityDeclaration());
                 }
                 arbAgents.add(a);
             }
             return arbAgents;
+        }
+
+        private java.math.BigDecimal operatorPriorityFor(org.carma.arbitration.model.Agent a) {
+            if (operatorPriorities.containsKey(a.getId())) {
+                return operatorPriorities.get(a.getId());
+            }
+            RealisticAgent ra = agents.get(a.getId());
+            return ra != null
+                ? java.math.BigDecimal.valueOf(ra.getOperatorPriority())
+                : java.math.BigDecimal.ZERO;
         }
 
         /**
@@ -1689,6 +1772,14 @@ public class RealisticAgentFramework {
                 Map<String, Map<ResourceType, Long>> allocations,
                 String policyName, String solverStatus, Long leaseDurationMs) {
 
+            for (var e : allocations.entrySet()) {
+                for (var b : e.getValue().entrySet()) {
+                    if (b.getValue() == null || b.getValue() < 0) {
+                        throw new IllegalArgumentException("negative allocation component for "
+                            + e.getKey() + "/" + b.getKey() + ": " + b.getValue());
+                    }
+                }
+            }
             checkConservation(allocations);
             synchronized (installLock) {
                 AllocationSnapshot current = snapshot;

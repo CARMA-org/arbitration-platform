@@ -8,27 +8,12 @@ import org.yaml.snakeyaml.Yaml;
 import java.nio.file.Paths;
 import java.util.*;
 
-/**
- * Canonical-runtime experiment harness for platform mediation.
- *
- * Reads a single job (JSON on stdin), computes an allocation under the requested
- * policy, installs it as versioned contracts, executes each agent's externally
- * defined task queue through the constrained-execution path, and writes a
- * per-run metrics record (JSON on stdout).
- *
- * The joint policy is produced by {@link ConvexJointArbitrator}; the comparison
- * policies (equal, DRF, separable water-filling) are pure allocation rules. Every
- * policy is installed and executed through the same runtime path, so only the
- * joint policy ever reaches the Python solver, and only through the arbitrator.
- */
 public class PlatformMediationHarness {
 
     private static final double EPS = 1e-6;
     private static final double BASE_WEIGHT = 10.0;
 
     public static void main(String[] args) throws Exception {
-        // Reads one JSON job per line (JSONL) and emits one JSON result per line,
-        // so a whole sweep can share a single JVM.
         Yaml yaml = new Yaml();
         try (Scanner sc = new Scanner(System.in)) {
             while (sc.hasNextLine()) {
@@ -55,6 +40,7 @@ public class PlatformMediationHarness {
         String policy = str(job.get("policy"), "equal");
         double gamma = dbl(job.get("gamma"), 1.0);
         String solverPython = str(job.get("solverPython"), "python3");
+        String scenarioHash = str(job.get("scenarioHash"), "");
 
         Map<String, Object> capsRaw = (Map<String, Object>) job.get("capacities");
         List<ResourceType> resources = new ArrayList<>();
@@ -71,8 +57,9 @@ public class PlatformMediationHarness {
         List<Map<String, Object>> agentSpecs = (List<Map<String, Object>>) job.get("agents");
         int n = agentSpecs.size();
         String[] ids = new String[n];
-        double[][] W = new double[n][m];
         double[][] U = new double[n][m];
+        double[][] leontiefReq = new double[n][m];
+        long[][] demand = new long[n][m];
         long[][] lower = new long[n][m];
         long[][] upper = new long[n][m];
         double[] priority = new double[n];
@@ -80,105 +67,26 @@ public class PlatformMediationHarness {
         for (int i = 0; i < n; i++) {
             Map<String, Object> a = agentSpecs.get(i);
             ids[i] = str(a.get("id"), "agent-" + i);
-            Map<String, Object> prefs = (Map<String, Object>) a.get("prefs");
-            Map<String, Object> uw = (Map<String, Object>) a.getOrDefault("util_weights", prefs);
+            Map<String, Object> uw = (Map<String, Object>) a.get("utilWeights");
+            Map<String, Object> lr = (Map<String, Object>) a.get("leontiefReq");
+            Map<String, Object> md = (Map<String, Object>) a.get("mandatoryDemand");
             Map<String, Object> mn = (Map<String, Object>) a.get("min");
             Map<String, Object> up = (Map<String, Object>) a.get("upper");
             for (int j = 0; j < m; j++) {
                 String rn = resources.get(j).name();
-                W[i][j] = dbl(prefs.get(rn), 0.0);
                 U[i][j] = dbl(uw.get(rn), 0.0);
+                leontiefReq[i][j] = dbl(lr.get(rn), 0.0);
+                demand[i][j] = lng(md.get(rn), 0);
                 lower[i][j] = lng(mn.get(rn), 0);
                 upper[i][j] = lng(up.get(rn), 0);
             }
-            priority[i] = dbl(a.get("priority"), 0.0);
+            priority[i] = dbl(a.get("priority"), 1.0);
             c[i] = BASE_WEIGHT + priority[i];
         }
 
-        // Compute allocation under the requested policy (allocation latency measured).
-        long t0 = System.nanoTime();
-        long[][] alloc;
-        String solverStatus;
-        boolean feasible = true;
-        String message = "";
         String jointFamily = jointFamily(policy);
-        double[][] leontiefReq = readLeontiefRequirements(agentSpecs, resources, n, m);
-        if (jointFamily != null) {
-            Object[] r = jointAllocation(ids, U, lower, upper, priority, capMap, resources,
-                solverPython, jointFamily, leontiefReq);
-            alloc = (long[][]) r[0];
-            feasible = (boolean) r[1];
-            solverStatus = (String) r[2];
-            message = (String) r[3];
-        } else if (policy.equals("equal")) {
-            alloc = separable(ids, W, lower, upper, c, cap, 0.0, true);
-            solverStatus = "equal";
-        } else if (policy.equals("drf")) {
-            alloc = drf(W, lower, upper, cap, upper);
-            solverStatus = "drf";
-        } else if (policy.equals("separable")) {
-            alloc = separable(ids, W, lower, upper, c, cap, gamma, false);
-            solverStatus = "separable_gamma=" + gamma;
-        } else if (policy.equals("given")) {
-            // Execute a precomputed allocation through the canonical runtime.
-            @SuppressWarnings("unchecked")
-            Map<String, Object> given = (Map<String, Object>) job.get("allocation");
-            alloc = new long[n][m];
-            for (int i = 0; i < n; i++) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> b = (Map<String, Object>) given.get(ids[i]);
-                for (int j = 0; j < m; j++) {
-                    alloc[i][j] = b == null ? 0 : lng(b.get(resources.get(j).name()), 0);
-                }
-            }
-            solverStatus = "given";
-        } else {
-            throw new IllegalArgumentException("unknown policy: " + policy);
-        }
-        long allocLatencyMs = (System.nanoTime() - t0) / 1_000_000;
-
-        if (!feasible) {
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("gamma", gamma); out.put("feasible", false);
-            out.put("message", message);
-            return toJson(out);
-        }
-
-        // Invariant checks on the allocation itself (should be zero).
-        int capacityViolation = 0, boundViolation = 0;
-        for (int j = 0; j < m; j++) {
-            long col = 0;
-            for (int i = 0; i < n; i++) {
-                col += alloc[i][j];
-                if (alloc[i][j] < lower[i][j] || alloc[i][j] > upper[i][j]) boundViolation++;
-            }
-            if (col > cap[j]) capacityViolation++;
-        }
-
         String utilityFamily = jointFamily != null ? jointFamily : "LINEAR";
-        double declaredWelfare = 0;
-        for (int i = 0; i < n; i++) {
-            double phi = phiForFamily(utilityFamily, U[i], alloc[i], leontiefReq[i]);
-            declaredWelfare += c[i] * Math.log(Math.max(phi, EPS));
-        }
 
-        // Calibration path: allocation only, no task execution.
-        boolean execute = bool(job.get("execute"), true);
-        if (!execute) {
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("gamma", gamma); out.put("feasible", true);
-            out.put("utility_family", utilityFamily);
-            out.put("solver_status", solverStatus);
-            out.put("allocation_latency_ms", allocLatencyMs);
-            out.put("declared_welfare", declaredWelfare);
-            out.put("capacity_violation", capacityViolation);
-            out.put("bound_violation", boundViolation);
-            return toJson(out);
-        }
-
-        // Build runtime and execute every agent's task queue through it.
         Map<String, Object> svcCaps = (Map<String, Object>) job.getOrDefault("services", new HashMap<>());
         ServiceRegistry registry = new ServiceRegistry();
         for (Map.Entry<String, Object> e : svcCaps.entrySet()) {
@@ -194,9 +102,7 @@ public class PlatformMediationHarness {
             .serviceBackend(backend)
             .build();
 
-        Map<ResourceType, Double> prefMapDefault = new HashMap<>();
         List<TaskAgent> taskAgents = new ArrayList<>();
-        Map<String, Map<ResourceType, Long>> allocMap = new LinkedHashMap<>();
         for (int i = 0; i < n; i++) {
             Map<String, Object> a = agentSpecs.get(i);
             List<Map<String, Object>> taskSpecs = (List<Map<String, Object>>) a.get("tasks");
@@ -211,23 +117,109 @@ public class PlatformMediationHarness {
                     lng(ts.get("sloMs"), Long.MAX_VALUE)));
             }
             Map<ResourceType, Double> prefs = new HashMap<>();
-            for (int j = 0; j < m; j++) prefs.put(resources.get(j), W[i][j]);
-            TaskAgent agent = new TaskAgent.Builder(ids[i]).preferences(prefs).tasks(tasks).build();
+            for (int j = 0; j < m; j++) prefs.put(resources.get(j), U[i][j]);
+            TaskAgent.Builder b = new TaskAgent.Builder(ids[i]).preferences(prefs).tasks(tasks)
+                .utilityDeclaration(declarationFor(utilityFamily, U[i], leontiefReq[i], resources))
+                .operatorPriority(priority[i]);
+            for (int j = 0; j < m; j++) {
+                b.declaredMinimum(resources.get(j), lower[i][j]);
+                b.declaredUpperBound(resources.get(j), upper[i][j]);
+            }
+            TaskAgent agent = b.build();
             runtime.register(agent);
+            runtime.setOperatorPriority(ids[i], java.math.BigDecimal.valueOf(priority[i]));
             taskAgents.add(agent);
-
-            Map<ResourceType, Long> bundle = new LinkedHashMap<>();
-            for (int j = 0; j < m; j++) bundle.put(resources.get(j), alloc[i][j]);
-            allocMap.put(ids[i], bundle);
         }
 
-        runtime.installContracts(allocMap, policy, solverStatus, null);
+        long t0 = System.nanoTime();
+        long[][] alloc = new long[n][m];
+        String solverStatus = policy;
+        boolean feasible = true;
+        String message = "";
+        try {
+            if (jointFamily != null) {
+                ConvexJointArbitrator arb = new ConvexJointArbitrator(
+                    new PriorityEconomy(), solverPython, Paths.get("scripts/joint_solver.py"))
+                    .setTimeoutMillis(60000);
+                Map<String, Map<ResourceType, Long>> res =
+                    runtime.runArbitration(new ContentionDetector(), arb, policy, null);
+                for (int i = 0; i < n; i++) {
+                    for (int j = 0; j < m; j++) {
+                        alloc[i][j] = res.get(ids[i]).getOrDefault(resources.get(j), 0L);
+                    }
+                }
+                solverStatus = runtime.getSnapshot().getSolverStatus();
+            } else {
+                if (policy.equals("equal")) {
+                    alloc = separable(ids, U, lower, upper, c, cap, 0.0, true);
+                } else if (policy.equals("drf")) {
+                    alloc = drf(demand, lower, upper, cap);
+                } else if (policy.equals("decomposed_cobb_douglas")) {
+                    alloc = separable(ids, U, lower, upper, c, cap, 1.0, false);
+                } else if (policy.equals("separable")) {
+                    alloc = separable(ids, U, lower, upper, c, cap, gamma, false);
+                    solverStatus = "separable_gamma=" + gamma;
+                } else {
+                    throw new IllegalArgumentException("unknown policy: " + policy);
+                }
+                Map<String, Map<ResourceType, Long>> allocMap = new LinkedHashMap<>();
+                for (int i = 0; i < n; i++) {
+                    Map<ResourceType, Long> bundle = new LinkedHashMap<>();
+                    for (int j = 0; j < m; j++) bundle.put(resources.get(j), alloc[i][j]);
+                    allocMap.put(ids[i], bundle);
+                }
+                runtime.installContracts(allocMap, policy, solverStatus, null);
+            }
+        } catch (RuntimeException ex) {
+            feasible = false;
+            message = ex.getMessage();
+            solverStatus = "infeasible";
+        }
+        long allocLatencyMs = (System.nanoTime() - t0) / 1_000_000;
 
-        // Execute each agent through the runtime (canonical constrained execution).
+        if (!feasible) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
+            out.put("utility_family", utilityFamily); out.put("scenario_hash", scenarioHash);
+            out.put("gamma", gamma); out.put("feasible", false);
+            out.put("message", message);
+            return toJson(out);
+        }
+
+        int capacityViolation = 0, boundViolation = 0;
+        for (int j = 0; j < m; j++) {
+            long col = 0;
+            for (int i = 0; i < n; i++) {
+                col += alloc[i][j];
+                if (alloc[i][j] < lower[i][j] || alloc[i][j] > upper[i][j]) boundViolation++;
+            }
+            if (col > cap[j]) capacityViolation++;
+        }
+
+        double declaredWelfare = 0;
+        for (int i = 0; i < n; i++) {
+            double phi = phiForFamily(utilityFamily, U[i], alloc[i], leontiefReq[i]);
+            declaredWelfare += c[i] * Math.log(Math.max(phi, EPS));
+        }
+
+        boolean execute = bool(job.get("execute"), true);
+        if (!execute) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
+            out.put("utility_family", utilityFamily); out.put("scenario_hash", scenarioHash);
+            out.put("gamma", gamma); out.put("feasible", true);
+            out.put("solver_status", solverStatus);
+            out.put("allocation_latency_ms", allocLatencyMs);
+            out.put("declared_welfare", declaredWelfare);
+            out.put("capacity_violation", capacityViolation);
+            out.put("bound_violation", boundViolation);
+            return toJson(out);
+        }
+
         List<Map<String, Object>> agentRecords = new ArrayList<>();
         long[] chargedTotal = new long[m];
+        long[] allocatedTotal = new long[m];
         int backendTotal = 0, blockedTotal = 0, mandatoryFailTotal = 0;
-        double prioSloWeighted = 0, prioSum = 0;
         for (int i = 0; i < n; i++) {
             runtime.invokeAgent(ids[i], "run-all");
             TaskAgent agent = taskAgents.get(i);
@@ -258,6 +250,7 @@ public class PlatformMediationHarness {
                 charged.put(resources.get(j).name(), ch);
                 unused.put(resources.get(j).name(), alloc[i][j] - ch);
                 chargedTotal[j] += ch;
+                allocatedTotal[j] += alloc[i][j];
             }
             rec.put("allocated", allocated);
             rec.put("charged", charged);
@@ -271,22 +264,28 @@ public class PlatformMediationHarness {
             backendTotal += backendCalls;
             blockedTotal += blocked;
             mandatoryFailTotal += agent.getMandatoryFailures();
-            prioSloWeighted += c[i] * agent.getSloAttainment();
-            prioSum += c[i];
         }
 
-        Map<String, Object> util = new LinkedHashMap<>();
+        Map<String, Object> capUtil = new LinkedHashMap<>();
+        Map<String, Object> allocConsume = new LinkedHashMap<>();
+        long totalCharged = 0, totalCap = 0, totalAllocated = 0;
         for (int j = 0; j < m; j++) {
-            util.put(resources.get(j).name(), cap[j] > 0 ? (double) chargedTotal[j] / cap[j] : 0.0);
+            capUtil.put(resources.get(j).name(), cap[j] > 0 ? (double) chargedTotal[j] / cap[j] : 0.0);
+            allocConsume.put(resources.get(j).name(),
+                allocatedTotal[j] > 0 ? (double) chargedTotal[j] / allocatedTotal[j] : 0.0);
+            totalCharged += chargedTotal[j];
+            totalCap += cap[j];
+            totalAllocated += allocatedTotal[j];
         }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("cell", cell);
         out.put("seed", seed);
         out.put("policy", policy);
+        out.put("utility_family", utilityFamily);
+        out.put("scenario_hash", scenarioHash);
         out.put("gamma", gamma);
         out.put("feasible", true);
-        out.put("utility_family", utilityFamily);
         out.put("solver_status", solverStatus);
         out.put("allocation_latency_ms", allocLatencyMs);
         out.put("declared_welfare", declaredWelfare);
@@ -295,13 +294,16 @@ public class PlatformMediationHarness {
         out.put("backend_calls_total", backendTotal);
         out.put("blocked_calls_total", blockedTotal);
         out.put("mandatory_failures_total", mandatoryFailTotal);
-        out.put("priority_weighted_slo", prioSum > 0 ? prioSloWeighted / prioSum : 0.0);
-        out.put("utilization", util);
+        out.put("capacity_utilization", totalCap > 0 ? (double) totalCharged / totalCap : 0.0);
+        out.put("allocation_consumption", totalAllocated > 0 ? (double) totalCharged / totalAllocated : 0.0);
+        out.put("capacity_utilization_by_resource", capUtil);
+        out.put("allocation_consumption_by_resource", allocConsume);
         out.put("agents", agentRecords);
         return toJson(out);
     }
 
-    // ====================================================================
+
+        // ====================================================================
     // Allocation policies
     // ====================================================================
 
@@ -319,19 +321,6 @@ public class PlatformMediationHarness {
             default:
                 return null;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static double[][] readLeontiefRequirements(
-            List<Map<String, Object>> agentSpecs, List<ResourceType> resources, int n, int m) {
-        double[][] req = new double[n][m];
-        for (int i = 0; i < n; i++) {
-            Map<String, Object> lr = (Map<String, Object>) agentSpecs.get(i).get("leontief_req");
-            for (int j = 0; j < m; j++) {
-                req[i][j] = lr == null ? 0.0 : dbl(lr.get(resources.get(j).name()), 0.0);
-            }
-        }
-        return req;
     }
 
     private static double phiForFamily(String family, double[] w, long[] alloc, double[] req) {
@@ -380,37 +369,6 @@ public class PlatformMediationHarness {
         }
     }
 
-    private static Object[] jointAllocation(
-            String[] ids, double[][] W, long[][] lower, long[][] upper, double[] priority,
-            Map<ResourceType, Long> capMap, List<ResourceType> resources, String solverPython,
-            String family, double[][] leontiefReq) {
-        int n = ids.length, m = resources.size();
-        List<Agent> agents = new ArrayList<>();
-        Map<String, java.math.BigDecimal> burns = new HashMap<>();
-        for (int i = 0; i < n; i++) {
-            Map<ResourceType, Double> prefs = new HashMap<>();
-            for (int j = 0; j < m; j++) prefs.put(resources.get(j), W[i][j]);
-            Agent a = new Agent(ids[i], ids[i], prefs, 0.0);
-            for (int j = 0; j < m; j++) a.setRequest(resources.get(j), lower[i][j], upper[i][j]);
-            a.setUtilityDeclaration(declarationFor(family, W[i], leontiefReq[i], resources));
-            agents.add(a);
-            burns.put(ids[i], java.math.BigDecimal.valueOf(priority[i]));
-        }
-        ResourcePool pool = new ResourcePool(capMap);
-        ConvexJointArbitrator arb = new ConvexJointArbitrator(
-            new PriorityEconomy(), solverPython, Paths.get("scripts/joint_solver.py"));
-        JointArbitrator.JointAllocationResult r = arb.arbitrate(agents, pool, burns);
-        long[][] alloc = new long[n][m];
-        if (r.isFeasible()) {
-            for (int i = 0; i < n; i++) {
-                for (int j = 0; j < m; j++) {
-                    alloc[i][j] = r.getAllocation(ids[i], resources.get(j));
-                }
-            }
-        }
-        return new Object[]{alloc, r.isFeasible(), r.isFeasible() ? "optimal" : "infeasible", r.getMessage()};
-    }
-
     /** Separable water-filling: per resource, bounded-proportional on score c*W^gamma. */
     private static long[][] separable(String[] ids, double[][] W, long[][] lower, long[][] upper,
                                       double[] c, long[] cap, double gamma, boolean equal) {
@@ -430,28 +388,62 @@ public class PlatformMediationHarness {
         return roundSafe(cont, lower, upper, cap);
     }
 
-    /** Dominant Resource Fairness for fixed demand bundles (the agents' upper bundles). */
-    private static long[][] drf(double[][] W, long[][] lower, long[][] upper, long[] cap, long[][] demand) {
+    static long[][] drf(long[][] demand, long[][] lower, long[][] upper, long[] cap) {
         int n = demand.length, m = cap.length;
-        double[] mI = new double[n];
+        double[] dominantDivisor = new double[n];
         for (int i = 0; i < n; i++) {
             double mx = 0;
             for (int j = 0; j < m; j++) {
-                if (cap[j] > 0) mx = Math.max(mx, (double) demand[i][j] / cap[j]);
+                if (cap[j] > 0 && demand[i][j] > 0) {
+                    mx = Math.max(mx, (double) demand[i][j] / cap[j]);
+                }
             }
-            mI[i] = mx <= 0 ? 1.0 : mx;
+            dominantDivisor[i] = mx;
         }
-        double s = Double.MAX_VALUE;
-        for (int j = 0; j < m; j++) {
-            double denom = 0;
-            for (int i = 0; i < n; i++) denom += demand[i][j] / mI[i];
-            if (denom > 0) s = Math.min(s, cap[j] / denom);
+        double[] scalar = new double[n];
+        boolean[] active = new boolean[n];
+        for (int i = 0; i < n; i++) active[i] = dominantDivisor[i] > 0;
+
+        for (int round = 0; round < n + 2; round++) {
+            double[] remaining = new double[m];
+            double[] activeCoef = new double[m];
+            for (int j = 0; j < m; j++) {
+                remaining[j] = cap[j];
+                for (int i = 0; i < n; i++) {
+                    if (!active[i]) remaining[j] -= scalar[i] * demand[i][j];
+                    else activeCoef[j] += (double) demand[i][j] / dominantDivisor[i];
+                }
+            }
+            double sCap = Double.POSITIVE_INFINITY;
+            for (int j = 0; j < m; j++) {
+                if (activeCoef[j] > 1e-12) sCap = Math.min(sCap, remaining[j] / activeCoef[j]);
+            }
+            double sUpper = Double.POSITIVE_INFINITY;
+            int hit = -1;
+            for (int i = 0; i < n; i++) {
+                if (!active[i]) continue;
+                for (int j = 0; j < m; j++) {
+                    if (demand[i][j] > 0) {
+                        double sMax = (double) upper[i][j] * dominantDivisor[i] / demand[i][j];
+                        if (sMax < sUpper) { sUpper = sMax; hit = i; }
+                    }
+                }
+            }
+            double s = Math.min(sCap, sUpper);
+            if (!Double.isFinite(s)) break;
+            for (int i = 0; i < n; i++) {
+                if (active[i]) scalar[i] = s / dominantDivisor[i];
+            }
+            if (sUpper <= sCap && hit >= 0) {
+                active[hit] = false;
+            } else {
+                break;
+            }
         }
-        if (s == Double.MAX_VALUE) s = 0;
+
         double[][] cont = new double[n][m];
         for (int i = 0; i < n; i++) {
-            double t = s / mI[i];
-            for (int j = 0; j < m; j++) cont[i][j] = t * demand[i][j];
+            for (int j = 0; j < m; j++) cont[i][j] = scalar[i] * demand[i][j];
         }
         return roundSafe(cont, lower, upper, cap);
     }

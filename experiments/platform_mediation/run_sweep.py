@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Platform-mediation sweep driver.
 
-Runs every policy through the canonical Java runtime for each workload regime and
-contention level, selects the separable exponent on calibration seeds only, then
-evaluates on disjoint paired test seeds and writes raw per-run CSVs, aggregate
-tables, a summary JSON, logs, and a copy of the resolved configuration.
+Runs every policy through the canonical Java runtime for each workload
+composition and contention level, tunes the appendix separable exponent on
+calibration seeds only, evaluates on disjoint paired test seeds, and writes raw
+per-run and per-agent CSVs, aggregate tables, a summary JSON, logs, and the
+resolved configuration.
 """
 import argparse
 import csv
@@ -24,34 +25,31 @@ TABLES = os.path.join(HERE, "tables")
 LOGS = os.path.join(HERE, "logs")
 
 RUN_FIELDS = [
-    "experiment", "cell", "regime", "contention", "seed", "policy", "utility_family",
-    "gamma", "feasible", "declared_welfare", "completion_mean", "completion_min",
-    "completion_p5", "optional_refinement_rate", "quality_adjusted_completion",
-    "latency_budget_completion", "utilization_mean", "mandatory_failures_total",
-    "blocked_total", "backend_total", "capacity_violation", "bound_violation",
-    "alloc_latency_ms",
+    "experiment", "cell", "composition", "contention", "seed", "policy",
+    "utility_family", "scenario_hash", "gamma", "feasible", "declared_welfare",
+    "completion_mean", "completion_min", "completion_p5", "optional_refinement_rate",
+    "quality_adjusted_completion", "capacity_utilization", "allocation_consumption",
+    "mandatory_failures_total", "blocked_total", "backend_total",
+    "capacity_violation", "bound_violation", "alloc_latency_ms",
 ]
 AGENT_FIELDS = [
-    "cell", "regime", "contention", "seed", "policy", "utility_family", "agent",
-    "archetype", "priority", "completion", "mandatory_failures",
-    "optional_refinement_rate", "quality", "latency_budget", "backend_calls",
+    "cell", "composition", "contention", "seed", "policy", "utility_family",
+    "scenario_hash", "agent", "archetype", "priority", "completion",
+    "mandatory_failures", "optional_refinement_rate", "quality", "backend_calls",
     "blocked_calls", "allocated", "charged", "unused", "exhausted",
 ]
 
 
 def load_config():
     with open(os.path.join(HERE, "config", "experiment.json")) as f:
-        cfg = json.load(f)
-    for mode in ("smoke", "full"):
-        cfg[mode]["upper_frac"] = cfg["upper_frac"]
-    return cfg
+        return json.load(f)
 
 
 def cells(cfg):
     out = []
-    for regime in cfg["regimes"]:
+    for composition in cfg["compositions"]:
         for cname, ratio in cfg["contention"].items():
-            out.append((regime, cname, ratio, "%s__%s" % (regime, cname)))
+            out.append((composition, cname, ratio, "%s__%s" % (composition, cname)))
     return out
 
 
@@ -59,18 +57,15 @@ def run_metrics(res):
     comps = [a["completion"] for a in res["agents"]]
     quals = [a["quality"] for a in res["agents"]]
     refine = [a.get("optional_refinement_rate", 0.0) for a in res["agents"]]
-    util = res.get("utilization", {})
-    util_mean = float(np.mean(list(util.values()))) if util else 0.0
-    comp_mean = float(np.mean(comps))
     return {
         "declared_welfare": res["declared_welfare"],
-        "completion_mean": comp_mean,
+        "completion_mean": float(np.mean(comps)),
         "completion_min": float(np.min(comps)),
         "completion_p5": float(np.percentile(comps, 5)),
         "optional_refinement_rate": float(np.mean(refine)),
         "quality_adjusted_completion": float(np.mean(quals)),
-        "latency_budget_completion": res["priority_weighted_slo"],
-        "utilization_mean": util_mean,
+        "capacity_utilization": res["capacity_utilization"],
+        "allocation_consumption": res["allocation_consumption"],
         "mandatory_failures_total": res.get("mandatory_failures_total", 0),
         "blocked_total": res["blocked_calls_total"],
         "backend_total": res["backend_calls_total"],
@@ -81,17 +76,15 @@ def run_metrics(res):
 
 
 def calibrate_gamma(cfg, mode, solver_python, log):
-    """Pick one global gamma minimizing pooled declared-welfare regret vs joint
-    over calibration seeds only."""
     grid = cfg["gamma_grid"]
     ref = cfg.get("joint_reference", "joint_linear")
     sums = {g: 0.0 for g in grid}
     count = 0
-    for regime, cname, ratio, label in cells(cfg):
+    for composition, cname, ratio, label in cells(cfg):
         calib, _ = seed_split(label, cfg[mode]["n_calibration"], cfg[mode]["n_test"])
         jobs, meta = [], []
         for seed in calib:
-            sc = scenario.base_scenario(regime, cname, ratio, seed, cfg[mode])
+            sc = scenario.base_scenario(composition, cname, ratio, seed, cfg[mode])
             jobs.append(scenario.make_job(sc, label, seed, ref, 1.0, solver_python, False))
             meta.append(("joint", seed, None))
             for g in grid:
@@ -101,7 +94,6 @@ def calibrate_gamma(cfg, mode, solver_python, log):
         by = {}
         for (kind, seed, g), r in zip(meta, res):
             if not r.get("feasible", False):
-                log("  calibration infeasible: %s seed=%s kind=%s" % (label, seed, kind))
                 continue
             by[(kind, seed, g)] = r["declared_welfare"]
         for seed in calib:
@@ -115,49 +107,54 @@ def calibrate_gamma(cfg, mode, solver_python, log):
             count += 1
     mean_regret = {g: (sums[g] / count if count else float("inf")) for g in grid}
     best = min(mean_regret, key=mean_regret.get)
-    log("Calibration: pooled %d seeds; mean declared-welfare regret by gamma: %s" %
+    log("Calibration: pooled %d seeds; separable declared-linear-welfare regret by gamma: %s" %
         (count, {g: round(v, 4) for g, v in mean_regret.items()}))
-    log("Selected separable gamma = %s" % best)
+    log("Selected appendix separable gamma = %s (tuned against declared linear welfare, not completion)" % best)
     return best, mean_regret, count
 
 
 def evaluate(cfg, mode, gamma, solver_python, log):
     os.makedirs(RAW, exist_ok=True)
     run_rows, agent_rows = [], []
-    for regime, cname, ratio, label in cells(cfg):
+    realized = {}
+    policies = list(cfg["policies"]) + list(cfg.get("appendix_policies", []))
+    for composition, cname, ratio, label in cells(cfg):
         _, test = seed_split(label, cfg[mode]["n_calibration"], cfg[mode]["n_test"])
         jobs, meta = [], []
         for seed in test:
-            sc = scenario.base_scenario(regime, cname, ratio, seed, cfg[mode])
-            for policy in cfg["policies"]:
+            sc = scenario.base_scenario(composition, cname, ratio, seed, cfg[mode])
+            realized[label] = sc["realized_ratio"]
+            for policy in policies:
                 g = gamma if policy == "separable" else 1.0
                 jobs.append(scenario.make_job(sc, label, seed, policy, g, solver_python, True))
-                meta.append((seed, policy, g))
+                meta.append((seed, policy, g, sc["scenario_hash"]))
         t0 = time.time()
         res = runner.run_jobs(jobs, chunk=cfg[mode]["chunk"])
         log("  cell %s: %d runs in %.1fs" % (label, len(jobs), time.time() - t0))
-        for (seed, policy, g), r in zip(meta, res):
+        for (seed, policy, g, shash), r in zip(meta, res):
             if not r.get("feasible", False):
                 log("  INFEASIBLE run: %s seed=%s policy=%s msg=%s" %
                     (label, seed, policy, r.get("message") or r.get("error")))
                 continue
+            if r.get("scenario_hash") != shash:
+                raise RuntimeError("scenario hash mismatch for %s seed=%s policy=%s" % (label, seed, policy))
             m = run_metrics(r)
-            row = {"experiment": "platform_mediation", "cell": label, "regime": regime,
+            row = {"experiment": "platform_mediation", "cell": label, "composition": composition,
                    "contention": cname, "seed": seed, "policy": policy,
-                   "utility_family": r.get("utility_family", ""), "gamma": g,
-                   "feasible": True}
+                   "utility_family": r.get("utility_family", ""),
+                   "scenario_hash": r.get("scenario_hash", ""), "gamma": g, "feasible": True}
             row.update(m)
             run_rows.append(row)
             for a in r["agents"]:
                 agent_rows.append({
-                    "cell": label, "regime": regime, "contention": cname, "seed": seed,
+                    "cell": label, "composition": composition, "contention": cname, "seed": seed,
                     "policy": policy, "utility_family": r.get("utility_family", ""),
-                    "agent": a["id"], "archetype": a.get("archetype", ""),
-                    "priority": a["priority"], "completion": a["completion"],
-                    "mandatory_failures": a.get("mandatory_failures", 0),
+                    "scenario_hash": r.get("scenario_hash", ""), "agent": a["id"],
+                    "archetype": a.get("archetype", ""), "priority": a["priority"],
+                    "completion": a["completion"], "mandatory_failures": a.get("mandatory_failures", 0),
                     "optional_refinement_rate": a.get("optional_refinement_rate", 0.0),
-                    "quality": a["quality"], "latency_budget": a["slo"],
-                    "backend_calls": a["backend_calls"], "blocked_calls": a["blocked_calls"],
+                    "quality": a["quality"], "backend_calls": a["backend_calls"],
+                    "blocked_calls": a["blocked_calls"],
                     "allocated": json.dumps(a.get("allocated", {})),
                     "charged": json.dumps(a.get("charged", {})),
                     "unused": json.dumps(a.get("unused", {})),
@@ -170,18 +167,18 @@ def evaluate(cfg, mode, gamma, solver_python, log):
         w = csv.DictWriter(f, fieldnames=AGENT_FIELDS)
         w.writeheader()
         w.writerows(agent_rows)
-    return run_rows, agent_rows
+    return run_rows, agent_rows, realized
 
 
-def aggregate(run_rows, agent_rows, cfg, gamma):
+def aggregate(run_rows, agent_rows, cfg):
     metrics = ["completion_mean", "completion_min", "completion_p5",
                "optional_refinement_rate", "quality_adjusted_completion",
-               "latency_budget_completion", "declared_welfare", "utilization_mean",
+               "declared_welfare", "capacity_utilization", "allocation_consumption",
                "mandatory_failures_total", "blocked_total", "backend_total",
                "capacity_violation", "bound_violation", "alloc_latency_ms"]
-    joints = [p for p in cfg["policies"] if p.startswith("joint")]
-    nonlinear = [p for p in joints if p != cfg.get("joint_reference", "joint_linear")]
     ref = cfg.get("joint_reference", "joint_linear")
+    joints = [p for p in cfg["policies"] if p.startswith("joint")]
+    nonlinear = [p for p in joints if p != ref]
 
     cell_table = []
     by_cell_policy = {}
@@ -194,7 +191,6 @@ def aggregate(run_rows, agent_rows, cfg, gamma):
             rec[mkey] = float(np.mean([x[mkey] for x in rows]))
         cell_table.append(rec)
 
-    paired = []
     idx = {}
     for r in run_rows:
         idx[(r["cell"], r["seed"], r["policy"])] = r
@@ -211,7 +207,9 @@ def aggregate(run_rows, agent_rows, cfg, gamma):
             comparisons.append((jp, base))
     for jp in nonlinear:
         comparisons.append((jp, ref))
+    comparisons.append(("decomposed_cobb_douglas", "joint_cobb_douglas"))
 
+    paired = []
     for cell in cells_seen:
         seeds = sorted(seeds_by_cell[cell])
         for treat, base in comparisons:
@@ -228,12 +226,32 @@ def aggregate(run_rows, agent_rows, cfg, gamma):
                                "metric": mkey, "mean_diff": ci["mean"],
                                "ci_lo": ci["lo"], "ci_hi": ci["hi"], "n_pairs": ci["n"]})
 
+    aggregate_paired = []
+    for treat, base in comparisons:
+        for mkey in diff_metrics:
+            per_cell = []
+            for cell in cells_seen:
+                seeds = sorted(seeds_by_cell[cell])
+                d = []
+                for s in seeds:
+                    t = idx.get((cell, s, treat))
+                    b = idx.get((cell, s, base))
+                    if t and b:
+                        d.append(t[mkey] - b[mkey])
+                if d:
+                    per_cell.append(float(np.mean(d)))
+            if per_cell:
+                arr = np.array(per_cell)
+                aggregate_paired.append({"comparison": treat + "_minus_" + base, "metric": mkey,
+                                         "equal_weight_mean": float(arr.mean()),
+                                         "n_cells": len(per_cell)})
+
     indiv = []
     ag_idx = {}
     for a in agent_rows:
         ag_idx[(a["cell"], a["seed"], a["agent"], a["policy"])] = a
     keys = sorted({(a["cell"], a["seed"], a["agent"]) for a in agent_rows})
-    for policy in joints + ["separable", "drf"]:
+    for policy in joints + ["decomposed_cobb_douglas", "drf"]:
         for cell in cells_seen:
             losses = []
             for (c, s, agent) in keys:
@@ -250,23 +268,24 @@ def aggregate(run_rows, agent_rows, cfg, gamma):
                               "worst_agent_loss_vs_equal": float(arr.min()),
                               "frac_agents_worse": float((arr < -1e-9).mean()),
                               "n_agents": len(arr)})
-    return cell_table, paired, indiv
+    return cell_table, paired, aggregate_paired, indiv
 
 
-def write_tables(cell_table, paired, indiv):
+def write_tables(cell_table, paired, aggregate_paired, indiv):
     os.makedirs(TABLES, exist_ok=True)
-    with open(os.path.join(TABLES, "cell_policy_means.csv"), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(cell_table[0].keys()))
-        w.writeheader()
-        w.writerows(cell_table)
-    with open(os.path.join(TABLES, "paired_differences.csv"), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(paired[0].keys()))
-        w.writeheader()
-        w.writerows(paired)
-    with open(os.path.join(TABLES, "individual_loss.csv"), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(indiv[0].keys()))
-        w.writeheader()
-        w.writerows(indiv)
+
+    def dump(name, rows):
+        if not rows:
+            return
+        with open(os.path.join(TABLES, name), "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+
+    dump("cell_policy_means.csv", cell_table)
+    dump("paired_differences.csv", paired)
+    dump("aggregate_paired.csv", aggregate_paired)
+    dump("individual_loss.csv", indiv)
 
 
 def main():
@@ -281,7 +300,6 @@ def main():
 
     cfg = load_config()
     os.makedirs(LOGS, exist_ok=True)
-    log_path = os.path.join(LOGS, "sweep_%s.log" % mode)
     log_lines = []
 
     def log(msg):
@@ -291,38 +309,48 @@ def main():
 
     log("Platform-mediation sweep: mode=%s solver=%s" % (mode, args.solver_python))
     gamma, mean_regret, cal_count = calibrate_gamma(cfg, mode, args.solver_python, log)
-    run_rows, agent_rows = evaluate(cfg, mode, gamma, args.solver_python, log)
-    cell_table, paired, indiv = aggregate(run_rows, agent_rows, cfg, gamma)
-    write_tables(cell_table, paired, indiv)
+    run_rows, agent_rows, realized = evaluate(cfg, mode, gamma, args.solver_python, log)
+    cell_table, paired, aggregate_paired, indiv = aggregate(run_rows, agent_rows, cfg)
+    write_tables(cell_table, paired, aggregate_paired, indiv)
 
     total_runs = len(run_rows)
     n_cells = len(cells(cfg))
+    policies = list(cfg["policies"]) + list(cfg.get("appendix_policies", []))
     summary = {
         "mode": mode,
-        "selected_gamma": gamma,
+        "selected_separable_gamma": gamma,
         "gamma_grid": cfg["gamma_grid"],
         "gamma_mean_regret": {str(k): v for k, v in mean_regret.items()},
         "calibration_pairs": cal_count,
+        "compositions": cfg["compositions"],
+        "contention": cfg["contention"],
+        "realized_contention_ratio": realized,
         "n_cells": n_cells,
         "n_calibration_seeds_per_cell": cfg[mode]["n_calibration"],
         "n_test_seeds_per_cell": cfg[mode]["n_test"],
-        "policies": cfg["policies"],
+        "n_agents": cfg[mode]["n_agents"],
+        "tasks_per_agent": cfg[mode]["tasks_per_agent"],
+        "policies": policies,
+        "primary_policies": cfg["policies"],
         "total_test_runs": total_runs,
+        "n_agent_records": len(agent_rows),
         "capacity_violations_total": sum(r["capacity_violation"] for r in run_rows),
         "bound_violations_total": sum(r["bound_violation"] for r in run_rows),
     }
     with open(os.path.join(RESULTS, "summary_%s.json" % mode), "w") as f:
         json.dump(summary, f, indent=2)
+    with open(os.path.join(RESULTS, "summary.json"), "w") as f:
+        json.dump(summary, f, indent=2)
     resolved = dict(cfg)
     resolved["mode"] = mode
-    resolved["selected_gamma"] = gamma
+    resolved["selected_separable_gamma"] = gamma
     with open(os.path.join(RESULTS, "resolved_config_%s.json" % mode), "w") as f:
         json.dump(resolved, f, indent=2)
-    with open(log_path, "w") as f:
+    with open(os.path.join(LOGS, "sweep_%s.log" % mode), "w") as f:
         f.write("\n".join(log_lines) + "\n")
-    log("Done: %d test runs across %d cells; gamma*=%s; capacity_viol=%d bound_viol=%d" %
-        (total_runs, n_cells, gamma, summary["capacity_violations_total"],
-         summary["bound_violations_total"]))
+    log("Done: %d test runs, %d agent records across %d cells; separable gamma*=%s; cap_viol=%d bound_viol=%d" %
+        (total_runs, len(agent_rows), n_cells, gamma,
+         summary["capacity_violations_total"], summary["bound_violations_total"]))
 
 
 if __name__ == "__main__":

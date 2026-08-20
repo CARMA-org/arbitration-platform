@@ -1,55 +1,41 @@
 """Deterministic scenario construction for the platform-mediation sweep.
 
-A scenario is policy-independent: the same agents, declarations, tasks, capacities
-and priorities are handed to every policy for a given (cell, seed). Declarations
-follow a fixed prespecified procedure derived from each agent's archetype workload
-and the workload regime; they never see test-task outcomes.
+A scenario is policy-independent: the same agents, declarations, tasks,
+capacities, and priorities are handed to every policy for a given (cell, seed).
+The declaration primitive for every utility family is the agent's normalized
+mandatory-demand vector derived from its exact task queue.
 """
+import hashlib
+import json
+
 import numpy as np
 
-from .archetypes import (RESOURCES, ARCHETYPES, archetype_footprint, SERVICE_FOOTPRINT)
+from .archetypes import RESOURCES, ARCHETYPES, archetype_footprint
 from .seeds import derive_seed
 
-PRIORITY_TIERS = [1.0, 2.0, 4.0]   # exogenous operator policy inputs
+COMPOSITIONS = ["homogeneous", "mixed_bundle"]
+MIXED_ORDER = ["research", "code_review", "doc_processing", "monitoring"]
 
 
-def assign_archetypes(regime, n):
-    if regime == "identical":
+def assign_archetypes(composition, n):
+    if composition == "homogeneous":
         return ["research"] * n
-    if regime == "complementary":
-        order = ["research", "code_review", "monitoring", "doc_processing"]
-        return [order[i % len(order)] for i in range(n)]
-    base = ["research", "code_review", "doc_processing", "monitoring"]
-    return [base[i % len(base)] for i in range(n)]
+    return [MIXED_ORDER[i % len(MIXED_ORDER)] for i in range(n)]
 
 
-def pref_vector(regime, arc, rng):
-    fp = archetype_footprint(arc, include_optional=True)
-    vec = np.array([float(fp[r]) for r in RESOURCES])
-    if vec.sum() <= 0:
-        vec = np.ones(len(RESOURCES))
-    if regime == "identical":
-        w = vec
-    elif regime == "nearly_specialized":
-        w = np.power(vec, 8.0)
-    elif regime == "broad_heterogeneous":
-        base = vec / vec.sum()
-        noise = rng.dirichlet(np.ones(len(RESOURCES)) * 2.0)
-        w = 0.6 * base + 0.4 * noise
-    elif regime == "complementary":
-        w = np.power(vec, 3.0)
-    else:
-        raise ValueError("unknown regime " + regime)
-    return w / w.sum()
+def derive_rng(*parts):
+    return np.random.default_rng(derive_seed(*parts))
 
 
-def _tasks_for_agent(arc, regime, contention, seed, agent_idx, tpa):
-    rng = derive_rng(regime, contention, seed, "tasks", agent_idx)
+def _tasks_for_agent(arc, composition, seed, agent_idx, tpa):
     a = ARCHETYPES[arc]
     tasks = []
     for k in range(tpa):
-        jitter = float(rng.uniform(-0.05, 0.05))
-        q = min(1.0, max(0.0, a["base_quality"] + jitter))
+        if composition == "homogeneous":
+            q = a["base_quality"]
+        else:
+            rng = derive_rng(composition, seed, "quality", agent_idx, k)
+            q = min(1.0, max(0.0, a["base_quality"] + float(rng.uniform(-0.05, 0.05))))
         tasks.append({
             "id": "a%d-t%d" % (agent_idx, k),
             "mandatory": list(a["mandatory"]),
@@ -61,70 +47,81 @@ def _tasks_for_agent(arc, regime, contention, seed, agent_idx, tpa):
     return tasks
 
 
-def derive_rng(*parts):
-    return np.random.default_rng(derive_seed(*parts))
+def _scenario_hash(payload):
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
-def base_scenario(regime, contention_name, contention_ratio, seed, cfg):
+def base_scenario(composition, contention_name, contention_ratio, seed, cfg):
     n = cfg["n_agents"]
     tpa = cfg["tasks_per_agent"]
-    upper_frac = cfg["upper_frac"]
-    arcs = assign_archetypes(regime, n)
+    arcs = assign_archetypes(composition, n)
 
-    # per-task mandatory-only footprint drives capacity sizing so that mandatory
-    # demand alone exceeds supply by the contention ratio.
     mand_fp = [archetype_footprint(a, include_optional=False) for a in arcs]
-    demand = {r: 0.0 for r in RESOURCES}
-    for i in range(n):
-        for r in RESOURCES:
-            demand[r] += tpa * mand_fp[i][r]
-    capacities = {}
-    for r in RESOURCES:
-        capacities[r] = max(1, int(round(demand[r] / contention_ratio)))
+    full_fp = [archetype_footprint(a, include_optional=True) for a in arcs]
+    mandatory_demand = [{r: tpa * mand_fp[i][r] for r in RESOURCES} for i in range(n)]
+    full_demand = [{r: tpa * full_fp[i][r] for r in RESOURCES} for i in range(n)]
+
+    total_mand = {r: sum(mandatory_demand[i][r] for i in range(n)) for r in RESOURCES}
+    capacities = {r: max(1, int(round(total_mand[r] / contention_ratio))) for r in RESOURCES}
+    realized_ratio = {r: (total_mand[r] / capacities[r] if capacities[r] > 0 else 0.0)
+                      for r in RESOURCES}
 
     agents = []
     used_services = set()
     for i in range(n):
-        arc = arcs[i]
-        prng = derive_rng(regime, contention_name, seed, "prefs", i)
-        w = pref_vector(regime, arc, prng)
-        prefs = {RESOURCES[j]: float(w[j]) for j in range(len(RESOURCES))}
-        full_fp = archetype_footprint(arc, include_optional=True)
+        md = mandatory_demand[i]
+        total_md = sum(md[r] for r in RESOURCES)
+        util_weights = {r: (md[r] / total_md if total_md > 0 else 0.0) for r in RESOURCES}
+        leontief_req = dict(util_weights)
         mn, up = {}, {}
         for r in RESOURCES:
-            uses = full_fp[r] > 0
+            uses = md[r] > 0
             mn[r] = 1 if uses else 0
-            up[r] = int(round(capacities[r] * upper_frac)) if uses else 0
-        tier = PRIORITY_TIERS[derive_seed(regime, contention_name, seed, "prio", i) % len(PRIORITY_TIERS)]
-        tasks = _tasks_for_agent(arc, regime, contention_name, seed, i, tpa)
+            up[r] = min(capacities[r], full_demand[i][r]) if uses else 0
+            if uses and up[r] < mn[r]:
+                up[r] = mn[r]
+        priority = 1.0
+        tasks = _tasks_for_agent(arcs[i], composition, seed, i, tpa)
         for t in tasks:
             used_services.update(t["mandatory"])
             used_services.update(t["optional"])
-        mfp = mand_fp[i]
-        total_mfp = sum(mfp[r] for r in RESOURCES)
-        leontief_req = {r: (mfp[r] / total_mfp if total_mfp > 0 else 0.0) for r in RESOURCES}
-        total_ffp = sum(full_fp[r] for r in RESOURCES)
-        util_weights = {r: (full_fp[r] / total_ffp if total_ffp > 0 else 0.0) for r in RESOURCES}
         agents.append({
-            "id": "a%d" % i, "archetype": arc, "prefs": prefs,
-            "min": mn, "upper": up, "priority": tier, "tasks": tasks,
-            "leontief_req": leontief_req, "util_weights": util_weights,
+            "id": "a%d" % i, "archetype": arcs[i],
+            "prefs": util_weights, "util_weights": util_weights,
+            "leontief_req": leontief_req, "mandatory_demand": md,
+            "min": mn, "upper": up, "priority": priority, "tasks": tasks,
         })
+
+    hash_payload = {
+        "capacities": capacities,
+        "agents": [{
+            "id": a["id"], "archetype": a["archetype"],
+            "mandatory_demand": a["mandatory_demand"], "util_weights": a["util_weights"],
+            "leontief_req": a["leontief_req"], "min": a["min"], "upper": a["upper"],
+            "priority": a["priority"],
+            "mandatory_seq": [t["mandatory"] for t in a["tasks"]],
+            "optional_seq": [t["optional"] for t in a["tasks"]],
+        } for a in agents],
+    }
+    scenario_hash = _scenario_hash(hash_payload)
 
     services = {s: 100000 for s in sorted(used_services)}
     return {"capacities": capacities, "agents": agents, "services": services,
-            "regime": regime, "contention": contention_name}
+            "composition": composition, "contention": contention_name,
+            "realized_ratio": realized_ratio, "scenario_hash": scenario_hash}
 
 
 def make_job(scenario, cell, seed, policy, gamma, solver_python, execute):
     return {
         "cell": cell, "seed": int(seed), "policy": policy, "gamma": float(gamma),
         "solverPython": solver_python, "execute": bool(execute),
+        "scenarioHash": scenario["scenario_hash"],
         "capacities": scenario["capacities"], "services": scenario["services"],
         "agents": [{
             "id": a["id"], "archetype": a["archetype"], "prefs": a["prefs"],
-            "min": a["min"], "upper": a["upper"], "priority": a["priority"],
-            "tasks": a["tasks"], "leontief_req": a["leontief_req"],
-            "util_weights": a["util_weights"],
+            "utilWeights": a["util_weights"], "leontiefReq": a["leontief_req"],
+            "mandatoryDemand": a["mandatory_demand"], "min": a["min"], "upper": a["upper"],
+            "priority": a["priority"], "tasks": a["tasks"],
         } for a in scenario["agents"]],
     }

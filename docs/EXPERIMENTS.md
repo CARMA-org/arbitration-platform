@@ -7,44 +7,62 @@ policy in a cell sees the same seed and scenario.
 
 ## Platform mediation (`experiments/platform_mediation/`)
 
-The primary experiment. It asks whether, when tasks require complementary
-resource bundles, a utility declaration that represents complementarity produces
-more completed work than a linear substitute-resource declaration.
+The primary experiment. It measures how the semantics of an agent's utility
+declaration affect completed bundle-structured work, and when the allocation
+computation requires cross-resource coordination.
 
 - Four task archetypes (research, code review, document processing, monitoring),
-  each with a mandatory service sequence and an optional refinement sequence. The
-  exact resource bundles are derived from the selected service instances.
-- Capacities are sized from the aggregate mandatory workload so that mandatory
-  demand exceeds supply at a moderate (1.3) and a high (1.9) contention ratio;
-  realized ratios after integer conversion are recorded.
-- Policies: equal quotas; Dominant Resource Fairness on the mandatory demand
-  bundle; a separable water-filling family whose exponent is tuned on calibration
-  seeds only; and joint weighted proportional fairness under linear,
-  Cobb–Douglas, CES (`ρ = 0.5`), and Leontief utilities. Linear, Cobb–Douglas,
-  and CES use normalized resource-footprint weights; Leontief uses the mandatory
-  bundle proportions as its requirement vector.
-- Regimes: identical, nearly specialized, broad heterogeneous, and complementary
-  archetypes.
+  each with a mandatory service sequence and an optional refinement sequence.
+- Each agent's declaration primitive is one normalized mandatory-demand vector
+  derived from its exact task queue. Linear weights, Cobb–Douglas exponents, and
+  CES weights all use this same primitive; Leontief uses the mandatory proportions
+  as its requirement vector. Optional refinements are excluded from the primary
+  declaration and reported separately.
+- Two workload compositions: `homogeneous`, in which every agent has the same
+  archetype, demand, bounds, utility parameters, and operator priority (a genuine
+  null); and `mixed_bundle`, in which agents draw from the four archetypes. Each
+  seed builds one scenario, identified by a scenario hash over all
+  allocation-relevant inputs, that every policy reuses unchanged.
+- Two contention levels, moderate (about 1.3) and high (about 1.9); capacities are
+  sized from aggregate mandatory demand and realized ratios are recorded.
+- Policies: equal quotas; standard unweighted Dominant Resource Fairness on the
+  mandatory-demand vector; an exact decomposed Cobb–Douglas comparator that solves
+  each resource independently; and joint weighted proportional fairness under
+  linear, Cobb–Douglas, CES (`ρ = 0.5`), and Leontief declarations, all installed
+  and executed through the same runtime contract path. An appendix separable
+  water-filling family is tuned on calibration seeds against declared linear
+  welfare, not completion.
 - Primary outcomes: task completion rate, minimum and fifth-percentile per-agent
-  completion, and optional refinement rate. Declared welfare is reported only
-  within a utility family. Latency is a budget of service constants and is
-  labelled latency-budget completion, not observed SLO attainment.
-- Analysis: paired seed-level differences with 95% bootstrap confidence
-  intervals for each joint model minus equal quotas, minus DRF, and each
-  nonlinear joint model minus joint linear; individual-agent completion change,
-  fraction of agents harmed, and worst per-agent loss.
+  completion, optional refinement rate, capacity utilization, and allocation
+  consumption (these last two are distinct fields). Declared welfare is reported
+  only within a utility family. Latency is a budget of service constants and is
+  labelled latency-budget completion.
+- Analysis: paired seed-level differences with 95% bootstrap confidence intervals
+  per cell and an equally weighted aggregate across the four cells; each joint
+  model minus equal quotas and minus DRF; each nonlinear joint model minus joint
+  linear; decomposed minus joint Cobb–Douglas; and individual-agent harm.
 
-Run: `python3 run_sweep.py --full` (use `--smoke` for a fast pass).
+The headline results file, memo, and figures are generated from the raw CSVs by
+`make_headline.py`, `make_memo.py`, and `figures.py`; `check_consistency.py`
+verifies the memo against the raw data and runs in CI.
+
+Run: `python3 run_sweep.py --full` then `make_headline.py`, `make_memo.py`,
+`figures.py`, `check_consistency.py` (use `--smoke` for a fast pass).
 
 ## Dynamic allocation (`experiments/dynamic_allocation/`)
 
-A secondary experiment on operational contract behaviour under a prebuilt event
-schedule (arrivals, departures, preference changes, capacity loss and
-restoration, lease expiry). It compares unrestricted reoptimization, permanent
-accepted-utility floors, time-limited leases, and leases with proportional
-shortfall under capacity loss, and records floor violations, expired contracts,
-stale-context denials, admissions, waiting time, churn, incumbent utility loss,
-and shortfall magnitude.
+An appendix allocation-policy simulation on operational contract behaviour. A
+complete event schedule is precomputed per seed with an explicit target agent for
+every event; an event whose target is inactive under a policy is recorded as a
+no-op rather than retargeted. Commitment floors are lower bounds on declared
+linear utility taken from the installed discrete allocation and verified after
+integer rounding, so discrete floor violations are counted directly. It compares
+unrestricted reoptimization, permanent floors, time-limited leases, and leases
+with proportional shortfall, and records admissions, waiting time, commitment
+infeasibility, discrete floor violations and magnitude, lease expiries, churn,
+incumbent utility change, and capacity violations. This is a solver-level
+simulation and does not drive the runtime clock; it is not a runtime-timing
+validation.
 
 Run: `python3 run_dynamic.py --full`.
 

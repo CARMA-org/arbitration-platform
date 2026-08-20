@@ -312,6 +312,65 @@ class PlatformContractEnforcementTest {
     }
 
     @Test
+    void batchInstallationRejectsNegativeComponentsAndInvalidatesNoLedger() {
+        ServiceRegistry registry = registryWith(ServiceType.TEXT_GENERATION, 8);
+        AgentRuntime runtime = runtime(registry, pool());
+        registerAgent(runtime, "a1");
+        registerAgent(runtime, "a2");
+        Map<String, Map<ResourceType, Long>> good = new HashMap<>();
+        good.put("a1", bundle(50, 50, 50));
+        good.put("a2", bundle(50, 50, 50));
+        runtime.installContracts(good, "test", "optimal", null);
+        ConsumptionLedger a1Ledger = runtime.getSnapshot().getLedger("a1");
+        long beforeVersion = runtime.getSnapshot().getVersion();
+
+        Map<String, Map<ResourceType, Long>> bad = new HashMap<>();
+        bad.put("a1", bundle(-5, 50, 50));
+        bad.put("a2", bundle(50, 50, 50));
+        assertThrows(IllegalArgumentException.class,
+            () -> runtime.installContracts(bad, "test", "optimal", null));
+
+        assertEquals(beforeVersion, runtime.getSnapshot().getVersion());
+        assertSame(a1Ledger, runtime.getSnapshot().getLedger("a1"));
+        assertFalse(a1Ledger.isInvalidated(), "rejected batch must not invalidate any existing ledger");
+    }
+
+    @Test
+    void concurrentContractReplacementAndConsumptionNeverOverspends() throws Exception {
+        ServiceType type = ServiceType.TEXT_GENERATION;
+        ServiceRegistry registry = registryWith(type, 16);
+        AgentRuntime runtime = runtime(registry, pool());
+        registerAgent(runtime, "a1");
+        Map<String, Map<ResourceType, Long>> alloc = new HashMap<>();
+        alloc.put("a1", bundle(300, 300, 40));
+        runtime.installContracts(alloc, "test", "optimal", null);
+
+        AtomicReference<Throwable> failure = new AtomicReference<>(null);
+        Thread replacer = new Thread(() -> {
+            try {
+                for (int k = 0; k < 40; k++) {
+                    Map<String, Map<ResourceType, Long>> a = new HashMap<>();
+                    a.put("a1", bundle(300, 300, 40));
+                    runtime.installContracts(a, "test", "optimal", null);
+                }
+            } catch (Throwable t) {
+                failure.set(t);
+            }
+        });
+        replacer.start();
+        for (int k = 0; k < 200; k++) {
+            ExecutionContext ctx = runtime.createExecutionContext("a1", slots(type));
+            ctx.invokeService(type, Map.of("prompt", "x"));
+        }
+        replacer.join(5000);
+
+        assertNull(failure.get(), "no exception during concurrent replacement");
+        ConsumptionLedger current = runtime.getSnapshot().getLedger("a1");
+        assertTrue(current.getConsumed(ResourceType.API_CREDITS) <= 40L,
+            "no ledger version exceeds its contract bundle");
+    }
+
+    @Test
     void duplicateIdenticalCallsAreEachChargedSeparately() {
         ServiceType type = ServiceType.TEXT_GENERATION;
         ServiceRegistry registry = registryWith(type, 8);

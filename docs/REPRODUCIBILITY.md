@@ -46,7 +46,11 @@ run only when `SOLVER_PYTHON` points at an interpreter with cvxpy/clarabel.
 ## Experiments
 
     mvn -o -q dependency:build-classpath -Dmdep.outputFile=cp.txt
-    cd experiments/platform_mediation && python3 run_sweep.py --full
+    cd experiments/platform_mediation
+    python3 run_sweep.py --full
+    python3 make_headline.py && python3 make_memo.py && python3 figures.py
+    python3 make_test_report.py && python3 make_manifest.py
+    python3 check_consistency.py --with-manifest
     cd ../enforcement && python3 run_enforcement.py --reps 100
     cd ../dynamic_allocation && python3 run_dynamic.py --full
 

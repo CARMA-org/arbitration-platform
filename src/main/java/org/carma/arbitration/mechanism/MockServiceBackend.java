@@ -215,8 +215,7 @@ public class MockServiceBackend implements ServiceBackend {
             return ServiceBackend.InvocationResult.failure("No handler for service type: " + type, 0);
         }
 
-        // Check availability
-        if (!service.isAvailable()) {
+        if (!service.isEnabled()) {
             return ServiceBackend.InvocationResult.failure("Service unavailable: " + serviceId, 0);
         }
 

@@ -196,6 +196,10 @@ public class AIService {
         return available && getAvailableCapacity() > 0;
     }
 
+    public boolean isEnabled() {
+        return available;
+    }
+
     public QoSParameters getQos() {
         return qos;
     }

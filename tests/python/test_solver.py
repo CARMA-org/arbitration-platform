@@ -118,6 +118,29 @@ def test_leontief_balanced_bundle():
     assert A[1] >= 50.0 - 0.5
 
 
+def test_cobb_douglas_joint_equals_decomposed_per_resource():
+    rng = np.random.default_rng(11)
+    for _ in range(12):
+        n, m = 4, 4
+        W = rng.uniform(0.05, 1.0, (n, m))
+        W = W / W.sum(axis=1, keepdims=True)
+        c = rng.uniform(1.0, 5.0, n)
+        Q = rng.uniform(40.0, 120.0, m)
+        data = dict(n_agents=n, n_resources=m, preferences=W.tolist(),
+                    priority_weights=c.tolist(), capacities=Q.tolist(),
+                    minimums=[[0.0] * m for _ in range(n)],
+                    ideals=[[1e6] * m for _ in range(n)],
+                    utility_configs=[{"type": "COBB_DOUGLAS"}] * n)
+        r = js.solve_joint_allocation(data)
+        assert r["status"] == "optimal"
+        A = np.array(r["allocations"])
+        decomposed = np.zeros((n, m))
+        for j in range(m):
+            score = c * W[:, j]
+            decomposed[:, j] = Q[j] * score / score.sum()
+        assert np.allclose(A, decomposed, atol=1e-3, rtol=1e-3)
+
+
 def test_leontief_allows_zero_requirement_and_skips_it():
     data = dict(n_agents=1, n_resources=3, preferences=[[1.0, 1.0, 1.0]],
                 priority_weights=[1.0], capacities=[100.0, 100.0, 100.0],

@@ -20,13 +20,13 @@ a separate scholarly publication. Known limitations of the current code:
 
 ## Runtime paths
 
-- The default Java runtime path (`ConvexJointArbitrator`) performs **continuous joint
-  linear** optimization by shelling out to the Python solver; it does not send nonlinear
-  utility configs. Nonlinear models are exercised through the Python solver directly and
-  the experiment harness.
-- `ConvexJointArbitrator` no longer falls back silently. Fallback to the per-resource
-  sequential allocator must be explicitly enabled; when enabled the result message names
-  both the requested and the actual model.
+- A registered agent's utility declaration (linear, Cobb–Douglas, CES, Leontief) and its
+  declared minimum and upper bounds are carried through the runtime into the arbitration
+  model and the solver input; the runtime does not regenerate declarations from service
+  defaults when explicit declarations are present.
+- `ConvexJointArbitrator` shells out to the Python solver under a hard timeout and does not
+  fall back silently. Fallback to the per-resource sequential allocator must be explicitly
+  enabled; when enabled the result message names both the requested and the actual model.
 - The bundled JSON parsing in the Java caller is minimal and intended only for the
   solver's own output format.
 
@@ -40,9 +40,13 @@ a separate scholarly publication. Known limitations of the current code:
 ## Experiments
 
 - Experiment scale is documented per run (`--smoke` vs full) in
-  `EXPERIMENT_MANIFEST.json`. Results are seed-deterministic but reflect the specific
-  instance generators in `experiments/joint_allocation/lib/generators.py`, not any
-  external dataset.
-- Comparator tuning (the single global `gamma`) is done on training seeds and evaluated
-  on disjoint test seeds. The per-cell upper envelope over the `gamma` family is an
-  oracle sensitivity bound, not an achievable rule.
+  `EXPERIMENT_MANIFEST.json`. Results are seed-deterministic and reflect the specific
+  synthetic task and latency models, not any external dataset. Task outputs are mock and
+  latency is a budget of service constants reported as latency-budget completion.
+- The primary experiment uses two workload compositions (`homogeneous`, `mixed_bundle`)
+  and two contention levels. The appendix separable `gamma` is tuned on calibration seeds
+  against declared linear welfare, not completion.
+- The dynamic experiment is an appendix allocation-policy simulation. It uses an
+  agent-targeted event schedule and verifies commitment floors against the installed
+  discrete allocation, but it does not drive the runtime clock and is not a runtime-timing
+  validation.

@@ -32,3 +32,6 @@ jobs:
         env:
           SOLVER_PYTHON: python
         run: mvn -B test
+
+      - name: Results/documentation consistency
+        run: python experiments/platform_mediation/check_consistency.py --with-manifest

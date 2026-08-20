@@ -15,8 +15,9 @@ representation affects the amount of completed bundle-structured work.
 - Bounded multi-resource pool (compute, memory, API credits, dataset units).
 - Per-agent utility declarations: linear, Cobb–Douglas, CES, and Leontief.
 - Joint allocation over the full agent-by-resource matrix via a convex program
-  (Python/cvxpy/Clarabel), plus comparison rules: equal quotas, Dominant
-  Resource Fairness, and a tuned separable water-filling family.
+  (Python/cvxpy/Clarabel), plus comparison rules: equal quotas, standard Dominant
+  Resource Fairness on the mandatory-demand vector, and an exact decomposed
+  Cobb–Douglas comparator.
 - Versioned allocation contracts with a shared per-contract consumption ledger,
   enforced by the runtime under a monotonic epoch and an injectable clock.
 - Controlled synthetic experiments comparing utility representations and
@@ -95,7 +96,11 @@ experiment's `results/`, `tables/`, and `figures/` directories.
 | Leontief | requirement vector `r_j ≥ 0`, at least one positive | `min_{j: r_j>0} a_j / r_j` |
 
 Unsupported family names are rejected at validation rather than replaced by a
-linear surrogate. See `docs/MODEL_SUPPORT.md`.
+linear surrogate. See `docs/MODEL_SUPPORT.md`. Linear and CES (`ρ = 0.5`) treat
+resources as substitutes. Under weighted proportional fairness the Cobb–Douglas
+objective separates by resource, so its allocation is reproduced exactly by a
+decomposed per-resource comparator; Leontief retains genuine cross-resource
+coupling in the joint solver.
 
 ## Known limitations
 

@@ -14,13 +14,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIG = os.path.join(HERE, "figures")
 
 COLOR = {
-    "equal": "#009E73", "drf": "#CC79A7", "separable": "#0072B2",
+    "equal": "#009E73", "drf": "#CC79A7", "decomposed_cobb_douglas": "#0072B2",
     "joint_linear": "#D55E00", "joint_cobb_douglas": "#E69F00",
     "joint_ces": "#56B4E9", "joint_leontief": "#000000",
 }
-POLICY_ORDER = ["equal", "drf", "separable", "joint_linear",
+POLICY_ORDER = ["equal", "drf", "decomposed_cobb_douglas", "joint_linear",
                 "joint_cobb_douglas", "joint_ces", "joint_leontief"]
-CELL_ORDER = ["identical", "nearly_specialized", "broad_heterogeneous", "complementary"]
+CELL_ORDER = ["homogeneous", "mixed_bundle"]
 
 
 def load_runs():
@@ -56,8 +56,7 @@ def cells_sorted(rows):
 
 def short(cell):
     reg, con = cell.rsplit("__", 1)
-    abbr = {"identical": "id", "nearly_specialized": "spec",
-            "broad_heterogeneous": "broad", "complementary": "comp"}
+    abbr = {"homogeneous": "homo", "mixed_bundle": "mixed"}
     return "%s/%s" % (abbr.get(reg, reg), con[0])
 
 
