@@ -55,10 +55,10 @@ run only when `SOLVER_PYTHON` points at an interpreter with cvxpy/clarabel.
     cd ../dynamic_allocation && python3 run_dynamic.py --full
 
 All randomness flows from each experiment's `lib/seeds.py`, which derives 32-bit
-seeds by hashing string labels with SHA-256. Calibration and test seed sets are
-disjoint, and every policy in a cell sees the same seed and scenario. Each
-experiment writes raw per-run CSVs under `results/raw/`, aggregated tables under
-`tables/`, a summary JSON under `results/`, and figures under `figures/`.
+seeds by hashing string labels with SHA-256. Each seed is an independent workload
+draw, and every policy in a cell-seed sees the same workload and scenario hash.
+Each experiment writes raw per-run CSVs under `results/raw/`, aggregated tables
+under `tables/`, a summary JSON under `results/`, and figures under `figures/`.
 
 The historical v0.9 joint-allocation experiment is preserved under
 `experiments/joint_allocation/` and is reproduced with `python run_all.py`.

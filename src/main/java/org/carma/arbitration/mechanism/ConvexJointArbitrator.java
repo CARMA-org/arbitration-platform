@@ -121,8 +121,6 @@ public class ConvexJointArbitrator implements JointArbitrator {
         
         long startTime = System.currentTimeMillis();
         
-        // CRITICAL FIX: Use SORTED resource list for deterministic ordering
-        // Sort by enum ordinal to guarantee same order every time
         List<ResourceType> resources = pool.getTotalCapacity().keySet().stream()
             .sorted(Comparator.comparingInt(ResourceType::ordinal))
             .collect(Collectors.toList());

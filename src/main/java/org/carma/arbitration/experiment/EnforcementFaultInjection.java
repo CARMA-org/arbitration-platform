@@ -10,24 +10,26 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Adversarial fault-injection against the canonical runtime.
- *
- * Each case exercises one attack or fault and measures six invariants that must
- * all remain zero: backend invocations after a denial, agent-quota violations,
- * aggregate-capacity violations, partial deductions after a denial, silent policy
- * fallbacks, and incorrect success statuses. Results are emitted as a JSON report
- * on stdout.
- *
- * Args: [solverPython] [malformedSolverScript] [slowSolverScript] [reps]
- */
 public class EnforcementFaultInjection {
 
     static final class Counters {
         int backendAfterDenial, quotaViolations, capacityViolations,
             partialDeductions, silentFallbacks, incorrectSuccess;
+        int trials, operations, expectedSuccesses, observedSuccesses,
+            expectedDenials, observedDenials;
+        boolean singleShot;
 
-        Map<String, Object> toMap() {
+        void denominators(int trials, int operations, int expectedSuccesses, int observedSuccesses) {
+            this.trials = trials;
+            this.operations = operations;
+            this.expectedSuccesses = expectedSuccesses;
+            this.observedSuccesses = observedSuccesses;
+            this.expectedDenials = operations - expectedSuccesses;
+            this.observedDenials = operations - observedSuccesses;
+            this.singleShot = trials <= 1;
+        }
+
+        Map<String, Object> invariantMap() {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("backend_after_denial", backendAfterDenial);
             m.put("quota_violations", quotaViolations);
@@ -37,6 +39,20 @@ public class EnforcementFaultInjection {
             m.put("incorrect_success", incorrectSuccess);
             return m;
         }
+
+        Map<String, Object> toMap() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("trials", trials);
+            m.put("operations", operations);
+            m.put("expected_successes", expectedSuccesses);
+            m.put("observed_successes", observedSuccesses);
+            m.put("expected_denials", expectedDenials);
+            m.put("observed_denials", observedDenials);
+            m.put("single_shot", singleShot);
+            m.putAll(invariantMap());
+            return m;
+        }
+
         void add(Counters c) {
             backendAfterDenial += c.backendAfterDenial;
             quotaViolations += c.quotaViolations;
@@ -98,9 +114,9 @@ public class EnforcementFaultInjection {
         record("one_exhausted_resource", oneExhaustedResource(), totals);
 
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("reps_for_concurrency_cases", reps);
+        out.put("repeated_case_trials", reps);
         out.put("cases", caseReports);
-        out.put("totals", totals.toMap());
+        out.put("totals", totals.invariantMap());
         boolean allZero = totals.backendAfterDenial == 0 && totals.quotaViolations == 0
             && totals.capacityViolations == 0 && totals.partialDeductions == 0
             && totals.silentFallbacks == 0 && totals.incorrectSuccess == 0;
@@ -139,6 +155,7 @@ public class EnforcementFaultInjection {
             else c.incorrectSuccess++;
             if (ctx.getConsumedResource(ResourceType.API_CREDITS) != before) c.partialDeductions++;
         }
+        c.denominators(reps, reps * 2, 0, c.incorrectSuccess);
         return c;
     }
 
@@ -159,7 +176,8 @@ public class EnforcementFaultInjection {
             if (!r.isSuccess() && backendAfter != backendBefore) c.backendAfterDenial++;
         }
         if (ctx.getCharged(ResourceType.API_CREDITS) > alloc.get(ResourceType.API_CREDITS)) c.quotaViolations++;
-        if (ctx.getCharged(ResourceType.API_CREDITS) % 5 != 0) c.partialDeductions++; // whole calls only
+        if (ctx.getCharged(ResourceType.API_CREDITS) % 5 != 0) c.partialDeductions++;
+        c.denominators(1, 20, 2, (int) (ctx.getCharged(ResourceType.API_CREDITS) / 5));
         return c;
     }
 
@@ -191,6 +209,7 @@ public class EnforcementFaultInjection {
         if (ctx.getCharged(ResourceType.API_CREDITS) > credits) c.quotaViolations++;
         if (successes.get() * 5L != ctx.getCharged(ResourceType.API_CREDITS)) c.partialDeductions++;
         if (backend.getInvocationCount() != successes.get()) c.backendAfterDenial++;
+        c.denominators(1, reps * 4, 20, successes.get());
         return c;
     }
 
@@ -213,11 +232,16 @@ public class EnforcementFaultInjection {
         if (ctx.getCharged(ResourceType.COMPUTE) > alloc.get(ResourceType.COMPUTE)) c.quotaViolations++;
         if (ctx.getCharged(ResourceType.API_CREDITS) > alloc.get(ResourceType.API_CREDITS)) c.quotaViolations++;
         if (success != backend.getInvocationCount()) c.backendAfterDenial++;
+        long computePerCall = ServiceType.TEXT_GENERATION.getDefaultResourceRequirements()
+            .get(ResourceType.COMPUTE);
+        int affordable = (int) (alloc.get(ResourceType.COMPUTE) / computePerCall);
+        c.denominators(1, 50, affordable, success);
         return c;
     }
 
     private Counters staleReplay() {
         Counters c = new Counters();
+        int staleAcceptedCount = 0;
         for (int r = 0; r < reps; r++) {
             AgentRuntime runtime = new AgentRuntime.Builder()
                 .serviceArbitrator(new ServiceArbitrator(new PriorityEconomy(), new ServiceRegistry()))
@@ -228,9 +252,10 @@ public class EnforcementFaultInjection {
             runtime.installContract(new AllocationContract("AC5", 5, "a", bundle, 0, null, "p", "optimal"));
             boolean staleAccepted = runtime.installContract(
                 new AllocationContract("AC3", 3, "a", bundle, 0, null, "p", "optimal"));
-            if (staleAccepted) c.incorrectSuccess++;
+            if (staleAccepted) { c.incorrectSuccess++; staleAcceptedCount++; }
             if (runtime.getContract("a").getVersion() != 5) c.incorrectSuccess++;
         }
+        c.denominators(reps, reps, 0, staleAcceptedCount);
         return c;
     }
 
@@ -245,6 +270,7 @@ public class EnforcementFaultInjection {
             new ServiceRegistry().registerComposition(invalid);
             c.incorrectSuccess++; // should have thrown
         } catch (IllegalArgumentException ok) { /* rejected */ }
+        c.denominators(1, 1, 0, c.incorrectSuccess);
         return c;
     }
 
@@ -260,6 +286,7 @@ public class EnforcementFaultInjection {
             new ServiceRegistry().registerComposition(cyclic);
             c.incorrectSuccess++;
         } catch (IllegalArgumentException ok) { /* rejected */ }
+        c.denominators(1, 1, 0, c.incorrectSuccess);
         return c;
     }
 
@@ -291,6 +318,8 @@ public class EnforcementFaultInjection {
             String msg = fb.getMessage();
             if (!(msg.contains("requested=") && msg.contains("actual="))) c.silentFallbacks++;
         }
+        int expectedFallbackSuccess = "hung".equals(kind) ? 1 : 0;
+        c.denominators(1, 2, expectedFallbackSuccess, c.incorrectSuccess + (fb.isFeasible() ? 1 : 0));
         return c;
     }
 
@@ -308,7 +337,8 @@ public class EnforcementFaultInjection {
         Map<String, BigDecimal> burns = new HashMap<>();
         burns.put("a1", BigDecimal.ONE); burns.put("a2", BigDecimal.ONE);
         JointArbitrator.JointAllocationResult r = arb.arbitrate(agents, pool, burns);
-        if (r.isFeasible()) c.incorrectSuccess++;   // 120 minimum > 100 capacity must be infeasible
+        if (r.isFeasible()) c.incorrectSuccess++;
+        c.denominators(1, 1, 0, c.incorrectSuccess);
         return c;
     }
 
@@ -330,6 +360,7 @@ public class EnforcementFaultInjection {
             if (ctx.getCharged(ResourceType.COMPUTE) != 0 || ctx.getCharged(ResourceType.MEMORY) != 0
                 || ctx.getCharged(ResourceType.API_CREDITS) != 0) c.partialDeductions++;
         }
+        c.denominators(reps, reps, 0, c.incorrectSuccess);
         return c;
     }
 

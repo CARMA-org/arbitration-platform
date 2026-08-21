@@ -1,9 +1,11 @@
 # Experiments
 
-Three current experiments run through the canonical Java runtime, plus one
-preserved historical experiment. Seeds are derived deterministically by hashing
-labels with SHA-256; calibration and test seed sets are disjoint, and every
-policy in a cell sees the same seed and scenario.
+The primary and enforcement experiments exercise the canonical Java runtime. The
+dynamic experiment is a secondary solver-level simulation and does not install
+runtime contracts or drive the runtime clock. A historical joint-allocation
+experiment is preserved separately. Seeds are derived deterministically by
+hashing labels with SHA-256; every policy in a cell-seed sees the same workload
+and scenario hash.
 
 ## Platform mediation (`experiments/platform_mediation/`)
 
@@ -13,34 +15,38 @@ computation requires cross-resource coordination.
 
 - Four task archetypes (research, code review, document processing, monitoring),
   each with a mandatory service sequence and an optional refinement sequence.
-- Each agent's declaration primitive is one normalized mandatory-demand vector
-  derived from its exact task queue. Linear weights, Cobb–Douglas exponents, and
-  CES weights all use this same primitive; Leontief uses the mandatory proportions
-  as its requirement vector. Optional refinements are excluded from the primary
-  declaration and reported separately.
-- Two workload compositions: `homogeneous`, in which every agent has the same
-  archetype, demand, bounds, utility parameters, and operator priority (a genuine
-  null); and `mixed_bundle`, in which agents draw from the four archetypes. Each
-  seed builds one scenario, identified by a scenario hash over all
-  allocation-relevant inputs, that every policy reuses unchanged.
+- Each seed is a workload draw: a task queue is a sequence of task types sampled
+  uniformly from the four archetypes. Each agent's declaration primitive is one
+  normalized mandatory-demand vector from its exact sampled queue. Linear weights,
+  Cobb–Douglas exponents, and CES weights all use this same primitive; Leontief
+  uses the mandatory proportions as its requirement vector. Optional refinements
+  are excluded from the primary declaration and reported separately.
+- Two workload compositions: `homogeneous`, in which every agent shares one
+  sampled queue and identical bounds, utility parameters, and operator priority
+  (a symmetry check); and `mixed_bundle`, in which each agent samples
+  independently and a degenerate draw is redrawn. Each seed builds one scenario,
+  identified by a scenario hash over every outcome-relevant field, that every
+  policy reuses unchanged.
 - Two contention levels, moderate (about 1.3) and high (about 1.9); capacities are
   sized from aggregate mandatory demand and realized ratios are recorded.
-- Policies: equal quotas; standard unweighted Dominant Resource Fairness on the
-  mandatory-demand vector; an exact decomposed Cobb–Douglas comparator that solves
-  each resource independently; and joint weighted proportional fairness under
-  linear, Cobb–Douglas, CES (`ρ = 0.5`), and Leontief declarations, all installed
-  and executed through the same runtime contract path. An appendix separable
-  water-filling family is tuned on calibration seeds against declared linear
-  welfare, not completion.
+- Seven policies: equal quotas; standard unweighted Dominant Resource Fairness on
+  the mandatory-demand vector; an exact decomposed Cobb–Douglas comparator that
+  solves each resource independently; and joint weighted proportional fairness
+  under linear, Cobb–Douglas, CES (`ρ = 0.5`), and Leontief declarations. Every
+  policy's matrix is installed and executed through the same runtime contract
+  path.
 - Primary outcomes: task completion rate, minimum and fifth-percentile per-agent
   completion, optional refinement rate, capacity utilization, and allocation
   consumption (these last two are distinct fields). Declared welfare is reported
-  only within a utility family. Latency is a budget of service constants and is
-  labelled latency-budget completion.
-- Analysis: paired seed-level differences with 95% bootstrap confidence intervals
-  per cell and an equally weighted aggregate across the four cells; each joint
-  model minus equal quotas and minus DRF; each nonlinear joint model minus joint
-  linear; decomposed minus joint Cobb–Douglas; and individual-agent harm.
+  only within a utility family; `decomposed_cobb_douglas` is labelled Cobb–Douglas
+  for welfare. Latency is a budget of service constants and is reported per policy.
+- Analysis: paired seed-level differences with 95% bootstrap confidence intervals.
+  Mixed-bundle results are primary, with a stratified paired bootstrap that
+  resamples seeds within each mixed cell and averages the two cell means; the
+  homogeneous composition is reported separately as a symmetry check. The
+  Cobb–Douglas decomposition reports the continuous agreement tolerance, the
+  maximum installed integer difference, and the fraction of agent records that
+  differ.
 
 The headline results file, memo, and figures are generated from the raw CSVs by
 `make_headline.py`, `make_memo.py`, and `figures.py`; `check_consistency.py`

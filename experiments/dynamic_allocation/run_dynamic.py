@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""Dynamic allocation experiment (appendix, allocation-policy simulation).
+"""Dynamic allocation experiment (appendix, solver-level simulation).
 
 Repeated allocation epochs over a prebuilt, agent-targeted event schedule
-(arrivals, departures, preference changes, a capacity loss and restoration, and
-lease expirations) comparing four commitment policies: unrestricted
-reoptimization, permanent accepted-utility floors, time-limited leases, and
-leases with proportional shortfall. Floors are lower bounds on declared linear
-utility taken from the installed discrete allocation and verified after integer
-rounding. Outcomes are operational (admissions, waiting, commitment
-infeasibility, discrete floor violations, churn, incumbent utility change). This
-is a solver-level simulation; it does not drive the runtime clock and is not a
-runtime-timing validation.
+comparing four commitment policies: unrestricted reoptimization, permanent
+accepted-utility floors, time-limited leases, and leases with proportional
+shortfall. Continuous solutions are converted to integers with the same
+capacity-preserving rounding the platform uses. Promised and solver floor maps
+are kept separately, and floors are audited against the rounded allocation. This
+is a solver-level simulation: it does not install runtime contracts or drive the
+runtime clock.
 """
 import argparse
 import csv
+import hashlib
 import json
 import os
 import sys
@@ -28,14 +27,16 @@ sys.path.insert(0, os.path.join(ROOT, "experiments", "platform_mediation"))
 
 import joint_solver  # noqa: E402
 from lib import archetypes  # noqa: E402
+from lib.capacity_rounding import capacity_preserving_round  # noqa: E402
 from lib.seeds import derive_seed  # noqa: E402
 
 RESOURCES = archetypes.RESOURCES
 POLICIES = ["reoptimize", "permanent_floors", "leases", "leases_shortfall"]
-ARCS = ["research", "code_review", "doc_processing", "monitoring"]
+TASK_TYPES = ["research", "code_review", "doc_processing", "monitoring"]
 LEASE_LEN = 10
 CAP_LOSS = 0.30
 PRIORITY_TIERS = [1.0, 2.0, 4.0]
+FLOOR_TOL = 1e-6
 
 CFG = {
     "smoke": {"n_pool": 8, "n_base": 4, "epochs": 20, "seeds": 5, "tasks_per_agent": 4},
@@ -43,32 +44,37 @@ CFG = {
 }
 
 
-def normalized_mandatory(arc):
-    fp = archetypes.archetype_footprint(arc, include_optional=False)
-    total = sum(fp[r] for r in RESOURCES)
-    return [fp[r] / total if total > 0 else 0.0 for r in RESOURCES]
+def sample_task_types(tpa, *parts):
+    return [TASK_TYPES[derive_seed(*parts, "task", k) % len(TASK_TYPES)] for k in range(tpa)]
+
+
+def profile_from_types(task_types):
+    mand = {r: 0 for r in RESOURCES}
+    for tt in task_types:
+        fp = archetypes.archetype_footprint(tt, include_optional=False)
+        for r in RESOURCES:
+            mand[r] += fp[r]
+    total = sum(mand[r] for r in RESOURCES)
+    prefs = [mand[r] / total if total > 0 else 0.0 for r in RESOURCES]
+    used = [mand[r] > 0 for r in RESOURCES]
+    return {"task_types": task_types, "mand": [mand[r] for r in RESOURCES],
+            "prefs": prefs, "used": used}
 
 
 def build_pool(seed, cfg):
     pool = []
     for i in range(cfg["n_pool"]):
-        arc = ARCS[i % len(ARCS)]
-        w = normalized_mandatory(arc)
-        pool.append({
-            "id": "a%d" % i, "archetype": arc, "arc_index": i % len(ARCS),
-            "prefs": w,
-            "used": [w[j] > 0 for j in range(len(RESOURCES))],
-            "priority": PRIORITY_TIERS[derive_seed("dyn_prio", seed, i) % len(PRIORITY_TIERS)],
-            "mand": [cfg["tasks_per_agent"] * archetypes.archetype_footprint(arc, include_optional=False)[r]
-                     for r in RESOURCES],
-        })
+        tt = sample_task_types(cfg["tasks_per_agent"], "dyn_pool", seed, i)
+        prof = profile_from_types(tt)
+        pool.append({"id": "a%d" % i, "profile": prof,
+                     "priority": PRIORITY_TIERS[derive_seed("dyn_prio", seed, i) % len(PRIORITY_TIERS)]})
     return pool
 
 
-def base_capacities(pool, base_idx, cfg):
+def base_capacities(pool, base_idx):
     caps = {}
     for j, r in enumerate(RESOURCES):
-        dem = sum(pool[i]["mand"][j] for i in base_idx)
+        dem = sum(pool[i]["profile"]["mand"][j] for i in base_idx)
         caps[r] = max(1, int(round(1.15 * dem)))
     return caps
 
@@ -82,53 +88,49 @@ def event_schedule(seed, cfg):
     events[cr].append({"type": "capacity_restore"})
     slots = [e for e in range(1, epochs) if e not in (cl, cr)]
     rng.shuffle(slots)
-    cursor = 0
+    cursor = [0]
 
     def take():
-        nonlocal cursor
-        e = slots[cursor % len(slots)]
-        cursor += 1
+        e = slots[cursor[0] % len(slots)]
+        cursor[0] += 1
         return e
 
     for agent in range(cfg["n_base"], cfg["n_pool"]):
         events[take()].append({"type": "arrival", "agent": agent})
-    n_dep = max(1, epochs // 12)
-    dep_agents = list(rng.choice(range(cfg["n_base"]), size=min(n_dep, cfg["n_base"]), replace=False))
-    for agent in dep_agents:
+    for agent in rng.choice(range(cfg["n_base"]), size=min(max(1, epochs // 12), cfg["n_base"]),
+                            replace=False):
         events[take()].append({"type": "departure", "agent": int(agent)})
-    n_pref = max(1, epochs // 8)
-    pref_agents = list(rng.choice(range(cfg["n_pool"]), size=min(n_pref, cfg["n_pool"]), replace=False))
-    for agent in pref_agents:
+    for agent in rng.choice(range(cfg["n_pool"]), size=min(max(1, epochs // 8), cfg["n_pool"]),
+                            replace=False):
         events[take()].append({"type": "preference_change", "agent": int(agent)})
-    return events
+    schedule_hash = hashlib.sha256(
+        json.dumps(events, sort_keys=True).encode()).hexdigest()[:16]
+    return events, schedule_hash
 
 
-def solve(pool, active, caps, prefs_override, floors):
+def solve(active, caps, profiles, solver_floors):
     n, m = len(active), len(RESOURCES)
-    W = [prefs_override.get(i, pool[i]["prefs"]) for i in active]
-    c = [10.0 + pool[i]["priority"] for i in active]
+    W = [profiles[i]["prefs"] for i in active]
+    c = [10.0 + profiles[i]["priority"] for i in active]
     Q = [caps[r] for r in RESOURCES]
-    mins = [[1 if pool[i]["used"][j] else 0 for j in range(m)] for i in active]
-    ideals = [[int(round(caps[RESOURCES[j]] * 0.55)) if pool[i]["used"][j] else 0
+    mins = [[1 if profiles[i]["used"][j] else 0 for j in range(m)] for i in active]
+    ideals = [[int(round(caps[RESOURCES[j]] * 0.55)) if profiles[i]["used"][j] else 0
                for j in range(m)] for i in active]
     data = {"n_agents": n, "n_resources": m, "preferences": W, "priority_weights": c,
             "capacities": Q, "minimums": mins, "ideals": ideals}
-    fl = [floors.get(i) for i in active]
+    fl = [solver_floors.get(i) for i in active]
     if any(f is not None for f in fl):
         data["utility_floors"] = fl
-    return joint_solver.solve_joint_allocation(data), W, mins, ideals
+    res = joint_solver.solve_joint_allocation(data)
+    return res, W, mins, ideals, Q
 
 
-def discrete_utilities(alloc, W):
-    return [float(np.dot(W[k], alloc[k])) for k in range(len(alloc))]
-
-
-def proportional_shortfall(pool, active, caps, prefs_override, floors, iters=20):
+def proportional_shortfall(active, caps, profiles, promised, iters=22):
     lo, hi = 0.0, 1.0
     for _ in range(iters):
         mid = (lo + hi) / 2
-        scaled = {i: floors[i] * mid for i in floors}
-        res, _, _, _ = solve(pool, active, caps, prefs_override, scaled)
+        scaled = {i: promised[i] * mid for i in promised}
+        res, _, _, _, _ = solve(active, caps, profiles, scaled)
         if res["status"] in ("optimal", "optimal_inaccurate"):
             lo = mid
         else:
@@ -136,168 +138,219 @@ def proportional_shortfall(pool, active, caps, prefs_override, floors, iters=20)
     return lo
 
 
-def simulate_policy(policy, pool, cfg, events):
+def discrete_utils(alloc, W):
+    return [float(np.dot(W[k], alloc[k])) for k in range(len(alloc))]
+
+
+def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer):
     m = len(RESOURCES)
+    profiles = {i: dict(pool[i]["profile"], priority=pool[i]["priority"]) for i in range(cfg["n_pool"])}
+    for i in profiles:
+        profiles[i]["priority"] = pool[i]["priority"]
     base_idx = list(range(cfg["n_base"]))
     active = list(base_idx)
     arrived = set()
     pending = []
-    base_caps = base_capacities(pool, base_idx, cfg)
+    base_caps = base_capacities(pool, base_idx)
     caps = dict(base_caps)
-    prefs_override = {}
-    floors = {}
+    promised = {}
+    solver_floors = {}
     lease_expiry = {}
     prev_util = {}
     prev_alloc = {}
-    arrival_epoch = {}
     waiting_time = {}
+    just_changed = set()
 
-    metrics = {"admissions": 0, "noop_events": 0, "commitment_infeasibility": 0,
-               "floor_violations": 0, "floor_shortfall": 0.0, "lease_expiries": 0,
-               "capacity_violations": 0, "shortfall_epochs": 0, "shortfall_scale_sum": 0.0,
-               "churn_frac_sum": 0.0, "binding_sum": 0, "incumbent_change_sum": 0.0,
-               "incumbent_change_count": 0, "worst_incumbent_loss": 0.0, "epochs": cfg["epochs"]}
+    agg = defaultdict_counters()
 
     for e in range(cfg["epochs"]):
+        just_changed = set()
+        applied_events = []
         for ev in events[e]:
             typ = ev["type"]
             if typ == "capacity_loss":
                 caps = {r: max(1, int(round(base_caps[r] * (1 - CAP_LOSS)))) for r in RESOURCES}
+                applied_events.append(ev)
             elif typ == "capacity_restore":
                 caps = dict(base_caps)
+                applied_events.append(ev)
             elif typ == "arrival":
-                agent = ev["agent"]
-                if agent not in active and agent not in pending and agent not in arrived:
-                    pending.append(agent)
-                    arrival_epoch[agent] = e
-                    waiting_time[agent] = 0
+                a = ev["agent"]
+                if a not in active and a not in pending and a not in arrived:
+                    pending.append(a)
+                    waiting_time[a] = 0
+                    applied_events.append(ev)
                 else:
-                    metrics["noop_events"] += 1
+                    agg["noop_events"] += 1
             elif typ == "departure":
-                agent = ev["agent"]
-                if agent in active and len(active) > 1:
-                    active = [x for x in active if x != agent]
-                    floors.pop(agent, None)
-                    lease_expiry.pop(agent, None)
-                    prev_util.pop(agent, None)
-                    prev_alloc.pop(agent, None)
+                a = ev["agent"]
+                if a in active and len(active) > 1:
+                    active = [x for x in active if x != a]
+                    promised.pop(a, None); solver_floors.pop(a, None)
+                    lease_expiry.pop(a, None); prev_util.pop(a, None); prev_alloc.pop(a, None)
+                    applied_events.append(ev)
                 else:
-                    metrics["noop_events"] += 1
+                    agg["noop_events"] += 1
             elif typ == "preference_change":
-                agent = ev["agent"]
-                if agent in active:
-                    alt = ARCS[(pool[agent]["arc_index"] + 1) % len(ARCS)]
-                    prefs_override[agent] = normalized_mandatory(alt)
-                    floors.pop(agent, None)
-                    lease_expiry.pop(agent, None)
+                a = ev["agent"]
+                if a in active:
+                    new_types = sample_task_types(cfg["tasks_per_agent"], "dyn_prefchange", seed, e, a)
+                    prof = profile_from_types(new_types)
+                    prof["priority"] = pool[a]["priority"]
+                    profiles[a] = prof
+                    promised.pop(a, None); solver_floors.pop(a, None); lease_expiry.pop(a, None)
+                    just_changed.add(a)
+                    applied_events.append(ev)
                 else:
-                    metrics["noop_events"] += 1
+                    agg["noop_events"] += 1
 
         for i in list(lease_expiry.keys()):
             if lease_expiry[i] <= e and i in active:
-                metrics["lease_expiries"] += 1
+                agg["lease_expiries"] += 1
 
-        active_floors = {}
+        active_solver_floors = {}
+        active_promised = {}
         if policy != "reoptimize":
             for i in active:
-                if i in floors and (policy == "permanent_floors" or lease_expiry.get(i, 0) > e):
-                    active_floors[i] = floors[i]
+                if i in promised and (policy == "permanent_floors" or lease_expiry.get(i, 0) > e):
+                    active_promised[i] = promised[i]
+                    active_solver_floors[i] = solver_floors[i]
 
-        res, W, mins, ideals = solve(pool, active, caps, prefs_override, active_floors)
+        res, W, mins, ideals, Q = solve(active, caps, profiles, active_solver_floors)
         infeasible = res["status"] not in ("optimal", "optimal_inaccurate")
-        if infeasible and active_floors:
-            metrics["commitment_infeasibility"] += 1
+        fallback_required = False
+        shortfall_scale = 1.0
+        if infeasible and active_promised:
+            agg["infeasible_floor_epochs"] += 1
             if policy == "leases_shortfall":
-                s = proportional_shortfall(pool, active, caps, prefs_override, active_floors)
-                metrics["shortfall_epochs"] += 1
-                metrics["shortfall_scale_sum"] += s
-                scaled = {i: active_floors[i] * s for i in active_floors}
-                res, W, mins, ideals = solve(pool, active, caps, prefs_override, scaled)
-                active_floors = scaled
+                shortfall_scale = proportional_shortfall(active, caps, profiles, active_promised)
+                agg["shortfall_epochs"] += 1
+                agg["shortfall_scale_sum"] += shortfall_scale
+                scaled = {i: active_promised[i] * shortfall_scale for i in active_promised}
+                res, W, mins, ideals, Q = solve(active, caps, profiles, scaled)
+                active_solver_floors = scaled
             if res["status"] not in ("optimal", "optimal_inaccurate"):
-                res, W, mins, ideals = solve(pool, active, caps, prefs_override, {})
-                active_floors = {}
+                res, W, mins, ideals, Q = solve(active, caps, profiles, {})
+                active_solver_floors = {}
+                fallback_required = True
 
-        alloc = np.floor(np.maximum(np.asarray(res["allocations"], float), 0)).astype(int)
+        cont = [[max(0.0, v) for v in row] for row in res["allocations"]]
+        disc = capacity_preserving_round(cont, mins, ideals, Q)
 
         admitted_now = []
         for cand in list(pending):
             trial = active + [cand]
-            tres, tW, tmins, tideals = solve(pool, trial, caps, prefs_override, active_floors)
+            tres, tW, tmins, tideals, tQ = solve(trial, caps, profiles, active_solver_floors)
             if tres["status"] in ("optimal", "optimal_inaccurate"):
                 active = trial
-                admitted_now.append(cand)
-                arrived.add(cand)
-                metrics["admissions"] += 1
-                res, W, mins, ideals = tres, tW, tmins, tideals
-                alloc = np.floor(np.maximum(np.asarray(res["allocations"], float), 0)).astype(int)
+                admitted_now.append(cand); arrived.add(cand)
+                agg["admissions"] += 1
+                res, W, mins, ideals, Q = tres, tW, tmins, tideals, tQ
+                cont = [[max(0.0, v) for v in row] for row in res["allocations"]]
+                disc = capacity_preserving_round(cont, mins, ideals, Q)
             else:
                 waiting_time[cand] = waiting_time.get(cand, 0) + 1
         for cand in admitted_now:
             pending.remove(cand)
 
-        util = discrete_utilities(alloc, W)
+        util = discrete_utils(disc, W)
+        per_agent_shortfall = {}
+        for k, i in enumerate(active):
+            agg["active_floor_denominator"] += 1 if i in active_promised else 0
+            if i in active_promised:
+                agg["protected_agent_epochs"] += 1
+                shortfall = active_promised[i] - util[k]
+                if shortfall > FLOOR_TOL:
+                    agg["floor_violations"] += 1
+                    agg["floor_shortfall_total"] += shortfall
+                    per_agent_shortfall[pool[i]["id"]] = shortfall
+                if policy == "leases_shortfall" and shortfall_scale < 1.0:
+                    scaled_short = active_promised[i] * shortfall_scale - util[k]
+                    if scaled_short > FLOOR_TOL:
+                        agg["scaled_floor_shortfall_total"] += scaled_short
+        if active_promised:
+            agg["active_floor_epochs"] += 1
 
         for k, i in enumerate(active):
-            if i in active_floors and util[k] < active_floors[i] - 1e-6:
-                metrics["floor_violations"] += 1
-                metrics["floor_shortfall"] += float(active_floors[i] - util[k])
-
-        for k, i in enumerate(active):
-            if i in prev_util:
+            if i in prev_util and i not in just_changed and i in prev_alloc:
                 change = util[k] - prev_util[i]
-                metrics["incumbent_change_sum"] += change
-                metrics["incumbent_change_count"] += 1
-                metrics["worst_incumbent_loss"] = min(metrics["worst_incumbent_loss"], change)
+                agg["incumbent_change_sum"] += change
+                agg["incumbent_change_count"] += 1
+                agg["worst_incumbent_loss"] = min(agg["worst_incumbent_loss"], change)
 
         totalcap = sum(caps[r] for r in RESOURCES)
         churn = 0
         for k, i in enumerate(active):
-            prev = prev_alloc.get(i, np.zeros(m, int))
-            churn += int(np.abs(alloc[k] - prev).sum())
-        metrics["churn_frac_sum"] += churn / totalcap if totalcap else 0.0
+            prev = prev_alloc.get(i, [0] * m)
+            churn += sum(abs(disc[k][j] - prev[j]) for j in range(m))
+        agg["churn_frac_sum"] += churn / totalcap if totalcap else 0.0
 
-        for k, i in enumerate(active):
-            if i in active_floors and abs(util[k] - active_floors[i]) <= 1e-3 * max(1.0, active_floors[i]):
-                metrics["binding_sum"] += 1
-
+        cap_viol = 0
         for j in range(m):
-            if alloc[:, j].sum() > caps[RESOURCES[j]]:
-                metrics["capacity_violations"] += 1
+            if sum(disc[k][j] for k in range(len(active))) > caps[RESOURCES[j]]:
+                cap_viol = 1
+        agg["capacity_violations"] += cap_viol
 
         for k, i in enumerate(active):
-            if i not in floors and policy != "reoptimize":
-                floors[i] = util[k]
+            if i not in promised and policy != "reoptimize":
+                promised[i] = util[k]; solver_floors[i] = util[k]
                 if policy in ("leases", "leases_shortfall"):
                     lease_expiry[i] = e + LEASE_LEN
-            elif policy in ("leases", "leases_shortfall") and lease_expiry.get(i, 0) <= e and i in floors:
-                floors[i] = util[k]
+            elif policy in ("leases", "leases_shortfall") and lease_expiry.get(i, 0) <= e and i in promised:
+                promised[i] = util[k]; solver_floors[i] = util[k]
                 lease_expiry[i] = e + LEASE_LEN
             prev_util[i] = util[k]
-            prev_alloc[i] = alloc[k]
+            prev_alloc[i] = disc[k]
 
-    entrant_wait = [waiting_time[a] for a in waiting_time]
-    row = {
-        "policy": policy,
-        "admissions": metrics["admissions"],
-        "entrants_offered": cfg["n_pool"] - cfg["n_base"],
-        "mean_waiting_time": float(np.mean(entrant_wait)) if entrant_wait else 0.0,
-        "commitment_infeasibility": metrics["commitment_infeasibility"],
-        "floor_violations": metrics["floor_violations"],
-        "floor_shortfall_total": metrics["floor_shortfall"],
-        "lease_expiries": metrics["lease_expiries"],
-        "mean_churn_frac": metrics["churn_frac_sum"] / metrics["epochs"],
-        "binding_commitments": metrics["binding_sum"],
-        "mean_incumbent_utility_change": (metrics["incumbent_change_sum"] / metrics["incumbent_change_count"]
-                                          if metrics["incumbent_change_count"] else 0.0),
-        "worst_incumbent_loss": metrics["worst_incumbent_loss"],
-        "shortfall_epochs": metrics["shortfall_epochs"],
-        "mean_shortfall_scale": (metrics["shortfall_scale_sum"] / metrics["shortfall_epochs"]
-                                 if metrics["shortfall_epochs"] else 1.0),
-        "noop_events": metrics["noop_events"],
-        "capacity_violations": metrics["capacity_violations"],
-    }
+        epoch_writer({
+            "seed": seed, "schedule_hash": schedule_hash, "epoch": e, "policy": policy,
+            "events": json.dumps(applied_events),
+            "active": json.dumps([pool[i]["id"] for i in active]),
+            "pending": json.dumps([pool[i]["id"] for i in pending]),
+            "caps": json.dumps([caps[r] for r in RESOURCES]),
+            "promised_floors": json.dumps({pool[i]["id"]: round(active_promised[i], 4) for i in active_promised}),
+            "solver_floors": json.dumps({pool[i]["id"]: round(active_solver_floors[i], 4) for i in active_solver_floors}),
+            "solver_status": res["status"], "fallback_required": int(fallback_required),
+            "shortfall_scale": round(shortfall_scale, 5),
+            "continuous_alloc": json.dumps([[round(v, 3) for v in row] for row in cont]),
+            "discrete_alloc": json.dumps(disc),
+            "achieved_utils": json.dumps([round(u, 4) for u in util]),
+            "floor_shortfall": json.dumps({k2: round(v, 4) for k2, v in per_agent_shortfall.items()}),
+            "capacity_violation": cap_viol,
+        })
+
+    waits = [waiting_time[a] for a in waiting_time]
+    row = {"seed": seed, "policy": policy, "schedule_hash": schedule_hash,
+           "admissions": agg["admissions"], "entrants_offered": cfg["n_pool"] - cfg["n_base"],
+           "mean_waiting_time": float(np.mean(waits)) if waits else 0.0,
+           "protected_agent_epochs": agg["protected_agent_epochs"],
+           "active_floor_epochs": agg["active_floor_epochs"],
+           "infeasible_floor_epochs": agg["infeasible_floor_epochs"],
+           "discrete_floor_violations": agg["floor_violations"],
+           "floor_shortfall_total": agg["floor_shortfall_total"],
+           "scaled_floor_shortfall_total": agg["scaled_floor_shortfall_total"],
+           "mean_floor_shortfall": (agg["floor_shortfall_total"] / agg["floor_violations"]
+                                    if agg["floor_violations"] else 0.0),
+           "lease_expiries": agg["lease_expiries"],
+           "mean_churn_frac": agg["churn_frac_sum"] / cfg["epochs"],
+           "mean_incumbent_utility_change": (agg["incumbent_change_sum"] / agg["incumbent_change_count"]
+                                             if agg["incumbent_change_count"] else 0.0),
+           "worst_incumbent_loss": agg["worst_incumbent_loss"],
+           "shortfall_epochs": agg["shortfall_epochs"],
+           "mean_shortfall_scale": (agg["shortfall_scale_sum"] / agg["shortfall_epochs"]
+                                    if agg["shortfall_epochs"] else 1.0),
+           "noop_events": agg["noop_events"], "capacity_violations": agg["capacity_violations"]}
     return row
+
+
+def defaultdict_counters():
+    return {"admissions": 0, "noop_events": 0, "infeasible_floor_epochs": 0,
+            "floor_violations": 0, "floor_shortfall_total": 0.0,
+            "scaled_floor_shortfall_total": 0.0, "lease_expiries": 0,
+            "capacity_violations": 0, "shortfall_epochs": 0, "shortfall_scale_sum": 0.0,
+            "churn_frac_sum": 0.0, "incumbent_change_sum": 0.0, "incumbent_change_count": 0,
+            "worst_incumbent_loss": 0.0, "protected_agent_epochs": 0,
+            "active_floor_epochs": 0, "active_floor_denominator": 0}
 
 
 def main():
@@ -324,29 +377,34 @@ def main():
       (mode, cfg["seeds"], cfg["epochs"]))
     seeds = [derive_seed("dynamic_seed", i) for i in range(cfg["seeds"])]
 
+    epoch_fields = ["seed", "schedule_hash", "epoch", "policy", "events", "active", "pending",
+                    "caps", "promised_floors", "solver_floors", "solver_status",
+                    "fallback_required", "shortfall_scale", "continuous_alloc", "discrete_alloc",
+                    "achieved_utils", "floor_shortfall", "capacity_violation"]
+    epoch_path = os.path.join(HERE, "results", "raw", "epochs_%s.csv" % mode)
+    epoch_file = open(epoch_path, "w", newline="")
+    epoch_csv = csv.DictWriter(epoch_file, fieldnames=epoch_fields)
+    epoch_csv.writeheader()
+
     policy_rows = []
-    fields = ["seed", "policy", "admissions", "entrants_offered", "mean_waiting_time",
-              "commitment_infeasibility", "floor_violations", "floor_shortfall_total",
-              "lease_expiries", "mean_churn_frac", "binding_commitments",
-              "mean_incumbent_utility_change", "worst_incumbent_loss", "shortfall_epochs",
-              "mean_shortfall_scale", "noop_events", "capacity_violations"]
     for si, seed in enumerate(seeds):
         pool = build_pool(seed, cfg)
-        events = event_schedule(seed, cfg)
+        events, schedule_hash = event_schedule(seed, cfg)
         for policy in POLICIES:
-            row = simulate_policy(policy, pool, cfg, events)
-            row = {"seed": seed, **row}
+            row = simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_csv.writerow)
             policy_rows.append(row)
         if (si + 1) % max(1, cfg["seeds"] // 10) == 0:
             L("  completed %d/%d seeds" % (si + 1, cfg["seeds"]))
+    epoch_file.close()
 
+    fields = list(policy_rows[0].keys())
     with open(os.path.join(HERE, "results", "raw", "policy_seed_%s.csv" % mode), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(policy_rows)
 
     agg = []
-    metric_keys = [k for k in fields if k not in ("seed", "policy", "entrants_offered")]
+    metric_keys = [k for k in fields if k not in ("seed", "policy", "schedule_hash", "entrants_offered")]
     for policy in POLICIES:
         rows = [r for r in policy_rows if r["policy"] == policy]
         rec = {"policy": policy, "n_seeds": len(rows)}
@@ -359,17 +417,18 @@ def main():
         w.writerows(agg)
 
     cap_viol = sum(r["capacity_violations"] for r in policy_rows)
-    summary = {"mode": mode, "seeds": cfg["seeds"], "epochs": cfg["epochs"],
-               "policies": POLICIES, "lease_len": LEASE_LEN, "capacity_loss_frac": CAP_LOSS,
-               "n_rows": len(policy_rows), "capacity_violations_total": cap_viol,
-               "aggregate": agg}
+    summary = {"mode": mode, "seeds": cfg["seeds"], "epochs": cfg["epochs"], "policies": POLICIES,
+               "lease_len": LEASE_LEN, "capacity_loss_frac": CAP_LOSS,
+               "n_rows": len(policy_rows), "n_epoch_rows": len(policy_rows) * cfg["epochs"],
+               "capacity_violations_total": cap_viol, "aggregate": agg}
     with open(os.path.join(HERE, "results", "summary_%s.json" % mode), "w") as f:
         json.dump(summary, f, indent=2)
     with open(os.path.join(HERE, "results", "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
     with open(os.path.join(HERE, "logs", "dynamic_%s.log" % mode), "w") as f:
         f.write("\n".join(log) + "\n")
-    L("Done: %d policy-seed rows; capacity_violations=%d" % (len(policy_rows), cap_viol))
+    L("Done: %d policy-seed rows, %d epoch rows; capacity_violations=%d"
+      % (len(policy_rows), len(policy_rows) * cfg["epochs"], cap_viol))
 
 
 if __name__ == "__main__":

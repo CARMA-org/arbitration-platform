@@ -19,12 +19,6 @@ import java.util.*;
  *   cᵢ = BaseWeight + CurrencyBurned_i (priority weight)
  *   aᵢ = allocation to agent i
  *   Q = total available quantity
- * 
- * Theoretical properties:
- * - Theorem 1: Pareto optimality
- * - Theorem 2: Polynomial time complexity
- * - Theorem 3: Collusion resistance (via logarithmic barrier)
- * - Theorem 5: Individual rationality
  */
 public class ProportionalFairnessArbitrator {
     

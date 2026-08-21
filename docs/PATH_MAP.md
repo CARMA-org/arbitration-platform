@@ -14,7 +14,7 @@ enforced execution.
 | Consumption ledger | `model.ConsumptionLedger` (shared per agent and contract version) |
 | Service capacity handle | `model.ServiceHandle`; `ServiceRegistry.acquireHandle` |
 | Utility declaration | `model.UtilityDeclaration` (linear, Cobb–Douglas, CES, Leontief) |
-| Backend invocation | `ServiceBackend.invokeByType` (mock or LLM) |
+| Backend invocation | `ServiceBackend.invoke(serviceId, input)` on the acquired handle's service (mock or LLM) |
 | Priority weighting | `PriorityEconomy.calculatePriorityWeight` |
 
 ## Allocation path
@@ -44,7 +44,19 @@ id, contract version, and the shared ledger. Before every service call the
 context validates that the agent is still registered, the contract still exists,
 the bound allocation id and version still match the active contract, and the
 contract has not expired under the injected clock. On success it acquires a
-specific service capacity slot, charges that service instance's configured
-resource vector against the shared ledger all-or-nothing, invokes the backend,
-and releases the slot in all outcomes. A denied call consumes nothing and never
-reaches the backend.
+handle for a specific service instance, charges that instance's configured
+resource vector against the shared ledger all-or-nothing, invokes the backend on
+that same service id, and releases the handle in all outcomes. A denied call
+consumes nothing and never reaches the backend.
+
+## Computation, authority, installation, enforcement
+
+These are separate. Computation is which allocation matrix a policy produces:
+the joint policies call the convex solver, while equal quotas, DRF, and
+decomposed Cobb-Douglas compute their matrices directly, and the Cobb-Douglas
+objective separates across resource columns so its computation needs no joint
+solver. Authority is that only the platform installs contracts. Installation is
+the atomic snapshot replacement under conservation. Enforcement is the gated,
+ledger-charged execution above. That Cobb-Douglas separates the computation does
+not decentralize authority, installation, or enforcement, which remain platform
+operations for every policy.

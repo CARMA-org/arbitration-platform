@@ -13,7 +13,7 @@ import java.util.*;
  * ║                                                                          ║
  * ║  This implementation solves each resource INDEPENDENTLY using the        ║
  * ║  water-filling algorithm. It achieves LOCAL Pareto optimality per        ║
- * ║  resource but NOT GLOBAL Pareto optimality across resources.             ║
+ * ║  resource; it does not couple resources, so it does not solve the joint problem.             ║
  * ║                                                                          ║
  * ║  For true joint optimization, replace with ConvexJointArbitrator         ║
  * ║  using Clarabel or similar convex solver.                                ║

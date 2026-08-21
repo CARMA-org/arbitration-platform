@@ -33,7 +33,7 @@ def load_paired():
 
 
 def load_individual():
-    return list(csv.DictReader(open(os.path.join(HERE, "tables", "individual_loss.csv"))))
+    return list(csv.DictReader(open(os.path.join(HERE, "tables", "individual_change.csv"))))
 
 
 def cell_policy_mean(rows, metric):
@@ -114,27 +114,22 @@ def fig_nonlinear_vs_linear(paired):
 
 
 def fig_individual(indiv):
-    cells = sorted({r["cell"] for r in indiv},
-                   key=lambda c: (CELL_ORDER.index(c.rsplit("__", 1)[0])
-                                  if c.rsplit("__", 1)[0] in CELL_ORDER else 99,
-                                  c.rsplit("__", 1)[1]))
-    policies = ["joint_linear", "joint_cobb_douglas", "joint_ces", "joint_leontief"]
-    idx = {(r["cell"], r["policy"]): r for r in indiv}
-    fig, ax = plt.subplots(figsize=(12, 5))
-    x = np.arange(len(cells))
-    w = 0.2
-    for k, pol in enumerate(policies):
-        vals = [float(idx[(c, pol)]["worst_agent_loss_vs_equal"]) if (c, pol) in idx else 0
-                for c in cells]
-        ax.bar(x + (k - 1.5) * w, vals, w, label=pol, color=COLOR.get(pol, "#888"))
+    order = [p for p in POLICY_ORDER if p in {r["policy"] for r in indiv}]
+    idx = {r["policy"]: r for r in indiv}
+    fig, ax = plt.subplots(figsize=(11, 5))
+    x = np.arange(len(order))
+    mean = [float(idx[p]["mean_change_vs_equal"]) for p in order]
+    worst = [float(idx[p]["worst_loss_vs_equal"]) for p in order]
+    ax.bar(x - 0.2, mean, 0.4, label="mean change", color="#0072B2")
+    ax.bar(x + 0.2, worst, 0.4, label="worst change", color="#D55E00")
     ax.axhline(0, color="k", linewidth=0.8)
     ax.set_xticks(x)
-    ax.set_xticklabels([short(c) for c in cells])
-    ax.set_ylabel("worst per-agent completion change vs equal quotas")
-    ax.set_title("Individual-agent harm relative to equal quotas (more negative = worse)")
+    ax.set_xticklabels(order, rotation=20, ha="right")
+    ax.set_ylabel("per-agent completion change vs equal quotas (mixed)")
+    ax.set_title("Individual-agent change relative to equal quotas")
     ax.legend(fontsize=9)
     fig.tight_layout()
-    fig.savefig(os.path.join(FIG, "fig3_individual_loss.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(os.path.join(FIG, "fig3_individual_change.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 

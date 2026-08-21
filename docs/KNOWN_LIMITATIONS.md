@@ -44,9 +44,13 @@ a separate scholarly publication. Known limitations of the current code:
   synthetic task and latency models, not any external dataset. Task outputs are mock and
   latency is a budget of service constants reported as latency-budget completion.
 - The primary experiment uses two workload compositions (`homogeneous`, `mixed_bundle`)
-  and two contention levels. The appendix separable `gamma` is tuned on calibration seeds
-  against declared linear welfare, not completion.
-- The dynamic experiment is an appendix allocation-policy simulation. It uses an
-  agent-targeted event schedule and verifies commitment floors against the installed
-  discrete allocation, but it does not drive the runtime clock and is not a runtime-timing
+  and two contention levels, with each seed an independent workload draw. The homogeneous
+  composition is a symmetry check, not evidence of a general effect. Priorities are held
+  equal to isolate utility semantics.
+- The dynamic experiment is a secondary solver-level simulation. It uses an agent-targeted
+  event schedule and verifies commitment floors against the rounded allocation, but it
+  does not install runtime contracts or drive the runtime clock and is not a runtime-timing
   validation.
+- Continuous joint and decomposed Cobb–Douglas solutions agree within a numerical
+  tolerance, but their installed integer matrices can differ by a unit because of
+  independent rounding tie-breaking.

@@ -272,7 +272,7 @@ public class LongitudinalParetoDemo {
             result.paretoOptimalityRate() * 100,
             (int)(result.paretoOptimalityRate() * result.roundsCompleted()),
             result.roundsCompleted()));
-        System.out.println("  (WPF water-filling algorithm guarantees optimality)");
+        System.out.println("  (per-resource water-filling step; see docs/KNOWN_LIMITATIONS.md)");
         System.out.println();
 
         System.out.println("Round-over-Round Pareto Improvements:");
@@ -360,7 +360,7 @@ public class LongitudinalParetoDemo {
         System.out.println("3. PARETO OPTIMALITY HOLDS:");
         System.out.println(String.format("   %.0f%% of rounds achieved Pareto optimal allocations.",
             result.paretoOptimalityRate() * 100));
-        System.out.println("   This is guaranteed by the water-filling algorithm's KKT conditions.");
+        System.out.println("   The per-resource water-filling step satisfies the KKT conditions of that subproblem.");
         System.out.println();
 
         System.out.println("4. STRATEGY RECOMMENDATIONS:");

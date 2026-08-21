@@ -15,10 +15,10 @@ import java.util.stream.Collectors;
  * Runs all validation scenarios from the theory appendix:
  * 1. Basic mechanism validation
  * 2. Joint vs separate optimization
- * 3. Collusion resistance (Theorem 3)
+ * 3. Priority-weighted allocation under a logarithmic-barrier objective
  * 4. Complementary preferences
  * 5. Priority economy dynamics
- * 6. Individual rationality (Theorem 5)
+ * 6. Allocations at or above each agent's declared minimum
  * 7. Starvation protection
  * 8. Asymptotic behavior (15s test)
  * 9. Joint optimization
@@ -236,11 +236,11 @@ public class Demo {
     }
 
     // ========================================================================
-    // SCENARIO 3: Collusion Resistance (Theorem 3)
+    // SCENARIO 3: priority-weighted allocation under grouped requests
     // ========================================================================
     
     static void runScenario3_CollusionResistance(ProportionalFairnessArbitrator arbitrator) {
-        System.out.println("SCENARIO 3: COLLUSION RESISTANCE (Theorem 3)");
+        System.out.println("SCENARIO 3: PRIORITY-WEIGHTED ALLOCATION UNDER GROUPED REQUESTS");
         System.out.println(SUBSEP);
         System.out.println("Purpose: Verify that colluding attackers cannot reduce victim's");
         System.out.println("         allocation below their minimum regardless of coalition size.");
@@ -295,7 +295,7 @@ public class Demo {
         System.out.println(SEP);
         System.out.println("  " + (victimProtected ? "✓ PASS" : "✗ FAIL") + 
             ": Victim received at least minimum despite " + (numAttackers * 2) + ":1 weight disadvantage");
-        System.out.println("  This demonstrates Theorem 3: log barrier protects against collusion");
+        System.out.println("  The logarithmic barrier spreads allocation across grouped requests");
         System.out.println(SEP);
         System.out.println();
     }
@@ -442,11 +442,11 @@ public class Demo {
     }
 
     // ========================================================================
-    // SCENARIO 6: Individual Rationality (Theorem 5)
+    // SCENARIO 6: allocations respect declared minimums
     // ========================================================================
     
     static void runScenario6_IndividualRationality(ProportionalFairnessArbitrator arbitrator) {
-        System.out.println("SCENARIO 6: INDIVIDUAL RATIONALITY (Theorem 5)");
+        System.out.println("SCENARIO 6: ALLOCATIONS RESPECT DECLARED MINIMUMS");
         System.out.println(SUBSEP);
         System.out.println("Purpose: Verify that agents receive at least as much utility");
         System.out.println("         from participation as from non-participation.");
@@ -493,7 +493,7 @@ public class Demo {
         System.out.println(SEP);
         System.out.println("  " + (allRational ? "✓ PASS" : "✗ FAIL") +
             ": All agents received at least their outside option");
-        System.out.println("  This demonstrates individual rationality (Theorem 5)");
+        System.out.println("  Each agent receives at least its declared minimum request");
         System.out.println(SEP);
         System.out.println();
     }

@@ -48,6 +48,9 @@ def unsupported_utility_check(solver_python):
     return {
         "case": "unsupported_utility_requests",
         "status": res.get("status"),
+        "trials": 1, "operations": 1, "single_shot": True,
+        "expected_successes": 0, "observed_successes": incorrect_success,
+        "expected_denials": 1, "observed_denials": 1 - incorrect_success,
         "backend_after_denial": 0,
         "quota_violations": 0,
         "capacity_violations": 0,
@@ -77,9 +80,7 @@ def main():
     report = json.loads(proc.stdout.strip().splitlines()[-1])
 
     solver_case = unsupported_utility_check(args.solver_python)
-    report["cases"].append({k: solver_case[k] for k in (
-        "case", "backend_after_denial", "quota_violations", "capacity_violations",
-        "partial_deductions", "silent_fallbacks", "incorrect_success")})
+    report["cases"].append(solver_case)
     report["unsupported_utility_status"] = solver_case["status"]
 
     totals = report["totals"]
@@ -92,15 +93,16 @@ def main():
     with open(os.path.join(RESULTS, "enforcement_report_%s.json" % mode), "w") as f:
         json.dump(report, f, indent=2)
 
-    # Machine-readable CSV of per-case invariants.
     import csv
-    fields = ["case", "backend_after_denial", "quota_violations", "capacity_violations",
-              "partial_deductions", "silent_fallbacks", "incorrect_success"]
+    fields = ["case", "trials", "operations", "expected_successes", "observed_successes",
+              "expected_denials", "observed_denials", "single_shot", "backend_after_denial",
+              "quota_violations", "capacity_violations", "partial_deductions",
+              "silent_fallbacks", "incorrect_success"]
     with open(os.path.join(RESULTS, "enforcement_cases_%s.csv" % mode), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         for c in report["cases"]:
-            w.writerow({k: c.get(k, 0) for k in fields})
+            w.writerow({k: c.get(k, "") for k in fields})
 
     print(json.dumps({"mode": mode, "reps": reps, "totals": totals,
                       "all_invariants_zero": report["all_invariants_zero"],

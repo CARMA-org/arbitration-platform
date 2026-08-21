@@ -8,7 +8,7 @@ import java.util.*;
 /**
  * Pure Java implementation of joint multi-resource arbitration using gradient ascent.
  * 
- * This implementation achieves APPROXIMATE global Pareto optimality without external
+ * This implementation performs a gradient search over the joint allocation without external
  * dependencies. It uses projected gradient ascent on the concave objective:
  * 
  *   maximize: Σᵢ cᵢ · log(Σⱼ wᵢⱼ · aᵢⱼ)

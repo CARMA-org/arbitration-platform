@@ -1,7 +1,0 @@
-18:36:50 Platform-mediation sweep: mode=full solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3
-18:38:18 Calibration: pooled 120 seeds; separable declared-linear-welfare regret by gamma: {0.0: 1.5885, 0.5: 1.2236, 1.0: 1.0512, 2.0: 0.945, 4.0: 1.1503, 8.0: 2.1294}
-18:38:18 Selected appendix separable gamma = 2.0 (tuned against declared linear welfare, not completion)
-18:42:57   cell homogeneous__moderate: 800 runs in 279.2s
-18:47:34   cell homogeneous__high: 800 runs in 276.7s
-18:51:55   cell mixed_bundle__moderate: 800 runs in 260.7s
-18:56:11   cell mixed_bundle__high: 800 runs in 255.9s

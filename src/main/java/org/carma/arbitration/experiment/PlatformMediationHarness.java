@@ -38,7 +38,6 @@ public class PlatformMediationHarness {
         String cell = str(job.get("cell"), "");
         long seed = lng(job.get("seed"), 0);
         String policy = str(job.get("policy"), "equal");
-        double gamma = dbl(job.get("gamma"), 1.0);
         String solverPython = str(job.get("solverPython"), "python3");
         String scenarioHash = str(job.get("scenarioHash"), "");
 
@@ -85,7 +84,9 @@ public class PlatformMediationHarness {
         }
 
         String jointFamily = jointFamily(policy);
-        String utilityFamily = jointFamily != null ? jointFamily : "LINEAR";
+        String declarationFamily = jointFamily != null ? jointFamily : "LINEAR";
+        String welfareFamily = welfareFamilyFor(policy);
+        String familyLabel = welfareFamily != null ? welfareFamily : "none";
 
         Map<String, Object> svcCaps = (Map<String, Object>) job.getOrDefault("services", new HashMap<>());
         ServiceRegistry registry = new ServiceRegistry();
@@ -119,7 +120,7 @@ public class PlatformMediationHarness {
             Map<ResourceType, Double> prefs = new HashMap<>();
             for (int j = 0; j < m; j++) prefs.put(resources.get(j), U[i][j]);
             TaskAgent.Builder b = new TaskAgent.Builder(ids[i]).preferences(prefs).tasks(tasks)
-                .utilityDeclaration(declarationFor(utilityFamily, U[i], leontiefReq[i], resources))
+                .utilityDeclaration(declarationFor(declarationFamily, U[i], leontiefReq[i], resources))
                 .operatorPriority(priority[i]);
             for (int j = 0; j < m; j++) {
                 b.declaredMinimum(resources.get(j), lower[i][j]);
@@ -151,14 +152,11 @@ public class PlatformMediationHarness {
                 solverStatus = runtime.getSnapshot().getSolverStatus();
             } else {
                 if (policy.equals("equal")) {
-                    alloc = separable(ids, U, lower, upper, c, cap, 0.0, true);
+                    alloc = equalSplit(ids, lower, upper, cap);
                 } else if (policy.equals("drf")) {
                     alloc = drf(demand, lower, upper, cap);
                 } else if (policy.equals("decomposed_cobb_douglas")) {
-                    alloc = separable(ids, U, lower, upper, c, cap, 1.0, false);
-                } else if (policy.equals("separable")) {
-                    alloc = separable(ids, U, lower, upper, c, cap, gamma, false);
-                    solverStatus = "separable_gamma=" + gamma;
+                    alloc = decomposedCobbDouglas(U, lower, upper, c, cap);
                 } else {
                     throw new IllegalArgumentException("unknown policy: " + policy);
                 }
@@ -180,8 +178,8 @@ public class PlatformMediationHarness {
         if (!feasible) {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("utility_family", utilityFamily); out.put("scenario_hash", scenarioHash);
-            out.put("gamma", gamma); out.put("feasible", false);
+            out.put("utility_family", familyLabel); out.put("scenario_hash", scenarioHash);
+            out.put("feasible", false);
             out.put("message", message);
             return toJson(out);
         }
@@ -196,21 +194,25 @@ public class PlatformMediationHarness {
             if (col > cap[j]) capacityViolation++;
         }
 
-        double declaredWelfare = 0;
-        for (int i = 0; i < n; i++) {
-            double phi = phiForFamily(utilityFamily, U[i], alloc[i], leontiefReq[i]);
-            declaredWelfare += c[i] * Math.log(Math.max(phi, EPS));
+        Object declaredWelfare = null;
+        if (welfareFamily != null) {
+            double w = 0;
+            for (int i = 0; i < n; i++) {
+                double phi = phiForFamily(welfareFamily, U[i], alloc[i], leontiefReq[i]);
+                w += c[i] * Math.log(Math.max(phi, EPS));
+            }
+            declaredWelfare = w;
         }
 
         boolean execute = bool(job.get("execute"), true);
         if (!execute) {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("utility_family", utilityFamily); out.put("scenario_hash", scenarioHash);
-            out.put("gamma", gamma); out.put("feasible", true);
+            out.put("utility_family", familyLabel); out.put("scenario_hash", scenarioHash);
+            out.put("feasible", true);
             out.put("solver_status", solverStatus);
             out.put("allocation_latency_ms", allocLatencyMs);
-            out.put("declared_welfare", declaredWelfare);
+            out.put("welfare_own_family", declaredWelfare);
             out.put("capacity_violation", capacityViolation);
             out.put("bound_violation", boundViolation);
             return toJson(out);
@@ -228,7 +230,7 @@ public class PlatformMediationHarness {
             rec.put("id", ids[i]);
             rec.put("priority", priority[i]);
             rec.put("archetype", str(agentSpecs.get(i).get("archetype"), ""));
-            rec.put("utility_family", utilityFamily);
+            rec.put("utility_family", familyLabel);
             rec.put("tasks_total", agent.getTasksTotal());
             rec.put("tasks_done", agent.getTasksDone());
             rec.put("mandatory_failures", agent.getMandatoryFailures());
@@ -282,13 +284,12 @@ public class PlatformMediationHarness {
         out.put("cell", cell);
         out.put("seed", seed);
         out.put("policy", policy);
-        out.put("utility_family", utilityFamily);
+        out.put("utility_family", familyLabel);
         out.put("scenario_hash", scenarioHash);
-        out.put("gamma", gamma);
         out.put("feasible", true);
         out.put("solver_status", solverStatus);
         out.put("allocation_latency_ms", allocLatencyMs);
-        out.put("declared_welfare", declaredWelfare);
+        out.put("welfare_own_family", declaredWelfare);
         out.put("capacity_violation", capacityViolation);
         out.put("bound_violation", boundViolation);
         out.put("backend_calls_total", backendTotal);
@@ -302,10 +303,6 @@ public class PlatformMediationHarness {
         return toJson(out);
     }
 
-
-        // ====================================================================
-    // Allocation policies
-    // ====================================================================
 
     private static String jointFamily(String policy) {
         switch (policy) {
@@ -321,6 +318,57 @@ public class PlatformMediationHarness {
             default:
                 return null;
         }
+    }
+
+    private static String welfareFamilyFor(String policy) {
+        switch (policy) {
+            case "joint_linear":
+                return "LINEAR";
+            case "joint_cobb_douglas":
+            case "decomposed_cobb_douglas":
+                return "COBB_DOUGLAS";
+            case "joint_ces":
+                return "CES";
+            case "joint_leontief":
+                return "LEONTIEF";
+            default:
+                return null;
+        }
+    }
+
+    static long[][] equalSplit(String[] ids, long[][] lower, long[][] upper, long[] cap) {
+        int n = ids.length, m = cap.length;
+        double[][] cont = new double[n][m];
+        for (int j = 0; j < m; j++) {
+            double[] scores = new double[n];
+            long[] lo = new long[n], up = new long[n];
+            for (int i = 0; i < n; i++) {
+                scores[i] = 1.0;
+                lo[i] = lower[i][j];
+                up[i] = upper[i][j];
+            }
+            double[] col = boundedProportional(scores, lo, up, cap[j]);
+            for (int i = 0; i < n; i++) cont[i][j] = col[i];
+        }
+        return roundSafe(cont, lower, upper, cap);
+    }
+
+    static long[][] decomposedCobbDouglas(double[][] W, long[][] lower, long[][] upper,
+                                          double[] c, long[] cap) {
+        int n = W.length, m = cap.length;
+        double[][] cont = new double[n][m];
+        for (int j = 0; j < m; j++) {
+            double[] scores = new double[n];
+            long[] lo = new long[n], up = new long[n];
+            for (int i = 0; i < n; i++) {
+                scores[i] = c[i] * Math.max(W[i][j], 0.0);
+                lo[i] = lower[i][j];
+                up[i] = upper[i][j];
+            }
+            double[] col = boundedProportional(scores, lo, up, cap[j]);
+            for (int i = 0; i < n; i++) cont[i][j] = col[i];
+        }
+        return roundSafe(cont, lower, upper, cap);
     }
 
     private static double phiForFamily(String family, double[] w, long[] alloc, double[] req) {
@@ -367,25 +415,6 @@ public class PlatformMediationHarness {
             default:
                 return UtilityDeclaration.linear(weights);
         }
-    }
-
-    /** Separable water-filling: per resource, bounded-proportional on score c*W^gamma. */
-    private static long[][] separable(String[] ids, double[][] W, long[][] lower, long[][] upper,
-                                      double[] c, long[] cap, double gamma, boolean equal) {
-        int n = ids.length, m = cap.length;
-        double[][] cont = new double[n][m];
-        for (int j = 0; j < m; j++) {
-            double[] scores = new double[n];
-            long[] lo = new long[n], up = new long[n];
-            for (int i = 0; i < n; i++) {
-                scores[i] = equal ? 1.0 : c[i] * Math.pow(Math.max(W[i][j], EPS), gamma);
-                lo[i] = lower[i][j];
-                up[i] = upper[i][j];
-            }
-            double[] col = boundedProportional(scores, lo, up, cap[j]);
-            for (int i = 0; i < n; i++) cont[i][j] = col[i];
-        }
-        return roundSafe(cont, lower, upper, cap);
     }
 
     static long[][] drf(long[][] demand, long[][] lower, long[][] upper, long[] cap) {

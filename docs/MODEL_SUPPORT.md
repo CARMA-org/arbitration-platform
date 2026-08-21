@@ -43,19 +43,18 @@ Tested at `rho in {-1, 0.5, 1}` against multi-start SciPy SLSQP (see
 
 Reasons:
 
-- `SQRT` is exactly `CES` with `rho = 0.5` (`(sum w a^0.5)^2 = (sum w a^rho)^(1/rho)`),
+- `SQRT` equals `CES` with `rho = 0.5` (`(sum w a^0.5)^2 = (sum w a^rho)^(1/rho)`),
   so it is redundant; use `CES rho=0.5`.
-- `LOG` (`sum_j w_j log(1+a_j)`) is concave but is not part of the studied model set
-  and had no validating test; it is out of scope for v0.9.
-- `THRESHOLD`, `SATIATION`, `NESTED_CES` were built as non-DCP CVXPY expressions and
-  failed to solve (they returned a fabricated minimums allocation labelled `infeasible`).
-- `SOFTPLUS_LOSS_AVERSION` and `ASYMMETRIC_LOG_LOSS_AVERSION` were not valid concave
-  hypograph constructions; the latter additionally called a nonexistent `cvxpy.tanh`
-  and crashed.
+- `LOG` (`sum_j w_j log(1+a_j)`) is concave but is outside the studied model set for
+  v0.9 and has no validating test.
+- `THRESHOLD`, `SATIATION`, and `NESTED_CES` do not have a DCP-valid concave assembly
+  in this solver.
+- `SOFTPLUS_LOSS_AVERSION` and `ASYMMETRIC_LOG_LOSS_AVERSION` do not have a valid
+  concave hypograph construction in this solver.
 
-Removing these is preferable to retaining a misleading approximation. If a correct,
-DCP-valid, independently validated formulation is added later, the model can return to
-the supported list.
+The solver rejects these families at validation rather than substituting an
+approximation. A family can join the supported list if a DCP-valid,
+independently validated formulation is added with a test.
 
 ## Status schema
 
