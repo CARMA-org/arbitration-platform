@@ -1,0 +1,152 @@
+{
+  "java": {
+    "totals": {
+      "tests": 63,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suites": [
+      {
+        "suite": "org.carma.arbitration.agent.CanonicalMediationTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ConcurrencyEnforcementTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.NegativeConsumptionTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.PlatformContractEnforcementTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ServiceExecutionEnforcementTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.agent.ServiceInstanceBindingTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.experiment.BoundedLogAllocationTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.experiment.DRFComparatorTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.experiment.DeclarationRuntimePathTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.CapacityPreservingRoundingTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.JointPolicyEnforcementTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.JointSolverIntegrationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.mechanism.SolverTimeoutTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.model.CompositionValidationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "org.carma.arbitration.model.ResourcePoolBoundaryTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "python": {
+    "passed": 44,
+    "failed": 0,
+    "returncode": 0
+  },
+  "enforcement_fault_injection": {
+    "totals": {
+      "backend_after_denial": 0,
+      "quota_violations": 0,
+      "capacity_violations": 0,
+      "partial_deductions": 0,
+      "silent_fallbacks": 0,
+      "incorrect_success": 0
+    },
+    "all_invariants_zero": true,
+    "cases": [
+      "negative_resource_requests",
+      "repeated_over_quota_calls",
+      "concurrent_over_quota_calls",
+      "duplicate_calls_each_charged",
+      "stale_context_execution",
+      "invalid_service_composition",
+      "cyclic_service_composition",
+      "malformed_solver_output",
+      "hung_solver_process",
+      "oversubscribed_minimums",
+      "one_exhausted_resource",
+      "expired_contract_execution",
+      "cross_version_context_execution",
+      "removed_agent_execution",
+      "service_instance_charge",
+      "unsupported_utility_requests"
+    ]
+  },
+  "all_green": true
+}

@@ -1,0 +1,24 @@
+{
+  "n_cases": 600,
+  "seed": 7788,
+  "bound_generation": "per case: n in [2,6], m in [2,4]; each agent row beta_i ~ Dirichlet(1) over resources (all positive, sums to 1); priority_i ~ U[1,5]; lower_ij ~ int U[0,3]; upper_ij = lower_ij + int U[1,12]; capacity_j = int between sum(lower_j) and sum(upper_j) so box and capacity constraints bind",
+  "joint_solver_status_counts": {
+    "optimal": 557,
+    "optimal_inaccurate": 40,
+    "failed": 3
+  },
+  "joint_returned_infeasible_continuous": 39,
+  "continuous_comparison": {
+    "restricted_to": "joint solves with status optimal and feasible continuous output",
+    "n_compared": 557,
+    "max_abs_continuous_diff": 0.0012372487403204957,
+    "relative_error_definition": "max over cells of |decomposed - joint| / max(|joint|, 1)",
+    "max_relative_error": 0.00022368216382959041
+  },
+  "installed_integer_comparison": {
+    "note": "both continuous solutions clipped to bounds and rounded with the shared capacity-preserving rule, as the platform installs them",
+    "agent_resource_cells": 7159,
+    "integer_diff_cells": 35,
+    "integer_diff_share": 0.0048889509708059786
+  }
+}

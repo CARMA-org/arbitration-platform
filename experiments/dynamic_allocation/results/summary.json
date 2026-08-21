@@ -1,0 +1,279 @@
+{
+  "mode": "full",
+  "seeds": 100,
+  "epochs": 100,
+  "policies": [
+    "reoptimize",
+    "permanent_floors",
+    "leases",
+    "leases_shortfall"
+  ],
+  "lease_len": 10,
+  "capacity_loss_frac": 0.3,
+  "n_rows": 400,
+  "n_epoch_rows": 40000,
+  "denominator_note": "counts are per policy across all seeds; mean_per_seed divides by n_seeds; rate_per_seed_epoch divides by n_seeds*epochs",
+  "capacity_violations_total": 0,
+  "aggregate": [
+    {
+      "policy": "reoptimize",
+      "n_seeds": 100,
+      "epochs_per_seed": 100,
+      "seed_epochs_denominator": 10000,
+      "admissions": {
+        "mean_per_seed": 5.0,
+        "total": 500,
+        "rate_per_seed_epoch": 0.05
+      },
+      "protected_agent_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "active_floor_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "infeasible_floor_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "discrete_floor_violations": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "lease_expiries": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "shortfall_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "noop_events": {
+        "mean_per_seed": 5.11,
+        "total": 511,
+        "rate_per_seed_epoch": 0.0511
+      },
+      "capacity_violations": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "floor_shortfall_total": {
+        "mean_per_seed": 0.0,
+        "total": 0.0
+      },
+      "scaled_floor_shortfall_total": {
+        "mean_per_seed": 0.0,
+        "total": 0.0
+      },
+      "mean_waiting_time": 0.0,
+      "mean_floor_shortfall": 0.0,
+      "mean_churn_frac": 0.07048167850238853,
+      "mean_incumbent_utility_change": -0.018169648607747238,
+      "mean_shortfall_scale": 1.0,
+      "worst_incumbent_loss": -86.94067796610167
+    },
+    {
+      "policy": "permanent_floors",
+      "n_seeds": 100,
+      "epochs_per_seed": 100,
+      "seed_epochs_denominator": 10000,
+      "admissions": {
+        "mean_per_seed": 4.99,
+        "total": 499,
+        "rate_per_seed_epoch": 0.0499
+      },
+      "protected_agent_epochs": {
+        "mean_per_seed": 483.01,
+        "total": 48301,
+        "rate_per_seed_epoch": 4.8301
+      },
+      "active_floor_epochs": {
+        "mean_per_seed": 99.0,
+        "total": 9900,
+        "rate_per_seed_epoch": 0.99
+      },
+      "infeasible_floor_epochs": {
+        "mean_per_seed": 21.56,
+        "total": 2156,
+        "rate_per_seed_epoch": 0.2156
+      },
+      "discrete_floor_violations": {
+        "mean_per_seed": 115.95,
+        "total": 11595,
+        "rate_per_seed_epoch": 1.1595
+      },
+      "lease_expiries": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "shortfall_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "noop_events": {
+        "mean_per_seed": 5.19,
+        "total": 519,
+        "rate_per_seed_epoch": 0.0519
+      },
+      "capacity_violations": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "floor_shortfall_total": {
+        "mean_per_seed": 2334.2898065648274,
+        "total": 233428.98065648274
+      },
+      "scaled_floor_shortfall_total": {
+        "mean_per_seed": 0.0,
+        "total": 0.0
+      },
+      "mean_waiting_time": 1.322,
+      "mean_floor_shortfall": 16.66249026025532,
+      "mean_churn_frac": 0.06949838054307517,
+      "mean_incumbent_utility_change": 0.28762176856855987,
+      "mean_shortfall_scale": 1.0,
+      "worst_incumbent_loss": -131.99999999999997
+    },
+    {
+      "policy": "leases",
+      "n_seeds": 100,
+      "epochs_per_seed": 100,
+      "seed_epochs_denominator": 10000,
+      "admissions": {
+        "mean_per_seed": 4.97,
+        "total": 497,
+        "rate_per_seed_epoch": 0.0497
+      },
+      "protected_agent_epochs": {
+        "mean_per_seed": 441.96,
+        "total": 44196,
+        "rate_per_seed_epoch": 4.4196
+      },
+      "active_floor_epochs": {
+        "mean_per_seed": 97.93,
+        "total": 9793,
+        "rate_per_seed_epoch": 0.9793
+      },
+      "infeasible_floor_epochs": {
+        "mean_per_seed": 3.34,
+        "total": 334,
+        "rate_per_seed_epoch": 0.0334
+      },
+      "discrete_floor_violations": {
+        "mean_per_seed": 32.7,
+        "total": 3270,
+        "rate_per_seed_epoch": 0.327
+      },
+      "lease_expiries": {
+        "mean_per_seed": 41.95,
+        "total": 4195,
+        "rate_per_seed_epoch": 0.4195
+      },
+      "shortfall_epochs": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "noop_events": {
+        "mean_per_seed": 5.21,
+        "total": 521,
+        "rate_per_seed_epoch": 0.0521
+      },
+      "capacity_violations": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "floor_shortfall_total": {
+        "mean_per_seed": 157.90646693001,
+        "total": 15790.646693001001
+      },
+      "scaled_floor_shortfall_total": {
+        "mean_per_seed": 0.0,
+        "total": 0.0
+      },
+      "mean_waiting_time": 1.15,
+      "mean_floor_shortfall": 4.098498015462205,
+      "mean_churn_frac": 0.07605514614430305,
+      "mean_incumbent_utility_change": 0.2655515465935575,
+      "mean_shortfall_scale": 1.0,
+      "worst_incumbent_loss": -146.10948905109487
+    },
+    {
+      "policy": "leases_shortfall",
+      "n_seeds": 100,
+      "epochs_per_seed": 100,
+      "seed_epochs_denominator": 10000,
+      "admissions": {
+        "mean_per_seed": 4.97,
+        "total": 497,
+        "rate_per_seed_epoch": 0.0497
+      },
+      "protected_agent_epochs": {
+        "mean_per_seed": 441.61,
+        "total": 44161,
+        "rate_per_seed_epoch": 4.4161
+      },
+      "active_floor_epochs": {
+        "mean_per_seed": 97.93,
+        "total": 9793,
+        "rate_per_seed_epoch": 0.9793
+      },
+      "infeasible_floor_epochs": {
+        "mean_per_seed": 3.34,
+        "total": 334,
+        "rate_per_seed_epoch": 0.0334
+      },
+      "discrete_floor_violations": {
+        "mean_per_seed": 28.87,
+        "total": 2887,
+        "rate_per_seed_epoch": 0.2887
+      },
+      "lease_expiries": {
+        "mean_per_seed": 41.92,
+        "total": 4192,
+        "rate_per_seed_epoch": 0.4192
+      },
+      "shortfall_epochs": {
+        "mean_per_seed": 3.34,
+        "total": 334,
+        "rate_per_seed_epoch": 0.0334
+      },
+      "noop_events": {
+        "mean_per_seed": 5.21,
+        "total": 521,
+        "rate_per_seed_epoch": 0.0521
+      },
+      "capacity_violations": {
+        "mean_per_seed": 0.0,
+        "total": 0,
+        "rate_per_seed_epoch": 0.0
+      },
+      "floor_shortfall_total": {
+        "mean_per_seed": 10.091384140598498,
+        "total": 1009.1384140598498
+      },
+      "scaled_floor_shortfall_total": {
+        "mean_per_seed": 1.0632570688125058,
+        "total": 106.32570688125058
+      },
+      "mean_waiting_time": 1.2259999999999998,
+      "mean_floor_shortfall": 0.3257029117553417,
+      "mean_churn_frac": 0.07438593910675001,
+      "mean_incumbent_utility_change": 0.27310084702049253,
+      "mean_shortfall_scale": 0.9956359525706985,
+      "worst_incumbent_loss": -146.10948905109487
+    }
+  ]
+}

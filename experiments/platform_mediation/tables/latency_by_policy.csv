@@ -1,0 +1,8 @@
+policy,n,median,p95,max
+equal,400,0.0,0.0,4.0
+drf,400,0.0,0.0,0.0
+decomposed_cobb_douglas,400,0.0,0.0,1.0
+joint_linear,400,644.0,674.05,798.0
+joint_cobb_douglas,400,644.0,670.05,724.0
+joint_ces,400,649.0,678.0,811.0
+joint_leontief,400,649.0,683.0,751.0

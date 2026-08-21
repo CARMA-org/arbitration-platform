@@ -1,0 +1,5 @@
+15:31:56 Platform-mediation sweep: mode=full solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3 started=2026-08-21T15:31:56
+15:36:18   cell homogeneous__moderate: 700 runs in 261.0s; distinct workload hashes=100
+15:40:38   cell homogeneous__high: 700 runs in 260.4s; distinct workload hashes=100
+15:44:59   cell mixed_bundle__moderate: 700 runs in 260.8s; distinct workload hashes=100
+15:49:21   cell mixed_bundle__high: 700 runs in 261.5s; distinct workload hashes=100
