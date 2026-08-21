@@ -165,44 +165,44 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
 
     for e in range(cfg["epochs"]):
         just_changed = set()
-        applied_events = []
+        epoch_events = []
         for ev in events[e]:
             typ = ev["type"]
+            target = ev.get("agent")
+            noop = False
             if typ == "capacity_loss":
                 caps = {r: max(1, int(round(base_caps[r] * (1 - CAP_LOSS)))) for r in RESOURCES}
-                applied_events.append(ev)
             elif typ == "capacity_restore":
                 caps = dict(base_caps)
-                applied_events.append(ev)
             elif typ == "arrival":
-                a = ev["agent"]
-                if a not in active and a not in pending and a not in arrived:
-                    pending.append(a)
-                    waiting_time[a] = 0
-                    applied_events.append(ev)
+                if target not in active and target not in pending and target not in arrived:
+                    pending.append(target)
+                    waiting_time[target] = 0
                 else:
-                    agg["noop_events"] += 1
+                    noop = True
             elif typ == "departure":
-                a = ev["agent"]
-                if a in active and len(active) > 1:
-                    active = [x for x in active if x != a]
-                    promised.pop(a, None); solver_floors.pop(a, None)
-                    lease_expiry.pop(a, None); prev_util.pop(a, None); prev_alloc.pop(a, None)
-                    applied_events.append(ev)
+                if target in active and len(active) > 1:
+                    active = [x for x in active if x != target]
+                    promised.pop(target, None); solver_floors.pop(target, None)
+                    lease_expiry.pop(target, None); prev_util.pop(target, None); prev_alloc.pop(target, None)
                 else:
-                    agg["noop_events"] += 1
+                    noop = True
             elif typ == "preference_change":
-                a = ev["agent"]
-                if a in active:
-                    new_types = sample_task_types(cfg["tasks_per_agent"], "dyn_prefchange", seed, e, a)
+                if target in active:
+                    new_types = sample_task_types(cfg["tasks_per_agent"], "dyn_prefchange", seed, e, target)
                     prof = profile_from_types(new_types)
-                    prof["priority"] = pool[a]["priority"]
-                    profiles[a] = prof
-                    promised.pop(a, None); solver_floors.pop(a, None); lease_expiry.pop(a, None)
-                    just_changed.add(a)
-                    applied_events.append(ev)
+                    prof["priority"] = pool[target]["priority"]
+                    profiles[target] = prof
+                    promised.pop(target, None); solver_floors.pop(target, None); lease_expiry.pop(target, None)
+                    just_changed.add(target)
                 else:
-                    agg["noop_events"] += 1
+                    noop = True
+            if noop:
+                agg["noop_events"] += 1
+            entry = {"type": typ, "noop": noop}
+            if target is not None:
+                entry["target"] = "a%d" % target
+            epoch_events.append(entry)
 
         for i in list(lease_expiry.keys()):
             if lease_expiry[i] <= e and i in active:
@@ -217,7 +217,9 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
                     active_solver_floors[i] = solver_floors[i]
 
         res, W, mins, ideals, Q = solve(active, caps, profiles, active_solver_floors)
+        original_status = res["status"]
         infeasible = res["status"] not in ("optimal", "optimal_inaccurate")
+        original_floors_infeasible = bool(infeasible and active_promised)
         fallback_required = False
         shortfall_scale = 1.0
         if infeasible and active_promised:
@@ -255,6 +257,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
 
         util = discrete_utils(disc, W)
         per_agent_shortfall = {}
+        per_agent_residual = {}
         for k, i in enumerate(active):
             agg["active_floor_denominator"] += 1 if i in active_promised else 0
             if i in active_promised:
@@ -268,6 +271,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
                     scaled_short = active_promised[i] * shortfall_scale - util[k]
                     if scaled_short > FLOOR_TOL:
                         agg["scaled_floor_shortfall_total"] += scaled_short
+                        per_agent_residual[pool[i]["id"]] = scaled_short
         if active_promised:
             agg["active_floor_epochs"] += 1
 
@@ -304,18 +308,22 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
 
         epoch_writer({
             "seed": seed, "schedule_hash": schedule_hash, "epoch": e, "policy": policy,
-            "events": json.dumps(applied_events),
+            "events": json.dumps(epoch_events),
             "active": json.dumps([pool[i]["id"] for i in active]),
             "pending": json.dumps([pool[i]["id"] for i in pending]),
             "caps": json.dumps([caps[r] for r in RESOURCES]),
-            "promised_floors": json.dumps({pool[i]["id"]: round(active_promised[i], 4) for i in active_promised}),
-            "solver_floors": json.dumps({pool[i]["id"]: round(active_solver_floors[i], 4) for i in active_solver_floors}),
-            "solver_status": res["status"], "fallback_required": int(fallback_required),
-            "shortfall_scale": round(shortfall_scale, 5),
-            "continuous_alloc": json.dumps([[round(v, 3) for v in row] for row in cont]),
+            "promised_floors": json.dumps({pool[i]["id"]: active_promised[i] for i in active_promised}),
+            "solver_floors": json.dumps({pool[i]["id"]: active_solver_floors[i] for i in active_solver_floors}),
+            "original_solver_status": original_status,
+            "original_floors_infeasible": int(original_floors_infeasible),
+            "final_solver_status": res["status"],
+            "fallback_required": int(fallback_required),
+            "shortfall_scale": repr(shortfall_scale),
+            "continuous_alloc": json.dumps(cont),
             "discrete_alloc": json.dumps(disc),
-            "achieved_utils": json.dumps([round(u, 4) for u in util]),
-            "floor_shortfall": json.dumps({k2: round(v, 4) for k2, v in per_agent_shortfall.items()}),
+            "achieved_utils": json.dumps(util),
+            "floor_shortfall_from_promise": json.dumps(per_agent_shortfall),
+            "residual_shortfall_from_scaled": json.dumps(per_agent_residual),
             "capacity_violation": cap_viol,
         })
 
@@ -378,9 +386,11 @@ def main():
     seeds = [derive_seed("dynamic_seed", i) for i in range(cfg["seeds"])]
 
     epoch_fields = ["seed", "schedule_hash", "epoch", "policy", "events", "active", "pending",
-                    "caps", "promised_floors", "solver_floors", "solver_status",
-                    "fallback_required", "shortfall_scale", "continuous_alloc", "discrete_alloc",
-                    "achieved_utils", "floor_shortfall", "capacity_violation"]
+                    "caps", "promised_floors", "solver_floors", "original_solver_status",
+                    "original_floors_infeasible", "final_solver_status", "fallback_required",
+                    "shortfall_scale", "continuous_alloc", "discrete_alloc", "achieved_utils",
+                    "floor_shortfall_from_promise", "residual_shortfall_from_scaled",
+                    "capacity_violation"]
     epoch_path = os.path.join(HERE, "results", "raw", "epochs_%s.csv" % mode)
     epoch_file = open(epoch_path, "w", newline="")
     epoch_csv = csv.DictWriter(epoch_file, fieldnames=epoch_fields)
@@ -403,23 +413,52 @@ def main():
         w.writeheader()
         w.writerows(policy_rows)
 
+    count_keys = ["admissions", "protected_agent_epochs", "active_floor_epochs",
+                  "infeasible_floor_epochs", "discrete_floor_violations", "lease_expiries",
+                  "shortfall_epochs", "noop_events", "capacity_violations"]
+    sum_keys = ["floor_shortfall_total", "scaled_floor_shortfall_total"]
+    mean_keys = ["mean_waiting_time", "mean_floor_shortfall", "mean_churn_frac",
+                 "mean_incumbent_utility_change", "mean_shortfall_scale"]
+    worst_keys = ["worst_incumbent_loss"]
+    epochs = cfg["epochs"]
+    n_seeds = cfg["seeds"]
     agg = []
-    metric_keys = [k for k in fields if k not in ("seed", "policy", "schedule_hash", "entrants_offered")]
+    table_rows = []
     for policy in POLICIES:
         rows = [r for r in policy_rows if r["policy"] == policy]
-        rec = {"policy": policy, "n_seeds": len(rows)}
-        for k in metric_keys:
+        rec = {"policy": policy, "n_seeds": len(rows), "epochs_per_seed": epochs,
+               "seed_epochs_denominator": len(rows) * epochs}
+        flat = {"policy": policy, "n_seeds": len(rows)}
+        for k in count_keys:
+            total = int(sum(r[k] for r in rows))
+            rec[k] = {"mean_per_seed": total / len(rows), "total": total,
+                      "rate_per_seed_epoch": total / (len(rows) * epochs)}
+            flat[k + "_mean_per_seed"] = total / len(rows)
+            flat[k + "_total"] = total
+        for k in sum_keys:
+            total = float(sum(r[k] for r in rows))
+            rec[k] = {"mean_per_seed": total / len(rows), "total": total}
+            flat[k + "_mean_per_seed"] = total / len(rows)
+            flat[k + "_total"] = total
+        for k in mean_keys:
             rec[k] = float(np.mean([r[k] for r in rows]))
+            flat[k] = rec[k]
+        for k in worst_keys:
+            rec[k] = float(np.min([r[k] for r in rows]))
+            flat[k] = rec[k]
         agg.append(rec)
+        table_rows.append(flat)
     with open(os.path.join(HERE, "tables", "policy_means_%s.csv" % mode), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(agg[0].keys()))
+        w = csv.DictWriter(f, fieldnames=list(table_rows[0].keys()))
         w.writeheader()
-        w.writerows(agg)
+        w.writerows(table_rows)
 
     cap_viol = sum(r["capacity_violations"] for r in policy_rows)
-    summary = {"mode": mode, "seeds": cfg["seeds"], "epochs": cfg["epochs"], "policies": POLICIES,
+    summary = {"mode": mode, "seeds": n_seeds, "epochs": epochs, "policies": POLICIES,
                "lease_len": LEASE_LEN, "capacity_loss_frac": CAP_LOSS,
-               "n_rows": len(policy_rows), "n_epoch_rows": len(policy_rows) * cfg["epochs"],
+               "n_rows": len(policy_rows), "n_epoch_rows": len(policy_rows) * epochs,
+               "denominator_note": ("counts are per policy across all seeds; mean_per_seed divides by "
+                                    "n_seeds; rate_per_seed_epoch divides by n_seeds*epochs"),
                "capacity_violations_total": cap_viol, "aggregate": agg}
     with open(os.path.join(HERE, "results", "summary_%s.json" % mode), "w") as f:
         json.dump(summary, f, indent=2)

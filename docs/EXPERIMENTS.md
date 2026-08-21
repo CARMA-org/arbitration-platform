@@ -44,16 +44,23 @@ computation requires cross-resource coordination.
   Mixed-bundle results are primary, with a stratified paired bootstrap that
   resamples seeds within each mixed cell and averages the two cell means; the
   homogeneous composition is reported separately as a symmetry check. The
-  Cobb–Douglas decomposition reports the continuous agreement tolerance, the
-  maximum installed integer difference, and the fraction of agent records that
-  differ.
+  Cobb–Douglas decomposition is checked by `validate_decomposition.py`, which
+  reports the measured maximum continuous difference between the exact decomposed
+  solver and the joint solver over a bounded test set, together with the joint
+  solver's status counts, and the run-level installed-integer and completion
+  differences.
 
 The headline results file, memo, and figures are generated from the raw CSVs by
 `make_headline.py`, `make_memo.py`, and `figures.py`; `check_consistency.py`
-verifies the memo against the raw data and runs in CI.
+reconstructs the headline, mixed-cell bootstrap intervals, solver-status counts,
+decomposition validation, and dynamic epoch aggregates from the raw records and
+runs in CI.
 
-Run: `python3 run_sweep.py --full` then `make_headline.py`, `make_memo.py`,
-`figures.py`, `check_consistency.py` (use `--smoke` for a fast pass).
+Run the primary sweep alone (no other solver-heavy work concurrent) so latency is
+measured cleanly: `python3 run_sweep.py --full`, then `validate_decomposition.py`,
+`make_headline.py`, `make_memo.py`, `figures.py`, `make_test_report.py`,
+`make_manifest.py` (last), and `check_consistency.py --with-manifest` (use
+`--smoke` for a fast pass).
 
 ## Dynamic allocation (`experiments/dynamic_allocation/`)
 

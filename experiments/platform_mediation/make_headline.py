@@ -8,8 +8,9 @@ from collections import defaultdict
 
 import numpy as np
 
+from lib.analysis import cell_bootstrap, stratified_bootstrap
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-CD_CONTINUOUS_TOLERANCE = 1e-3
 
 
 def load(name):
@@ -17,31 +18,12 @@ def load(name):
         return list(csv.DictReader(f))
 
 
-def cell_bootstrap(diffs, n_boot, rng):
-    diffs = np.asarray(diffs, float)
-    if len(diffs) == 0:
-        return {"mean": float("nan"), "ci_lo": float("nan"), "ci_hi": float("nan"), "n": 0}
-    means = np.array([diffs[rng.integers(0, len(diffs), len(diffs))].mean() for _ in range(n_boot)])
-    return {"mean": float(diffs.mean()), "ci_lo": float(np.percentile(means, 2.5)),
-            "ci_hi": float(np.percentile(means, 97.5)), "n": int(len(diffs))}
-
-
-def stratified_bootstrap(per_cell_diffs, n_boot, rng):
-    cell_arrays = [np.asarray(d, float) for d in per_cell_diffs if len(d) > 0]
-    if not cell_arrays:
-        return {"mean": float("nan"), "ci_lo": float("nan"), "ci_hi": float("nan"),
-                "n_cells": 0, "n_per_cell": 0}
-    point = float(np.mean([a.mean() for a in cell_arrays]))
-    boot = np.empty(n_boot)
-    for b in range(n_boot):
-        cell_means = []
-        for a in cell_arrays:
-            idx = rng.integers(0, len(a), len(a))
-            cell_means.append(a[idx].mean())
-        boot[b] = np.mean(cell_means)
-    return {"mean": point, "ci_lo": float(np.percentile(boot, 2.5)),
-            "ci_hi": float(np.percentile(boot, 97.5)),
-            "n_cells": len(cell_arrays), "n_per_cell": int(len(cell_arrays[0]))}
+def load_json(rel):
+    path = os.path.join(HERE, "results", rel)
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return None
 
 
 def main():
@@ -91,7 +73,6 @@ def main():
 
     per_cell_paired = {}
     mixed_aggregate = {}
-    rng = np.random.default_rng(boot_seed)
     for treat, base in comparisons:
         name = "%s_minus_%s" % (treat, base)
         per_cell_paired[name] = {}
@@ -99,13 +80,13 @@ def main():
             diffs = [float(idx[(c, s, treat)]["completion_mean"]) - float(idx[(c, s, base)]["completion_mean"])
                      for s in seeds_by_cell[c]
                      if (c, s, treat) in idx and (c, s, base) in idx]
-            per_cell_paired[name][c] = cell_bootstrap(diffs, n_boot, rng)
+            per_cell_paired[name][c] = cell_bootstrap(diffs, "%s|%s" % (name, c), boot_seed, n_boot)
         mixed_diffs = []
         for c in mixed_cells:
             mixed_diffs.append([float(idx[(c, s, treat)]["completion_mean"]) - float(idx[(c, s, base)]["completion_mean"])
                                 for s in seeds_by_cell[c]
                                 if (c, s, treat) in idx and (c, s, base) in idx])
-        mixed_aggregate[name] = stratified_bootstrap(mixed_diffs, n_boot, rng)
+        mixed_aggregate[name] = stratified_bootstrap(mixed_diffs, "mixed|%s" % name, boot_seed, n_boot)
 
     homo_symmetry = {}
     max_spread = 0.0
@@ -134,6 +115,22 @@ def main():
                 diff_records += 1
             max_int_diff = max(max_int_diff, md)
     cd_completion = mixed_aggregate.get("decomposed_cobb_douglas_minus_joint_cobb_douglas", {})
+
+    run_completion_diff = 0
+    run_pairs = 0
+    max_run_completion_diff = 0.0
+    for c in cells:
+        for s in seeds_by_cell[c]:
+            d = idx.get((c, s, "decomposed_cobb_douglas"))
+            j = idx.get((c, s, "joint_cobb_douglas"))
+            if d and j:
+                run_pairs += 1
+                delta = abs(float(d["completion_mean"]) - float(j["completion_mean"]))
+                if delta > 1e-12:
+                    run_completion_diff += 1
+                max_run_completion_diff = max(max_run_completion_diff, delta)
+
+    validation = load_json("decomposition_validation.json")
 
     lat = defaultdict(list)
     for r in runs:
@@ -165,6 +162,8 @@ def main():
     cons = {p: float(np.mean([float(r["allocation_consumption"]) for r in runs if r["policy"] == p]))
             for p in policies}
 
+    summary = load_json("summary.json") or {}
+
     headline = {
         "n_runs": len(runs),
         "n_agent_records": len(agents),
@@ -182,13 +181,25 @@ def main():
         "homogeneous_symmetry_max_spread": max_spread,
         "homogeneous_symmetry_by_cell": homo_symmetry,
         "cobb_douglas_decomposition": {
-            "continuous_agreement_tolerance": CD_CONTINUOUS_TOLERANCE,
-            "max_installed_integer_unit_diff": max_int_diff,
-            "agent_records_with_installed_diff": diff_records,
-            "agent_records_total": total_records,
-            "fraction_records_with_installed_diff": (diff_records / total_records) if total_records else 0.0,
-            "mixed_completion_diff": cd_completion,
+            "measured_continuous_validation": validation,
+            "run_agent_records": {
+                "max_installed_integer_unit_diff": max_int_diff,
+                "agent_records_with_installed_diff": diff_records,
+                "agent_records_total": total_records,
+                "fraction_records_with_installed_diff": (diff_records / total_records) if total_records else 0.0,
+            },
+            "run_completion": {
+                "run_pairs": run_pairs,
+                "runs_with_completion_diff": run_completion_diff,
+                "fraction_runs_with_completion_diff": (run_completion_diff / run_pairs) if run_pairs else 0.0,
+                "max_abs_completion_diff": max_run_completion_diff,
+                "mixed_paired_completion_diff": cd_completion,
+            },
         },
+        "solver_status_counts": summary.get("solver_status_counts", {}),
+        "fallback_used_counts": summary.get("fallback_used_counts", {}),
+        "infeasible_runs": summary.get("infeasible_runs", 0),
+        "realized_contention_summary": summary.get("realized_contention_summary", {}),
         "capacity_utilization_by_policy": util,
         "allocation_consumption_by_policy": cons,
         "latency_by_policy_ms": latency_by_policy,
@@ -230,8 +241,10 @@ def main():
         "min_distinct_completion_mixed": min_distinct_mixed,
         "homogeneous_symmetry_max_spread": round(max_spread, 4),
         "cd_max_installed_int_diff": max_int_diff,
-        "cd_fraction_records_diff": round(headline["cobb_douglas_decomposition"]["fraction_records_with_installed_diff"], 3),
+        "cd_fraction_records_diff": round(diff_records / total_records, 4) if total_records else 0.0,
+        "cd_runs_with_completion_diff": run_completion_diff,
         "joint_latency_median": joint_latency["median"],
+        "solver_status_counts": summary.get("solver_status_counts", {}),
     }, indent=2))
 
 

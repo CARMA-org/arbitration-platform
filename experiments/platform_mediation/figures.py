@@ -85,6 +85,8 @@ def fig_nonlinear_vs_linear(paired):
     cells = sorted(cells, key=lambda c: (CELL_ORDER.index(c.rsplit("__", 1)[0])
                                          if c.rsplit("__", 1)[0] in CELL_ORDER else 99,
                                          c.rsplit("__", 1)[1]))
+    labels = {"joint_cobb_douglas": "Cobb-Douglas", "joint_ces": "CES (rho = 0.5)",
+              "joint_leontief": "Leontief"}
     idx = {(r["cell"], r["comparison"], r["metric"]): r for r in paired}
     fig, ax = plt.subplots(figsize=(12, 5))
     x = np.arange(len(cells))
@@ -101,12 +103,12 @@ def fig_nonlinear_vs_linear(paired):
             los.append(m - lo)
             his.append(hi - m)
         ax.bar(x + (k - 1) * w, means, w, yerr=[los, his], capsize=2,
-               label=pol, color=COLOR.get(pol, "#888"))
+               label=labels[pol], color=COLOR.get(pol, "#888"))
     ax.axhline(0, color="k", linewidth=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels([short(c) for c in cells])
-    ax.set_ylabel("completion: nonlinear joint - linear joint (95% CI)")
-    ax.set_title("Complementarity-aware utility vs linear utility")
+    ax.set_ylabel("Task-completion difference from joint linear")
+    ax.set_title("Nonlinear utility declarations versus linear utility")
     ax.legend(fontsize=9)
     fig.tight_layout()
     fig.savefig(os.path.join(FIG, "fig2_nonlinear_vs_linear.png"), dpi=150, bbox_inches="tight")

@@ -128,17 +128,25 @@ def base_scenario(composition, contention_name, contention_ratio, seed, cfg):
             "min": mn, "upper": up, "priority": PRIORITY, "tasks": tasks,
         })
 
-    hash_payload = {
+    workload_payload = {
         "composition": composition, "contention": contention_name,
         "capacities": capacities,
         "agents": [{
             "id": a["id"], "task_types": a["task_types"],
             "mandatory_seq": [t["mandatory"] for t in a["tasks"]],
             "optional_seq": [t["optional"] for t in a["tasks"]],
+            "mandatory_demand": a["mandatory_demand"], "optional_demand": a["optional_demand"],
+        } for a in agents],
+    }
+    workload_hash = _scenario_hash(workload_payload)
+
+    hash_payload = {
+        "workload": workload_payload,
+        "agents": [{
+            "id": a["id"],
             "quality": [t["quality"] for t in a["tasks"]],
             "refinement": [t["refinement"] for t in a["tasks"]],
             "slo": [t["sloMs"] for t in a["tasks"]],
-            "mandatory_demand": a["mandatory_demand"], "optional_demand": a["optional_demand"],
             "min": a["min"], "upper": a["upper"], "util_weights": a["util_weights"],
             "leontief_req": a["leontief_req"], "priority": a["priority"],
         } for a in agents],
@@ -149,14 +157,16 @@ def base_scenario(composition, contention_name, contention_ratio, seed, cfg):
     return {"capacities": capacities, "agents": agents, "services": services,
             "composition": composition, "contention": contention_name,
             "realized_ratio": realized_ratio, "scenario_hash": scenario_hash,
-            "redraws": attempt}
+            "workload_hash": workload_hash, "redraws": attempt}
 
 
 def make_job(scenario, cell, seed, policy, solver_python, execute):
     return {
         "cell": cell, "seed": int(seed), "policy": policy,
         "solverPython": solver_python, "execute": bool(execute),
+        "fallbackAllowed": False,
         "scenarioHash": scenario["scenario_hash"],
+        "workloadHash": scenario["workload_hash"],
         "capacities": scenario["capacities"], "services": scenario["services"],
         "agents": [{
             "id": a["id"], "archetype": "+".join(sorted(set(a["task_types"]))),

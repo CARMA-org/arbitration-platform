@@ -20,6 +20,7 @@ ARTIFACT_GLOBS = [
     "experiments/platform_mediation/config/*.json",
     "experiments/platform_mediation/logs/*.log",
     "experiments/platform_mediation/test_report.json",
+    "experiments/platform_mediation/RESULTS_FOR_PAPER.md",
     "experiments/dynamic_allocation/results/**/*.csv",
     "experiments/dynamic_allocation/results/*.json",
     "experiments/dynamic_allocation/tables/*.csv",

@@ -75,11 +75,19 @@ interpreter with cvxpy/clarabel installed; otherwise they are skipped.
 
 ## Experiment reproduction
 
+Run the primary sweep alone (no other solver-heavy work concurrent) so its
+allocation-computation latency is measured cleanly, then the other experiments,
+then generate reports in order:
+
 ```bash
 mvn -o -q dependency:build-classpath -Dmdep.outputFile=cp.txt
 cd experiments/platform_mediation && python3 run_sweep.py --full
 cd ../enforcement && python3 run_enforcement.py --reps 100
 cd ../dynamic_allocation && python3 run_dynamic.py --full
+cd ../platform_mediation
+python3 validate_decomposition.py && python3 make_headline.py && python3 make_memo.py
+python3 figures.py && python3 make_test_report.py && python3 make_manifest.py
+python3 check_consistency.py --with-manifest
 ```
 
 See `docs/EXPERIMENTS.md` for the design and `docs/REPRODUCIBILITY.md` for the
@@ -98,14 +106,16 @@ experiment's `results/`, `tables/`, and `figures/` directories.
 Unsupported family names are rejected at validation rather than replaced by a
 linear surrogate. See `docs/MODEL_SUPPORT.md`. Linear and CES (`ρ = 0.5`) treat
 resources as substitutes. Under weighted proportional fairness the Cobb–Douglas
-objective separates by resource, so its allocation is reproduced exactly by a
-decomposed per-resource comparator; Leontief retains genuine cross-resource
-coupling in the joint solver.
+objective separates by resource, so a decomposed per-resource comparator matches
+the joint continuous solution up to solver tolerance; the installed integer
+allocations can still differ by a unit because rounding is applied independently.
+Leontief retains genuine cross-resource coupling in the joint solver.
 
 ## Known limitations
 
-See `docs/KNOWN_LIMITATIONS.md`. In brief: task execution and latency are
-synthetic; the enforcement invariants are properties observed in deterministic
+See `docs/KNOWN_LIMITATIONS.md`. In brief: task execution is synthetic and
+reported latency is allocation-computation time, not task performance; the
+enforcement invariants are properties observed in deterministic
 tests, not estimates of real-world failure rates; the runtime enforces
 contracts against agents that call the provided execution path and does not
 model strategic reporting, collusion, a hostile operator, or sandboxing of

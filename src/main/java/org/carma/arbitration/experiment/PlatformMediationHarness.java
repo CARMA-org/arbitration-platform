@@ -40,6 +40,8 @@ public class PlatformMediationHarness {
         String policy = str(job.get("policy"), "equal");
         String solverPython = str(job.get("solverPython"), "python3");
         String scenarioHash = str(job.get("scenarioHash"), "");
+        String workloadHash = str(job.get("workloadHash"), "");
+        boolean fallbackAllowed = bool(job.get("fallbackAllowed"), false);
 
         Map<String, Object> capsRaw = (Map<String, Object>) job.get("capacities");
         List<ResourceType> resources = new ArrayList<>();
@@ -87,6 +89,20 @@ public class PlatformMediationHarness {
         String declarationFamily = jointFamily != null ? jointFamily : "LINEAR";
         String welfareFamily = welfareFamilyFor(policy);
         String familyLabel = welfareFamily != null ? welfareFamily : "none";
+
+        Map<String, Object> capacityByResource = new LinkedHashMap<>();
+        Map<String, Object> mandatoryDemandByResource = new LinkedHashMap<>();
+        Map<String, Object> realizedContentionByResource = new LinkedHashMap<>();
+        Map<String, Object> zeroDemandByResource = new LinkedHashMap<>();
+        for (int j = 0; j < m; j++) {
+            long totalDemand = 0;
+            for (int i = 0; i < n; i++) totalDemand += demand[i][j];
+            String rn = resources.get(j).name();
+            capacityByResource.put(rn, cap[j]);
+            mandatoryDemandByResource.put(rn, totalDemand);
+            realizedContentionByResource.put(rn, cap[j] > 0 ? (double) totalDemand / cap[j] : 0.0);
+            zeroDemandByResource.put(rn, totalDemand == 0);
+        }
 
         Map<String, Object> svcCaps = (Map<String, Object>) job.getOrDefault("services", new HashMap<>());
         ServiceRegistry registry = new ServiceRegistry();
@@ -141,7 +157,8 @@ public class PlatformMediationHarness {
             if (jointFamily != null) {
                 ConvexJointArbitrator arb = new ConvexJointArbitrator(
                     new PriorityEconomy(), solverPython, Paths.get("scripts/joint_solver.py"))
-                    .setTimeoutMillis(60000);
+                    .setTimeoutMillis(60000)
+                    .setUseFallbackOnError(fallbackAllowed);
                 Map<String, Map<ResourceType, Long>> res =
                     runtime.runArbitration(new ContentionDetector(), arb, policy, null);
                 for (int i = 0; i < n; i++) {
@@ -175,12 +192,23 @@ public class PlatformMediationHarness {
         }
         long allocLatencyMs = (System.nanoTime() - t0) / 1_000_000;
 
+        boolean fallbackUsed = solverStatus != null && solverStatus.contains("fallback");
+
         if (!feasible) {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("utility_family", familyLabel); out.put("scenario_hash", scenarioHash);
+            out.put("utility_family", familyLabel);
+            out.put("workload_hash", workloadHash); out.put("scenario_hash", scenarioHash);
             out.put("feasible", false);
-            out.put("message", message);
+            out.put("solver_status", solverStatus);
+            out.put("fallback_allowed", fallbackAllowed);
+            out.put("fallback_used", fallbackUsed);
+            out.put("failure_reason", message);
+            out.put("allocation_latency_ms", allocLatencyMs);
+            out.put("capacity_by_resource", capacityByResource);
+            out.put("mandatory_demand_by_resource", mandatoryDemandByResource);
+            out.put("realized_contention_by_resource", realizedContentionByResource);
+            out.put("zero_demand_by_resource", zeroDemandByResource);
             return toJson(out);
         }
 
@@ -208,11 +236,18 @@ public class PlatformMediationHarness {
         if (!execute) {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("cell", cell); out.put("seed", seed); out.put("policy", policy);
-            out.put("utility_family", familyLabel); out.put("scenario_hash", scenarioHash);
+            out.put("utility_family", familyLabel);
+            out.put("workload_hash", workloadHash); out.put("scenario_hash", scenarioHash);
             out.put("feasible", true);
             out.put("solver_status", solverStatus);
+            out.put("fallback_allowed", fallbackAllowed);
+            out.put("fallback_used", fallbackUsed);
             out.put("allocation_latency_ms", allocLatencyMs);
             out.put("welfare_own_family", declaredWelfare);
+            out.put("capacity_by_resource", capacityByResource);
+            out.put("mandatory_demand_by_resource", mandatoryDemandByResource);
+            out.put("realized_contention_by_resource", realizedContentionByResource);
+            out.put("zero_demand_by_resource", zeroDemandByResource);
             out.put("capacity_violation", capacityViolation);
             out.put("bound_violation", boundViolation);
             return toJson(out);
@@ -285,11 +320,18 @@ public class PlatformMediationHarness {
         out.put("seed", seed);
         out.put("policy", policy);
         out.put("utility_family", familyLabel);
+        out.put("workload_hash", workloadHash);
         out.put("scenario_hash", scenarioHash);
         out.put("feasible", true);
         out.put("solver_status", solverStatus);
+        out.put("fallback_allowed", fallbackAllowed);
+        out.put("fallback_used", fallbackUsed);
         out.put("allocation_latency_ms", allocLatencyMs);
         out.put("welfare_own_family", declaredWelfare);
+        out.put("capacity_by_resource", capacityByResource);
+        out.put("mandatory_demand_by_resource", mandatoryDemandByResource);
+        out.put("realized_contention_by_resource", realizedContentionByResource);
+        out.put("zero_demand_by_resource", zeroDemandByResource);
         out.put("capacity_violation", capacityViolation);
         out.put("bound_violation", boundViolation);
         out.put("backend_calls_total", backendTotal);
@@ -365,10 +407,64 @@ public class PlatformMediationHarness {
                 lo[i] = lower[i][j];
                 up[i] = upper[i][j];
             }
-            double[] col = boundedProportional(scores, lo, up, cap[j]);
+            double[] col = boundedLogAllocation(scores, lo, up, cap[j]);
             for (int i = 0; i < n; i++) cont[i][j] = col[i];
         }
         return roundSafe(cont, lower, upper, cap);
+    }
+
+    static double[] boundedLogAllocation(double[] scores, long[] lower, long[] upper, long capacity) {
+        int n = scores.length;
+        long sumLower = 0, sumUpper = 0;
+        for (int i = 0; i < n; i++) {
+            if (!Double.isFinite(scores[i]) || scores[i] < 0) {
+                throw new IllegalArgumentException("score must be finite and nonnegative: " + scores[i]);
+            }
+            if (lower[i] < 0 || upper[i] < lower[i]) {
+                throw new IllegalArgumentException("invalid bounds [" + lower[i] + "," + upper[i] + "]");
+            }
+            sumLower += lower[i];
+            sumUpper += upper[i];
+        }
+        if (sumLower > capacity) {
+            throw new IllegalStateException("infeasible lower bounds " + sumLower + " > capacity " + capacity);
+        }
+        double[] x = new double[n];
+        if (sumUpper <= capacity) {
+            for (int i = 0; i < n; i++) x[i] = upper[i];
+            return x;
+        }
+        long zeroLowerSum = 0;
+        List<Integer> pos = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            if (scores[i] > 0) {
+                pos.add(i);
+            } else {
+                x[i] = lower[i];
+                zeroLowerSum += lower[i];
+            }
+        }
+        double capP = capacity - zeroLowerSum;
+        double sumUpperP = 0;
+        for (int i : pos) sumUpperP += upper[i];
+        if (sumUpperP <= capP) {
+            for (int i : pos) x[i] = upper[i];
+            return x;
+        }
+        double lambdaLo = 1e-15, lambdaHi = 1e15;
+        for (int iter = 0; iter < 200; iter++) {
+            double lambda = Math.sqrt(lambdaLo * lambdaHi);
+            double s = 0;
+            for (int i : pos) {
+                s += Math.min((double) upper[i], Math.max((double) lower[i], scores[i] / lambda));
+            }
+            if (s > capP) lambdaLo = lambda; else lambdaHi = lambda;
+        }
+        double lambda = Math.sqrt(lambdaLo * lambdaHi);
+        for (int i : pos) {
+            x[i] = Math.min((double) upper[i], Math.max((double) lower[i], scores[i] / lambda));
+        }
+        return x;
     }
 
     private static double phiForFamily(String family, double[] w, long[] alloc, double[] req) {

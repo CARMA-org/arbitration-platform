@@ -1,5 +1,6 @@
 package org.carma.arbitration.experiment;
 
+import org.carma.arbitration.agent.ExampleAgents.NewsSearchAgent;
 import org.carma.arbitration.agent.RealisticAgentFramework.*;
 import org.carma.arbitration.mechanism.*;
 import org.carma.arbitration.model.*;
@@ -9,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class EnforcementFaultInjection {
 
@@ -112,6 +114,10 @@ public class EnforcementFaultInjection {
         record("hung_solver_process", craftedSolver(slowScript, "hung"), totals);
         record("oversubscribed_minimums", oversubscribedMinimums(), totals);
         record("one_exhausted_resource", oneExhaustedResource(), totals);
+        record("expired_contract_execution", expiredContract(), totals);
+        record("cross_version_context_execution", crossVersionContext(), totals);
+        record("removed_agent_execution", removedAgent(), totals);
+        record("service_instance_charge", serviceInstanceCharge(), totals);
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("repeated_case_trials", reps);
@@ -361,6 +367,146 @@ public class EnforcementFaultInjection {
                 || ctx.getCharged(ResourceType.API_CREDITS) != 0) c.partialDeductions++;
         }
         c.denominators(reps, reps, 0, c.incorrectSuccess);
+        return c;
+    }
+
+    private AgentRuntime boundRuntime(ServiceRegistry reg, MockServiceBackend backend) {
+        Map<ResourceType, Long> caps = new HashMap<>();
+        caps.put(ResourceType.COMPUTE, 100000L);
+        caps.put(ResourceType.MEMORY, 100000L);
+        caps.put(ResourceType.API_CREDITS, 100000L);
+        return new AgentRuntime.Builder()
+            .serviceArbitrator(new ServiceArbitrator(new PriorityEconomy(), reg))
+            .serviceRegistry(reg).resourcePool(new ResourcePool(caps))
+            .serviceBackend(backend).build();
+    }
+
+    private Map<ResourceType, Long> fullBundle() {
+        Map<ResourceType, Long> b = new HashMap<>();
+        b.put(ResourceType.COMPUTE, 1000L);
+        b.put(ResourceType.MEMORY, 1000L);
+        b.put(ResourceType.API_CREDITS, 1000L);
+        return b;
+    }
+
+    private Map<ServiceType, Integer> slots(ServiceType type) {
+        Map<ServiceType, Integer> s = new HashMap<>();
+        s.put(type, 8);
+        return s;
+    }
+
+    private void register(AgentRuntime runtime, String id) {
+        runtime.register(new NewsSearchAgent.Builder(id).topics(List.of("AI")).initialCurrency(50).build());
+    }
+
+    private Counters expiredContract() {
+        Counters c = new Counters();
+        ServiceType type = ServiceType.TEXT_GENERATION;
+        for (int r = 0; r < reps; r++) {
+            ServiceRegistry reg = registry(type, 100000);
+            MockServiceBackend backend = new MockServiceBackend(reg, MockServiceBackend.MockConfig.fast());
+            AgentRuntime runtime = boundRuntime(reg, backend);
+            AtomicLong clock = new AtomicLong(1000L);
+            runtime.setClock(clock::get);
+            register(runtime, "a1");
+            Map<String, Map<ResourceType, Long>> alloc = new HashMap<>();
+            alloc.put("a1", fullBundle());
+            runtime.installContracts(alloc, "test", "optimal", 500L);
+            ExecutionContext ctx = runtime.createExecutionContext("a1", slots(type));
+            clock.set(5000L);
+            int before = backend.getInvocationCount();
+            ServiceResult res = ctx.invokeService(type, Map.of("prompt", "x"));
+            if (res.isSuccess()) c.incorrectSuccess++;
+            if (backend.getInvocationCount() != before) c.backendAfterDenial++;
+            if (ctx.getCharged(ResourceType.API_CREDITS) != 0) c.partialDeductions++;
+        }
+        c.denominators(reps, reps, 0, c.incorrectSuccess);
+        return c;
+    }
+
+    private Counters crossVersionContext() {
+        Counters c = new Counters();
+        ServiceType type = ServiceType.TEXT_GENERATION;
+        for (int r = 0; r < reps; r++) {
+            ServiceRegistry reg = registry(type, 100000);
+            MockServiceBackend backend = new MockServiceBackend(reg, MockServiceBackend.MockConfig.fast());
+            AgentRuntime runtime = boundRuntime(reg, backend);
+            register(runtime, "a1");
+            Map<String, Map<ResourceType, Long>> alloc = new HashMap<>();
+            alloc.put("a1", fullBundle());
+            runtime.installContracts(alloc, "test", "optimal", null);
+            ExecutionContext stale = runtime.createExecutionContext("a1", slots(type));
+            runtime.updateContract("a1", fullBundle(), "test", "optimal", null);
+            int before = backend.getInvocationCount();
+            ServiceResult res = stale.invokeService(type, Map.of("prompt", "x"));
+            if (res.isSuccess()) c.incorrectSuccess++;
+            if (backend.getInvocationCount() != before) c.backendAfterDenial++;
+            if (stale.getCharged(ResourceType.API_CREDITS) != 0) c.partialDeductions++;
+        }
+        c.denominators(reps, reps, 0, c.incorrectSuccess);
+        return c;
+    }
+
+    private Counters removedAgent() {
+        Counters c = new Counters();
+        ServiceType type = ServiceType.TEXT_GENERATION;
+        for (int r = 0; r < reps; r++) {
+            ServiceRegistry reg = registry(type, 100000);
+            MockServiceBackend backend = new MockServiceBackend(reg, MockServiceBackend.MockConfig.fast());
+            AgentRuntime runtime = boundRuntime(reg, backend);
+            register(runtime, "a1");
+            Map<String, Map<ResourceType, Long>> alloc = new HashMap<>();
+            alloc.put("a1", fullBundle());
+            runtime.installContracts(alloc, "test", "optimal", null);
+            ExecutionContext ctx = runtime.createExecutionContext("a1", slots(type));
+            runtime.unregister("a1");
+            int before = backend.getInvocationCount();
+            ServiceResult res = ctx.invokeService(type, Map.of("prompt", "x"));
+            if (res.isSuccess()) c.incorrectSuccess++;
+            if (backend.getInvocationCount() != before) c.backendAfterDenial++;
+            if (ctx.getCharged(ResourceType.API_CREDITS) != 0) c.partialDeductions++;
+        }
+        c.denominators(reps, reps, 0, c.incorrectSuccess);
+        return c;
+    }
+
+    private Counters serviceInstanceCharge() {
+        Counters c = new Counters();
+        ServiceType type = ServiceType.TEXT_SUMMARIZATION;
+        Map<ResourceType, Long> vecTwo = new HashMap<>();
+        vecTwo.put(ResourceType.COMPUTE, 2L);
+        vecTwo.put(ResourceType.MEMORY, 1L);
+        vecTwo.put(ResourceType.API_CREDITS, 1L);
+        for (int r = 0; r < reps; r++) {
+            ServiceRegistry reg = new ServiceRegistry();
+            Map<ResourceType, Long> vecOne = new HashMap<>();
+            vecOne.put(ResourceType.COMPUTE, 9L);
+            vecOne.put(ResourceType.MEMORY, 9L);
+            vecOne.put(ResourceType.API_CREDITS, 9L);
+            reg.register(new AIService.Builder("svc-1", type).resourceRequirements(vecOne).maxCapacity(1).build());
+            reg.register(new AIService.Builder("svc-2", type).resourceRequirements(vecTwo).maxCapacity(1).build());
+            MockServiceBackend backend = new MockServiceBackend(reg, MockServiceBackend.MockConfig.fast());
+            AgentRuntime runtime = boundRuntime(reg, backend);
+            register(runtime, "a1");
+            Map<String, Map<ResourceType, Long>> alloc = new HashMap<>();
+            alloc.put("a1", fullBundle());
+            runtime.installContracts(alloc, "test", "optimal", null);
+            reg.setServiceAvailable("svc-1", false);
+            ExecutionContext ctx = runtime.createExecutionContext("a1", slots(type));
+            ServiceResult res = ctx.invokeService(type, Map.of("text", "x"));
+            if (!res.isSuccess()) {
+                c.incorrectSuccess++;
+                continue;
+            }
+            if (ctx.getCharged(ResourceType.COMPUTE) != 2 || ctx.getCharged(ResourceType.MEMORY) != 1
+                || ctx.getCharged(ResourceType.API_CREDITS) != 1) c.partialDeductions++;
+            if (!backend.getInvocations("svc-2").isEmpty() && backend.getInvocations("svc-1").isEmpty()) {
+                // charged and invoked the same available instance
+            } else {
+                c.incorrectSuccess++;
+            }
+        }
+        c.denominators(reps, reps, reps, reps - c.incorrectSuccess);
         return c;
     }
 

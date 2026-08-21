@@ -26,30 +26,37 @@ Key classes:
 | Runtime                    | `agent.RealisticAgentFramework.AgentRuntime` |
 | Joint arbitration (canonical) | `mechanism.ConvexJointArbitrator` (convex solve via `scripts/joint_solver.py`) |
 | Joint interface            | `mechanism.JointArbitrator` |
-| Comparison policy (separable) | `mechanism.ProportionalFairnessArbitrator`, `mechanism.SequentialJointArbitrator` |
+| Historical single-resource allocators | `mechanism.ProportionalFairnessArbitrator`, `mechanism.SequentialJointArbitrator` (not used by the current primary experiment) |
 | Contract                   | `model.AllocationContract` (id, version/epoch, agent, bundle, issue/expiry, policy, solver status) |
 | Constrained execution      | `AgentRuntime.ExecutionContext.invokeService` |
-| Service capacity slot       | `model.ServiceRegistry.acquireSlot` / `releaseSlot` |
+| Service instance handle    | `model.ServiceRegistry.acquireHandle` returns a `model.ServiceHandle`; `ServiceHandle.release` frees it |
 
 `AgentRuntime.runArbitration(detector, JointArbitrator)` calls the selected joint
 arbitrator **once per complete contention group** over the whole resource set —
 it does not loop over resource types with a single-resource allocator. The
-canonical policy is `ConvexJointArbitrator`; the separable
-(`ProportionalFairnessArbitrator` / `SequentialJointArbitrator`) allocators remain
-available only as explicitly named comparison policies. Solver failure fails
-closed (throws) unless fallback is explicitly enabled; an explicit fallback result
-records both the requested and actual policy.
+canonical joint policy is `ConvexJointArbitrator`. The current primary experiment
+compares equal quotas, standard unweighted DRF, an exact decomposed Cobb-Douglas
+allocator (per-resource bounded-log water-filling), and joint linear,
+Cobb-Douglas, CES, and Leontief. The `ProportionalFairnessArbitrator` and
+`SequentialJointArbitrator` are historical single-resource allocators that the
+primary experiment does not use. Solver failure fails closed (throws) unless
+fallback is explicitly enabled; an explicit fallback result records both the
+requested and actual policy.
 
 ## Enforcement guarantees (mechanical)
 
-`ExecutionContext.invokeService` atomically checks and consumes the complete
-resource vector from `ServiceType.getDefaultResourceRequirements()` and acquires a
-real service-capacity slot before the backend is invoked. If any resource or the
-slot is unavailable it consumes nothing, does not invoke the backend, and returns
-an explicit denial naming the exhausted resource. Over-quota and negative requests
-never partially consume quota. Concurrent calls never collectively exceed the
-agent bundle or the service capacity. Allocation installation is atomic,
-conservation-checked, and rejects stale versions.
+`ExecutionContext.invokeService` acquires a handle for a specific service
+instance (`ServiceRegistry.acquireHandle`), atomically checks and charges that
+instance's configured resource vector against the shared per-version ledger, and
+invokes the backend on that same service id only after the charge succeeds. It
+checks agent registration, contract version, expiry, and context binding first.
+If any resource or the instance is unavailable it consumes nothing, does not
+invoke the backend, releases the handle, and returns an explicit denial naming the
+exhausted resource. Over-quota and negative requests never partially consume
+quota. Concurrent calls never collectively exceed the agent bundle or the service
+capacity. Allocation installation is atomic, conservation-checked, and rejects
+stale versions. Unsupported utility families are rejected rather than
+approximated, and solver timeouts fail closed.
 
 These are mechanical enforcement properties. They are **not** claims of
 strategyproofness, truthful reporting, collusion resistance, or protection against
@@ -78,25 +85,29 @@ Run the integrated demo (canonical path, ConvexJointArbitrator):
 java -cp "target/classes:$(cat cp.txt)" org.carma.arbitration.demo.IntegratedArbitrationDemo
 ```
 
-Smoke first, then full (full runs only after smoke invariants pass):
+Run the primary sweep alone (no other solver-heavy work concurrent), then the
+enforcement and dynamic experiments, then generate reports in order:
 
 ```bash
-# Platform-mediation sweep
-python experiments/platform_mediation/run_sweep.py --smoke
+# 1. Primary sweep (run alone for clean latency)
 python experiments/platform_mediation/run_sweep.py --full
-python experiments/platform_mediation/figures.py --mode full
 
-# Dynamic allocation
-python experiments/dynamic_allocation/run_dynamic.py --smoke
-python experiments/dynamic_allocation/run_dynamic.py --full
-
-# Enforcement fault injection
-python experiments/enforcement/run_enforcement.py --smoke
+# 2. Enforcement fault injection
 python experiments/enforcement/run_enforcement.py --reps 100
 
-# Test report + SHA-256 manifest
+# 3. Dynamic allocation (secondary solver-level simulation)
+python experiments/dynamic_allocation/run_dynamic.py --full
+
+# 4. Decomposition validation, headline, memo, figures
+python experiments/platform_mediation/validate_decomposition.py
+python experiments/platform_mediation/make_headline.py
+python experiments/platform_mediation/make_memo.py
+python experiments/platform_mediation/figures.py
+
+# 5. Test report, then manifest last, then consistency check
 python experiments/platform_mediation/make_test_report.py
 python experiments/platform_mediation/make_manifest.py
+python experiments/platform_mediation/check_consistency.py --with-manifest
 ```
 
 Results, tables, figures, logs, configuration copies, the machine-readable test

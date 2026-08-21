@@ -70,30 +70,19 @@ def test_different_seeds_give_different_hashes_in_both_compositions():
         assert len(hs) > 1, comp
 
 
-def test_task_type_and_order_affect_scenario_hash():
-    sc = scenario.base_scenario("mixed_bundle", "moderate", 1.3, 9, CFG)
-    base = sc["scenario_hash"]
-    swapped = json.loads(json.dumps(sc))
-    swapped["agents"][0]["tasks"][0], swapped["agents"][0]["tasks"][1] = \
-        swapped["agents"][0]["tasks"][1], swapped["agents"][0]["tasks"][0]
-    payload = {
-        "composition": swapped["composition"], "contention": swapped["contention"],
-        "capacities": swapped["capacities"],
-        "agents": [{
-            "id": a["id"], "task_types": a["task_types"],
-            "mandatory_seq": [t["mandatory"] for t in a["tasks"]],
-            "optional_seq": [t["optional"] for t in a["tasks"]],
-            "quality": [t["quality"] for t in a["tasks"]],
-            "refinement": [t["refinement"] for t in a["tasks"]],
-            "slo": [t["sloMs"] for t in a["tasks"]],
-            "mandatory_demand": a["mandatory_demand"], "optional_demand": a["optional_demand"],
-            "min": a["min"], "upper": a["upper"], "util_weights": a["util_weights"],
-            "leontief_req": a["leontief_req"], "priority": a["priority"],
-        } for a in swapped["agents"]],
-    }
-    reordered = scenario._scenario_hash(payload)
-    assert reordered != base or [t["type"] for t in sc["agents"][0]["tasks"]][0] == \
-        [t["type"] for t in sc["agents"][0]["tasks"]][1]
+def test_scenario_hash_is_order_sensitive():
+    assert scenario._scenario_hash({"x": [1, 2, 3]}) != scenario._scenario_hash({"x": [3, 2, 1]})
+
+
+def test_workload_hash_distinct_per_seed_and_shared_by_policies():
+    hs = {scenario.base_scenario("mixed_bundle", "high", 1.9, s, CFG)["workload_hash"]
+          for s in range(30)}
+    assert len(hs) > 1
+    sc = scenario.base_scenario("mixed_bundle", "high", 1.9, 5, CFG)
+    jobs = [scenario.make_job(sc, "mixed_bundle__high", 5, p, "python3", True)
+            for p in ("equal", "joint_linear", "joint_leontief")]
+    assert {j["workloadHash"] for j in jobs} == {sc["workload_hash"]}
+    assert all(j["fallbackAllowed"] is False for j in jobs)
 
 
 def test_declaration_primitive_equals_normalized_mandatory_demand():
