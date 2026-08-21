@@ -1,0 +1,47 @@
+{
+  "description": "Platform-mediation sweep: joint weighted proportional fairness under linear, Cobb-Douglas, CES, and Leontief declarations through the canonical Java runtime, against equal quotas, standard DRF on mandatory demand, and an exact decomposed Cobb-Douglas comparator. Each seed is an independent workload draw.",
+  "resources": [
+    "COMPUTE",
+    "MEMORY",
+    "API_CREDITS",
+    "DATASET"
+  ],
+  "compositions": [
+    "homogeneous",
+    "mixed_bundle"
+  ],
+  "contention": {
+    "moderate": 1.3,
+    "high": 1.9
+  },
+  "policies": [
+    "equal",
+    "drf",
+    "decomposed_cobb_douglas",
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
+  ],
+  "joint_policies": [
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
+  ],
+  "reference_policy": "joint_linear",
+  "bootstrap_seed": 12345,
+  "smoke": {
+    "n_agents": 4,
+    "tasks_per_agent": 3,
+    "n_test": 8,
+    "chunk": 200
+  },
+  "full": {
+    "n_agents": 6,
+    "tasks_per_agent": 8,
+    "n_test": 100,
+    "chunk": 300
+  },
+  "mode": "full"
+}

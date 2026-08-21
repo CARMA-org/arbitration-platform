@@ -1,0 +1,69 @@
+{
+  "mode": "full",
+  "compositions": [
+    "homogeneous",
+    "mixed_bundle"
+  ],
+  "contention": {
+    "moderate": 1.3,
+    "high": 1.9
+  },
+  "realized_contention_ratio": {
+    "homogeneous__moderate": {
+      "COMPUTE": 1.2998678996036988,
+      "MEMORY": 1.2998266897746966,
+      "API_CREDITS": 1.2986301369863014,
+      "DATASET": 1.2972972972972974
+    },
+    "homogeneous__high": {
+      "COMPUTE": 1.9005524861878453,
+      "MEMORY": 1.8995633187772927,
+      "API_CREDITS": 1.9036144578313252,
+      "DATASET": 1.9047619047619047
+    },
+    "mixed_bundle__moderate": {
+      "COMPUTE": 1.2994505494505495,
+      "MEMORY": 1.2990196078431373,
+      "API_CREDITS": 1.3,
+      "DATASET": 1.3012048192771084
+    },
+    "mixed_bundle__high": {
+      "COMPUTE": 1.8982300884955752,
+      "MEMORY": 1.8991825613079019,
+      "API_CREDITS": 1.9,
+      "DATASET": 1.8888888888888888
+    }
+  },
+  "distinct_workload_hashes_per_cell": {
+    "homogeneous__moderate": 100,
+    "homogeneous__high": 100,
+    "mixed_bundle__moderate": 100,
+    "mixed_bundle__high": 100
+  },
+  "n_cells": 4,
+  "n_test_seeds_per_cell": 100,
+  "n_agents": 6,
+  "tasks_per_agent": 8,
+  "policies": [
+    "equal",
+    "drf",
+    "decomposed_cobb_douglas",
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
+  ],
+  "joint_policies": [
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
+  ],
+  "reference_policy": "joint_linear",
+  "bootstrap_seed": 12345,
+  "expected_runs": 2800,
+  "total_test_runs": 2800,
+  "n_agent_records": 16800,
+  "capacity_violations_total": 0,
+  "bound_violations_total": 0
+}
