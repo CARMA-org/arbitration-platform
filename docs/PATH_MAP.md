@@ -34,7 +34,7 @@ enforced execution.
    single atomic reference replacement. Agents absent from the new snapshot are no
    longer executable.
 
-Comparison policies (equal quotas, DRF, separable water-filling) are computed by
+Comparison policies (equal quotas, DRF, decomposed Cobb-Douglas) are computed by
 `PlatformMediationHarness` and installed and executed through the same runtime.
 
 ## Enforcement path
