@@ -9,16 +9,18 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -54,5 +56,8 @@ jobs:
 
       - name: Bundle reproducibility
         run: |
+          git rev-parse --verify HEAD^
+          changed="$(git diff --name-only HEAD^ HEAD | sort | tr '\n' ' ')"
+          test "$changed" = "platform_evaluation_results_bundle.sha256 platform_evaluation_results_bundle.zip "
           python experiments/platform_mediation/make_bundle.py
           git diff --exit-code -- platform_evaluation_results_bundle.zip platform_evaluation_results_bundle.sha256

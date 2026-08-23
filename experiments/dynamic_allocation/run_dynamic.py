@@ -148,13 +148,14 @@ def validate_solution(res, n, m, seed, policy, epoch, stage):
                               res.get("error_type"), res.get("error_message")))
 
 
-def proportional_shortfall(active, caps, profiles, promised, iters=22):
+def proportional_shortfall(active, caps, profiles, promised, seed, policy, epoch, n, m, iters=22):
     lo, hi = 0.0, 1.0
-    for _ in range(iters):
+    for it in range(iters):
         mid = (lo + hi) / 2
         scaled = {i: promised[i] * mid for i in promised}
         res, _, _, _, _ = solve(active, caps, profiles, scaled)
-        if res["status"] in ("optimal", "optimal_inaccurate"):
+        if validate_solution(res, n, m, seed, policy, epoch,
+                             "shortfall_bisect_%d" % it) == "feasible":
             lo = mid
         else:
             hi = mid
@@ -248,7 +249,8 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
         if infeasible and active_promised:
             agg["infeasible_floor_epochs"] += 1
             if policy == "leases_shortfall":
-                shortfall_scale = proportional_shortfall(active, caps, profiles, active_promised)
+                shortfall_scale = proportional_shortfall(
+                    active, caps, profiles, active_promised, seed, policy, e, len(active), m)
                 agg["shortfall_epochs"] += 1
                 agg["shortfall_scale_sum"] += shortfall_scale
                 scaled = {i: active_promised[i] * shortfall_scale for i in active_promised}

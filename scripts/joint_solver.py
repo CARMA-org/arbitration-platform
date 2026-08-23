@@ -302,6 +302,9 @@ def solve_joint_allocation(data):
 
     if problem.status == cp.INFEASIBLE:
         return _err("infeasible", None, solve_err or "problem is infeasible", data)
+    if problem.status == cp.INFEASIBLE_INACCURATE:
+        return _err("infeasible_inaccurate", None,
+                    solve_err or "problem is infeasible (inaccurate)", data)
     if problem.status == cp.UNBOUNDED:
         return _err("unbounded", None, solve_err or "problem is unbounded", data)
     if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE):

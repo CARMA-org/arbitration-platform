@@ -108,3 +108,60 @@ def test_excluded_zip_cannot_be_nested():
     assert mb.excluded("foo/bar.zip")
     assert mb.excluded("platform_evaluation_results_bundle.sha256")
     assert not mb.excluded("src/main/java/Foo.java")
+
+
+def _clone(src, dst, depth):
+    subprocess.check_call(["git", "clone", "-q", "--depth", str(depth), "file://" + src, dst],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _add_source_commit(repo):
+    with open(os.path.join(repo, "src.txt"), "w") as f:
+        f.write("changed")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "source change")
+
+
+def test_depth_one_shallow_fails_clearly(repo, tmp_path, monkeypatch):
+    _add_source_commit(repo)
+    dst = str(tmp_path / "shallow1")
+    _clone(repo, dst, 1)
+    monkeypatch.setattr(mb, "ROOT", dst)
+    with pytest.raises(SystemExit) as exc:
+        mb.resolve_snapshot(None)
+    assert "HEAD^ is unavailable" in str(exc.value)
+    assert "--snapshot-commit" in str(exc.value)
+
+
+def test_depth_two_shallow_resolves_bundle_only_head_to_parent(repo, tmp_path, monkeypatch):
+    parent = mb.rev_parse("HEAD")
+    _add_bundle_only_commit(repo)
+    dst = str(tmp_path / "shallow2")
+    _clone(repo, dst, 2)
+    monkeypatch.setattr(mb, "ROOT", dst)
+    assert mb.resolve_snapshot(None) == parent
+
+
+def test_explicit_snapshot_in_shallow_checkout(repo, tmp_path, monkeypatch):
+    _add_source_commit(repo)
+    head = mb.rev_parse("HEAD")
+    dst = str(tmp_path / "shallow3")
+    _clone(repo, dst, 1)
+    monkeypatch.setattr(mb, "ROOT", dst)
+    assert mb.resolve_snapshot(head) == head
+
+
+def test_true_root_commit_resolves_to_itself(repo):
+    assert mb.parent_commit() is None
+    assert not mb.is_shallow()
+    assert mb.resolve_snapshot(None) == mb.rev_parse("HEAD")
+
+
+def test_parent_inspection_failure_never_selects_head(repo, monkeypatch):
+    _add_bundle_only_commit(repo)
+
+    def boom():
+        raise subprocess.CalledProcessError(128, "git diff")
+    monkeypatch.setattr(mb, "head_changed_paths", boom)
+    with pytest.raises(subprocess.CalledProcessError):
+        mb.resolve_snapshot(None)

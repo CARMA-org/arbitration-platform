@@ -56,19 +56,34 @@ def rev_parse(ref):
     return out.decode().strip()
 
 
-def head_changed_paths():
+def parent_commit():
     try:
         out = subprocess.check_output(
-            ["git", "-C", ROOT, "diff", "--name-only", "-z", "HEAD^", "HEAD"],
+            ["git", "-C", ROOT, "rev-parse", "--verify", "HEAD^^{commit}"],
             stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         return None
-    return [p for p in out.decode().split("\0") if p]
+    return out.decode().strip()
+
+
+def is_shallow():
+    return git("rev-parse", "--is-shallow-repository").decode().strip() == "true"
+
+
+def head_changed_paths():
+    out = git("diff", "--name-only", "-z", "HEAD^", "HEAD").decode()
+    return [p for p in out.split("\0") if p]
 
 
 def resolve_snapshot(explicit):
     if explicit:
         return rev_parse(explicit)
+    if parent_commit() is None:
+        if is_shallow():
+            raise SystemExit(
+                "Cannot determine the bundle source snapshot because HEAD^ is "
+                "unavailable. Fetch at least two commits or provide --snapshot-commit.")
+        return rev_parse("HEAD")
     changed = head_changed_paths()
     if changed and set(changed) <= {BUNDLE_ZIP, BUNDLE_SHA}:
         return rev_parse("HEAD^")

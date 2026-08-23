@@ -123,3 +123,88 @@ def test_smoke_seed0_reoptimize_runs_with_cvxpy():
     row = rd.simulate_policy("reoptimize", pool, cfg, events, sh, seed, lambda r: rows.append(r))
     assert len(rows) == cfg["epochs"]
     assert row["base_infeasible_epochs"] == 0
+
+
+def _shortfall_ctx():
+    cfg = SMALL
+    seed = rd.derive_seed("dynamic_seed", 0)
+    pool = rd.build_pool(seed, cfg)
+    profiles = {i: dict(pool[i]["profile"], priority=pool[i]["priority"])
+                for i in range(cfg["n_pool"])}
+    active = list(range(cfg["n_base"]))
+    caps = rd.base_capacities(pool, active)
+    promised = {0: 1.0}
+    return active, caps, profiles, promised, seed
+
+
+def _bisect(monkeypatch, solver_fn):
+    monkeypatch.setattr(rd.joint_solver, "solve_joint_allocation", solver_fn)
+    active, caps, profiles, promised, seed = _shortfall_ctx()
+    return rd.proportional_shortfall(active, caps, profiles, promised, seed,
+                                     "leases_shortfall", 0, len(active), len(rd.RESOURCES))
+
+
+def test_bisection_feasible_raises_lower_bound(monkeypatch):
+    def always_feasible(data):
+        return {"status": "optimal", "allocations": data["minimums"],
+                "error_type": None, "error_message": None}
+    assert _bisect(monkeypatch, always_feasible) > 0.99
+
+
+def test_bisection_infeasible_lowers_upper_bound(monkeypatch):
+    def feasible_below_quarter(data):
+        floors = data.get("utility_floors") or []
+        if any(f is not None and f > 0.25 for f in floors):
+            return {"status": "infeasible", "allocations": None,
+                    "error_type": None, "error_message": "floors infeasible"}
+        return {"status": "optimal", "allocations": data["minimums"],
+                "error_type": None, "error_message": None}
+    scale = _bisect(monkeypatch, feasible_below_quarter)
+    assert 0.24 < scale <= 0.2500001
+
+
+def test_bisection_solver_error_raises(monkeypatch):
+    def erroring(data):
+        return {"status": "solver_error", "allocations": None,
+                "error_type": "SolverError", "error_message": "boom"}
+    with pytest.raises(rd.SolverResultError) as exc:
+        _bisect(monkeypatch, erroring)
+    assert "shortfall_bisect_0" in str(exc.value)
+
+
+def test_bisection_unbounded_raises(monkeypatch):
+    def unbounded(data):
+        return {"status": "unbounded", "allocations": None,
+                "error_type": None, "error_message": "unbounded"}
+    with pytest.raises(rd.SolverResultError):
+        _bisect(monkeypatch, unbounded)
+
+
+def test_bisection_optimal_null_allocations_raises(monkeypatch):
+    def null_alloc(data):
+        return {"status": "optimal", "allocations": None,
+                "error_type": None, "error_message": None}
+    with pytest.raises(rd.SolverResultError):
+        _bisect(monkeypatch, null_alloc)
+
+
+def test_bisection_optimal_malformed_allocations_raises(monkeypatch):
+    def malformed(data):
+        return {"status": "optimal", "allocations": [[1.0]],
+                "error_type": None, "error_message": None}
+    with pytest.raises(rd.SolverResultError):
+        _bisect(monkeypatch, malformed)
+
+
+def test_smoke_seed0_leases_shortfall_runs_with_cvxpy():
+    if not rd.joint_solver.CVXPY_AVAILABLE:
+        pytest.skip("cvxpy required")
+    cfg = rd.CFG["smoke"]
+    seed = rd.derive_seed("dynamic_seed", 0)
+    pool = rd.build_pool(seed, cfg)
+    events, sh = rd.event_schedule(seed, cfg)
+    rows = []
+    row = rd.simulate_policy("leases_shortfall", pool, cfg, events, sh, seed,
+                             lambda r: rows.append(r))
+    assert len(rows) == cfg["epochs"]
+    assert row["base_infeasible_epochs"] == 0
