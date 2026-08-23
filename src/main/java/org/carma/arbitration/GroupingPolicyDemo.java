@@ -171,8 +171,7 @@ public class GroupingPolicyDemo {
         }
 
         System.out.println();
-        System.out.println("  ✓ Smaller groups = faster computation at cost of optimality");
-        System.out.println("  ✓ O(n³) complexity reduction when splitting large groups");
+        System.out.println("  ✓ Smaller groups = smaller per-group cubic work proxy and more cut contention edges");
         printScenarioFooter();
     }
 
@@ -398,7 +397,7 @@ public class GroupingPolicyDemo {
 
     private static void scenario6_PolicyAnalysis() {
         printScenarioHeader(6, "Policy Analysis",
-            "Analyzing trade-offs between policies");
+            "Comparing group structure and cut edges across policies");
 
         // Create a moderately complex scenario
         List<Agent> agents = new ArrayList<>();
@@ -458,7 +457,7 @@ public class GroupingPolicyDemo {
 
         System.out.println("  └─────────────────────────────────────┴────────┴─────────┴─────────┴──────────┘");
         System.out.println();
-        System.out.println("  ✓ Analysis shows trade-off between performance and optimality");
+        System.out.println("  ✓ Table shows the cubic work proxy and cut-edge fraction per policy");
         printScenarioFooter();
     }
 

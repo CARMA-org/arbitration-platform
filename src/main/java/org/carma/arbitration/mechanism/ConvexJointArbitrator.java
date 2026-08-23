@@ -55,7 +55,8 @@ public class ConvexJointArbitrator implements JointArbitrator {
     }
 
     /**
-     * Set whether to fall back to sequential solver on errors.
+     * Enable or disable the per-resource sequential fallback on solver errors
+     * (disabled by default; joint optimization otherwise fails closed).
      */
     public ConvexJointArbitrator setUseFallbackOnError(boolean useFallback) {
         this.useFallbackOnError = useFallback;
@@ -730,8 +731,9 @@ public class ConvexJointArbitrator implements JointArbitrator {
             3. Verify installation:
                python3 -c "import cvxpy; import clarabel; print('OK')"
             
-            Without these dependencies, the system will fall back to sequential
-            optimization, which achieves LOCAL Pareto optimality only.
+            Without these dependencies, joint optimization fails closed. The
+            per-resource sequential fallback runs only when explicitly enabled
+            via setUseFallbackOnError(true).
             """;
     }
 

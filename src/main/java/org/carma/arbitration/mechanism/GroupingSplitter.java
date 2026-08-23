@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
  * - RESOURCE_AFFINITY: Group agents with similar resource needs
  * - PRIORITY_CLUSTERING: Group by priority levels
  * - ROUND_ROBIN: Simple distribution
- * - SPECTRAL: Graph-based clustering
  * 
  * <h3>Compatibility Enforcement</h3>
  * Separates incompatible agents into different groups regardless of contention.
@@ -423,8 +422,6 @@ public class GroupingSplitter {
                 return splitByResourceAffinity(agents, maxSize);
             case PRIORITY_CLUSTERING:
                 return splitByPriority(agents, maxSize);
-            case SPECTRAL:
-                return splitBySpectral(agents, maxSize, pool);
             case ROUND_ROBIN:
             default:
                 return splitRoundRobin(agents, maxSize);
@@ -616,68 +613,6 @@ public class GroupingSplitter {
             // Sort by currency balance (higher first)
             return b.getCurrencyBalance().compareTo(a.getCurrencyBalance());
         });
-        
-        return splitIntoChunks(sorted, maxSize);
-    }
-
-    /**
-     * Split using spectral clustering on contention graph.
-     */
-    List<Set<Agent>> splitBySpectral(Set<Agent> agents, int maxSize, ResourcePool pool) {
-        List<Agent> agentList = new ArrayList<>(agents);
-        int numGroups = (int) Math.ceil((double) agents.size() / maxSize);
-        
-        // Build adjacency matrix
-        Map<String, Integer> idxMap = new HashMap<>();
-        for (int i = 0; i < agentList.size(); i++) {
-            idxMap.put(agentList.get(i).getId(), i);
-        }
-        
-        double[][] adjacency = new double[agentList.size()][agentList.size()];
-        Map<ResourceType, List<Integer>> resourceAgents = new HashMap<>();
-        
-        for (int i = 0; i < agentList.size(); i++) {
-            Agent agent = agentList.get(i);
-            for (ResourceType type : ResourceType.values()) {
-                if (agent.getIdeal(type) > 0) {
-                    resourceAgents.computeIfAbsent(type, k -> new ArrayList<>()).add(i);
-                }
-            }
-        }
-        
-        for (List<Integer> competing : resourceAgents.values()) {
-            for (int i = 0; i < competing.size(); i++) {
-                for (int j = i + 1; j < competing.size(); j++) {
-                    int idx1 = competing.get(i);
-                    int idx2 = competing.get(j);
-                    adjacency[idx1][idx2] = 1.0;
-                    adjacency[idx2][idx1] = 1.0;
-                }
-            }
-        }
-        
-        // Compute degree and Laplacian
-        double[] degree = new double[agentList.size()];
-        for (int i = 0; i < agentList.size(); i++) {
-            for (int j = 0; j < agentList.size(); j++) {
-                degree[i] += adjacency[i][j];
-            }
-        }
-        
-        // Use Fiedler vector approximation via power iteration
-        double[] fiedler = approximateFiedlerVector(adjacency, degree, agentList.size());
-        
-        // Sort by Fiedler vector and partition
-        Integer[] indices = new Integer[agentList.size()];
-        for (int i = 0; i < indices.length; i++) {
-            indices[i] = i;
-        }
-        Arrays.sort(indices, (a, b) -> Double.compare(fiedler[a], fiedler[b]));
-        
-        List<Agent> sorted = new ArrayList<>();
-        for (int idx : indices) {
-            sorted.add(agentList.get(idx));
-        }
         
         return splitIntoChunks(sorted, maxSize);
     }
@@ -1002,63 +937,6 @@ public class GroupingSplitter {
             sum += diff * diff;
         }
         return Math.sqrt(sum);
-    }
-
-    /**
-     * Approximate Fiedler vector using power iteration on normalized Laplacian.
-     */
-    private double[] approximateFiedlerVector(double[][] adjacency, double[] degree, int n) {
-        double[] v = new double[n];
-        double[] ones = new double[n];
-        
-        // Initialize with random values
-        Random rand = new Random(42);
-        for (int i = 0; i < n; i++) {
-            v[i] = rand.nextDouble();
-            ones[i] = 1.0;
-        }
-        normalize(v);
-        
-        // Power iteration to find second smallest eigenvector
-        for (int iter = 0; iter < 50; iter++) {
-            double[] newV = new double[n];
-            
-            // Apply Laplacian: L = D - A
-            for (int i = 0; i < n; i++) {
-                newV[i] = degree[i] * v[i];
-                for (int j = 0; j < n; j++) {
-                    newV[i] -= adjacency[i][j] * v[j];
-                }
-            }
-            
-            // Orthogonalize against constant vector (first eigenvector)
-            double dot = 0;
-            for (int i = 0; i < n; i++) {
-                dot += newV[i] * ones[i];
-            }
-            dot /= n;
-            for (int i = 0; i < n; i++) {
-                newV[i] -= dot;
-            }
-            
-            normalize(newV);
-            v = newV;
-        }
-        
-        return v;
-    }
-
-    private void normalize(double[] v) {
-        double norm = 0;
-        for (double x : v) {
-            norm += x * x;
-        }
-        norm = Math.sqrt(norm);
-        if (norm > 0) {
-            for (int i = 0; i < v.length; i++) {
-                v[i] /= norm;
-            }
-        }
     }
 
     // ========================================================================

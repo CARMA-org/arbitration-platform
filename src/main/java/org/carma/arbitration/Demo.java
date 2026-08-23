@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * 4. Complementary preferences
  * 5. Priority economy dynamics
  * 6. Allocations at or above each agent's declared minimum
- * 7. Starvation protection
+ * 7. Minimum-bound allocation for low-weight agents
  * 8. Asymptotic behavior (15s test)
  * 9. Joint optimization
  * 10. Diverse resources
@@ -57,7 +57,7 @@ public class Demo {
             runScenario4_ComplementaryPreferences(arbitrator);
             runScenario5_PriorityEconomy(arbitrator, economy);
             runScenario6_DeclaredMinimumCompliance(arbitrator);
-            runScenario7_StarvationProtection(arbitrator);
+            runScenario7_MinimumBoundForLowWeightAgents(arbitrator);
         }
         
         if (runAsymptotic) {
@@ -500,10 +500,10 @@ public class Demo {
     }
 
     // ========================================================================
-    // SCENARIO 7: Starvation Protection
+    // SCENARIO 7: minimum-bound allocation for low-weight agents
     // ========================================================================
     
-    static void runScenario7_StarvationProtection(ProportionalFairnessArbitrator arbitrator) {
+    static void runScenario7_MinimumBoundForLowWeightAgents(ProportionalFairnessArbitrator arbitrator) {
         System.out.println("SCENARIO 7: MINIMUM-BOUND ALLOCATION FOR LOW-WEIGHT AGENTS");
         System.out.println(SUBSEP);
         System.out.println("Purpose: With feasible declared minimums (9 x 5 + 10 = 55 <= 100),");

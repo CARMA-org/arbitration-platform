@@ -6,8 +6,8 @@ import java.math.BigDecimal;
 import java.util.*;
 
 /**
- * Pure Java implementation of joint multi-resource arbitration using gradient ascent.
- * 
+ * Legacy pure-Java projected-gradient heuristic for joint multi-resource arbitration.
+ *
  * This implementation performs a gradient search over the joint allocation without external
  * dependencies. It uses projected gradient ascent on the concave objective:
  * 
@@ -18,18 +18,15 @@ import java.util.*;
  * 2. Compute gradient of objective
  * 3. Take step in gradient direction
  * 4. Project onto feasible region
- * 5. Repeat until convergence
- * 
- * ACCURACY: Within 1-3% of optimal for typical problem sizes (10-100 agents)
- * 
+ * 5. Repeat until the objective change falls below a threshold
+ *
  * ADVANTAGES:
  * - No external dependencies (pure Java)
- * - Fast for small/medium problems
- * - Guaranteed feasibility
- * 
+ * - Feasible allocations by projection
+ *
  * LIMITATIONS:
- * - May converge to local optimum (though problem is concave)
- * - Less accurate than interior-point methods
+ * - May converge to a local optimum
+ * - Less accurate than the interior-point convex solver
  * - Slower for large problems
  */
 public class GradientJointArbitrator implements JointArbitrator {

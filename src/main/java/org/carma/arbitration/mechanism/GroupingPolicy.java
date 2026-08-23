@@ -37,15 +37,6 @@ import java.util.*;
  * - Security boundaries between trust domains
  * - Organizational separation requirements
  * 
- * <h2>Trade-offs</h2>
- * 
- * | Policy | Optimality | Performance | Use Case |
- * |--------|------------|-------------|----------|
- * | No limits | 100% | O(n³) | Small systems, batch processing |
- * | k-hop=1 | ~95% | O(n²) | Real-time with some trade loss |
- * | Size=10 | ~90% | O(1) | Large-scale with bounded latency |
- * | Compatibility | Varies | Varies | Multi-tenant, security boundaries |
- * 
  * @see ContentionDetector
  * @see GroupingSplitter
  */
@@ -394,13 +385,7 @@ public class GroupingPolicy {
          * Simple round-robin assignment to subgroups.
          * Fast but may break beneficial groupings.
          */
-        ROUND_ROBIN,
-
-        /**
-         * Spectral clustering based on contention graph structure.
-         * High quality but O(n³) preprocessing.
-         */
-        SPECTRAL
+        ROUND_ROBIN
     }
 
     // ========================================================================

@@ -8,9 +8,9 @@ import java.util.*;
 /**
  * Interface for joint multi-resource arbitration.
  * 
- * Unlike single-resource arbitration which optimizes each resource independently,
- * joint arbitration considers all resources simultaneously to find globally
- * Pareto-optimal allocations that enable cross-resource trades.
+ * Unlike single-resource arbitration which handles each resource independently,
+ * a joint arbitrator considers all resources together and produces candidate
+ * multi-resource allocations for the selected objective and constraints below.
  * 
  * Mathematical formulation:
  *   maximize: Σᵢ cᵢ · log(Φᵢ(A))

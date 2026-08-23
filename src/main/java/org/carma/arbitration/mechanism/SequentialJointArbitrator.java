@@ -12,8 +12,8 @@ import java.util.*;
  * ║  WARNING: THIS IS A FALLBACK IMPLEMENTATION                              ║
  * ║                                                                          ║
  * ║  This implementation solves each resource INDEPENDENTLY using the        ║
- * ║  water-filling algorithm. It achieves LOCAL Pareto optimality per        ║
- * ║  resource; it does not couple resources, so it does not solve the joint problem.             ║
+ * ║  water-filling algorithm. It does not couple resources across the        ║
+ * ║  joint problem, so cross-resource trades are not considered.             ║
  * ║                                                                          ║
  * ║  For true joint optimization, replace with ConvexJointArbitrator         ║
  * ║  using Clarabel or similar convex solver.                                ║
@@ -134,7 +134,7 @@ public class SequentialJointArbitrator implements JointArbitrator {
             currencyCommitments,
             objectiveValue,
             allFeasible,
-            allFeasible ? "Sequential optimization complete (LOCAL optimality only)" 
+            allFeasible ? "Sequential per-resource optimization complete (no joint cross-resource coupling)"
                        : "Partial feasibility: " + messages,
             System.currentTimeMillis() - startTime
         );

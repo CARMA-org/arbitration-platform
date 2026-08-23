@@ -1,7 +1,7 @@
 {
   "java": {
     "totals": {
-      "tests": 68,
+      "tests": 63,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -73,13 +73,6 @@
       {
         "suite": "org.carma.arbitration.mechanism.CapacityPreservingRoundingTest",
         "tests": 4,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0
-      },
-      {
-        "suite": "org.carma.arbitration.mechanism.GroupingSplitterSpectralTest",
-        "tests": 5,
         "failures": 0,
         "errors": 0,
         "skipped": 0

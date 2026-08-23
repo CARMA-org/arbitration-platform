@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
  * 1. The local UtilityFunction evaluator library. The canonical convex solver
  *    supports only LINEAR, COBB_DOUGLAS, CES, and LEONTIEF; the other evaluators
  *    here are local scoring functions, not solver-supported models.
- * 2. How different utility functions lead to different optimal allocations
+ * 2. How different utility functions lead to different candidate allocations
  * 3. The optimizer choosing different allocations under nonlinear utilities
  * 4. Auto-generated agents with diverse utility functions
  * 5. Loss aversion and reference-dependent preferences
@@ -28,7 +28,7 @@ public class NonlinearUtilityDemo {
     public static void main(String[] args) {
         System.out.println(SEP);
         System.out.println("NONLINEAR UTILITY FUNCTIONS DEMONSTRATION");
-        System.out.println("Platform-Mediated Pareto-Optimized Multi-Agent Interaction");
+        System.out.println("Platform-mediated multi-resource allocation and contract enforcement");
         System.out.println(SEP);
         System.out.println();
         

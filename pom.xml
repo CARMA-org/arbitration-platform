@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>Arbitration Platform</name>
-    <description>Platform-Mediated Pareto-Optimized Multi-Agent Interaction</description>
+    <description>Platform-mediated multi-resource allocation and contract enforcement</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
