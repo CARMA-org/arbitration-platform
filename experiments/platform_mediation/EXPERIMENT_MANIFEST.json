@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-08-23T19:54:08Z",
+  "generated_utc": "2026-08-23T21:17:13Z",
   "source_commit": "762a0fb34fd04cbc915763d9c03cc233b00e7843",
   "source_tree_sha1": "23c90b72eee69b3f93c534e77f57edf2a8387927",
   "config_hashes": {
@@ -36,7 +36,7 @@
       "skipped": 0
     },
     "python": {
-      "passed": 44,
+      "passed": 74,
       "failed": 0,
       "returncode": 0
     },
@@ -601,7 +601,7 @@
     },
     {
       "path": "experiments/platform_mediation/test_report.json",
-      "sha256": "4f475852968b70faf34d1c89991093819597e04af849e3f90ecf47e20ed730a5",
+      "sha256": "37962f8cd9f913096bc5b814574c406440f9af6dc0512b7459559f6fd92779bf",
       "bytes": 3766
     },
     {

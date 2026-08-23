@@ -29,10 +29,24 @@ def classpath():
     return os.path.join(ROOT, "target", "classes") + os.pathsep + deps
 
 
+def run_solver(solver_python, data):
+    solver_script = os.path.join(ROOT, "scripts", "joint_solver.py")
+    proc = subprocess.run([solver_python, solver_script], input=json.dumps(data),
+                          capture_output=True, text=True, cwd=ROOT)
+    if proc.returncode != 0:
+        raise RuntimeError("solver subprocess exited %d: %s"
+                           % (proc.returncode, proc.stderr.strip()[:400]))
+    lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+    if len(lines) != 1:
+        raise RuntimeError("solver produced %d JSON result lines, expected 1: %r"
+                           % (len(lines), proc.stdout[:400]))
+    try:
+        return json.loads(lines[0])
+    except json.JSONDecodeError as e:
+        raise RuntimeError("solver produced non-JSON output: %s: %r" % (e, lines[0][:400]))
+
+
 def unsupported_utility_check(solver_python):
-    """Confirm the solver refuses unsupported utility families (no linear surrogate)."""
-    sys.path.insert(0, os.path.join(ROOT, "scripts"))
-    import joint_solver
     data = {
         "n_agents": 2, "n_resources": 2,
         "preferences": [[0.6, 0.4], [0.4, 0.6]],
@@ -42,7 +56,7 @@ def unsupported_utility_check(solver_python):
         "ideals": [[100, 100], [100, 100]],
         "utility_configs": [{"type": "SOFTPLUS_LOSS_AVERSION"}, {"type": "LINEAR"}],
     }
-    res = joint_solver.solve_joint_allocation(data)
+    res = run_solver(solver_python, data)
     incorrect_success = 1 if res.get("allocations") is not None else 0
     silent_substitution = 0 if res.get("status") == "unsupported_model" else 1
     return {
@@ -65,6 +79,7 @@ def main():
     ap.add_argument("--solver-python", default=os.environ.get("SOLVER_PYTHON", "python3"))
     ap.add_argument("--reps", type=int, default=100)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--output-dir", default=RESULTS)
     args = ap.parse_args()
     reps = 10 if args.smoke else args.reps
 
@@ -88,9 +103,10 @@ def main():
         totals[k] += solver_case[k]
     report["all_invariants_zero"] = all(v == 0 for v in totals.values())
 
-    os.makedirs(RESULTS, exist_ok=True)
+    out_dir = args.output_dir
+    os.makedirs(out_dir, exist_ok=True)
     mode = "smoke" if args.smoke else "full"
-    with open(os.path.join(RESULTS, "enforcement_report_%s.json" % mode), "w") as f:
+    with open(os.path.join(out_dir, "enforcement_report_%s.json" % mode), "w") as f:
         json.dump(report, f, indent=2)
 
     import csv
@@ -98,7 +114,7 @@ def main():
               "expected_denials", "observed_denials", "single_shot", "backend_after_denial",
               "quota_violations", "capacity_violations", "partial_deductions",
               "silent_fallbacks", "incorrect_success"]
-    with open(os.path.join(RESULTS, "enforcement_cases_%s.csv" % mode), "w", newline="") as f:
+    with open(os.path.join(out_dir, "enforcement_cases_%s.csv" % mode), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         for c in report["cases"]:

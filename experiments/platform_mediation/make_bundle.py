@@ -1,25 +1,10 @@
 #!/usr/bin/env python3
-"""Build the platform-evaluation results bundle from the clean committed tree.
-
-The bundle packages the committed source, tests, docs, configuration, the
-convex solver, the experiment harnesses, and the canonical result artifacts
-(raw data, tables, figures, headline, manifest, machine-readable test report and
-run-completion record). It excludes version-control, build outputs, virtual
-environments, caches, credential/env files, the historical noncanonical
-joint-allocation results, and any nested archive (including a prior bundle).
-
-Provenance files (SOURCE_COMMIT.txt, RESULTS_COMMIT.txt, REPOSITORY_COMMIT.txt,
-BUNDLE_CONTENTS.md, LICENSE_STATUS.md) are generated here from defined inputs:
-the repository HEAD, the manifest's recorded source commit, and the results
-commit constant below. The zip is written deterministically (sorted entries,
-commit-dated timestamps) and a sibling SHA-256 is emitted next to it.
-"""
 import argparse
 import hashlib
 import json
 import os
 import subprocess
-import sys
+import time
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -28,14 +13,11 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 BUNDLE_ZIP = "platform_evaluation_results_bundle.zip"
 BUNDLE_SHA = "platform_evaluation_results_bundle.sha256"
 MANIFEST_REL = "experiments/platform_mediation/EXPERIMENT_MANIFEST.json"
-
-# The revision that added the canonical generated results. Fixed provenance fact.
 DEFAULT_RESULTS_COMMIT = "5f48135578682168b5ec5cbd1e1d048de2527475"
 
 GENERATED = ("SOURCE_COMMIT.txt", "RESULTS_COMMIT.txt", "REPOSITORY_COMMIT.txt",
              "BUNDLE_CONTENTS.md", "LICENSE_STATUS.md")
 
-# Tracked paths excluded from the bundle.
 EXCLUDE_EXACT = {BUNDLE_ZIP, BUNDLE_SHA, ".env.example"}
 EXCLUDE_PREFIX = (
     "experiments/joint_allocation/results/",
@@ -64,25 +46,56 @@ def git(*args):
     return subprocess.check_output(["git", "-C", ROOT, *args])
 
 
-def committed_files():
-    out = git("ls-tree", "-r", "--name-only", "-z", "HEAD").decode()
+def rev_parse(ref):
+    try:
+        out = subprocess.check_output(
+            ["git", "-C", ROOT, "rev-parse", "--verify", "%s^{commit}" % ref],
+            stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        raise SystemExit("invalid or nonexistent snapshot commit: %s" % ref)
+    return out.decode().strip()
+
+
+def head_changed_paths():
+    try:
+        out = subprocess.check_output(
+            ["git", "-C", ROOT, "diff", "--name-only", "-z", "HEAD^", "HEAD"],
+            stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return None
+    return [p for p in out.decode().split("\0") if p]
+
+
+def resolve_snapshot(explicit):
+    if explicit:
+        return rev_parse(explicit)
+    changed = head_changed_paths()
+    if changed and set(changed) <= {BUNDLE_ZIP, BUNDLE_SHA}:
+        return rev_parse("HEAD^")
+    return rev_parse("HEAD")
+
+
+def dirty_tracked_paths():
+    out = git("status", "--porcelain", "--untracked-files=no").decode()
+    paths = []
+    for line in out.splitlines():
+        p = line[3:]
+        if p and p not in (BUNDLE_ZIP, BUNDLE_SHA):
+            paths.append(p)
+    return paths
+
+
+def snapshot_files(commit):
+    out = git("ls-tree", "-r", "--name-only", "-z", commit).decode()
     return [p for p in out.split("\0") if p]
 
 
-def worktree_files():
-    out = git("ls-files", "-z").decode()
-    return [p for p in out.split("\0") if p]
+def read_at(commit, rel):
+    return git("show", "%s:%s" % (commit, rel))
 
 
-def make_reader(mode):
-    if mode == "worktree":
-        def read(rel):
-            with open(os.path.join(ROOT, rel), "rb") as f:
-                return f.read()
-        return read
-    def read(rel):
-        return git("show", "HEAD:" + rel)
-    return read
+def snapshot_epoch(commit):
+    return int(git("show", "-s", "--format=%ct", commit).decode().strip())
 
 
 def license_status():
@@ -108,12 +121,12 @@ current repository source and documentation.
   dynamic simulation). The manifest's `source_commit` points here.
 - `RESULTS_COMMIT.txt` ({results_commit}) — the revision that added those
   generated results.
-- `REPOSITORY_COMMIT.txt` ({repository_commit}) — the current cleanup revision
-  this bundle is built from. It aligns legacy demos and repository claims with
-  what the code and data support; it does not rerun or change the canonical raw
-  results. The canonical raw data, result tables, figures, and summaries are
-  byte-identical to `RESULTS_COMMIT`; only generated provenance metadata (the
-  machine-readable test report and the manifest that hashes it) differ.
+- `REPOSITORY_COMMIT.txt` ({repository_commit}) — the source revision this bundle
+  is built from. It aligns legacy demos and repository claims with what the code
+  and data support; it does not rerun or change the canonical raw results. The
+  canonical raw data, result tables, figures, and summaries are byte-identical to
+  `RESULTS_COMMIT`; only generated provenance metadata (the machine-readable test
+  report and the manifest that hashes it) differ.
 
 ## Included
 
@@ -186,30 +199,24 @@ quotas; no Pareto improvement is claimed. Full statement is in
 """
 
 
-def build(mode, results_commit):
-    read = make_reader(mode)
-    repo_commit = git("rev-parse", "HEAD").decode().strip()
-    files = committed_files() if mode == "head" else worktree_files()
-
-    source_commit = json.loads(read(MANIFEST_REL).decode())["source_commit"]
+def build(snapshot, results_commit):
+    files = snapshot_files(snapshot)
+    source_commit = json.loads(read_at(snapshot, MANIFEST_REL).decode())["source_commit"]
 
     payload = {}
     for rel in files:
         if excluded(rel):
             continue
-        payload[rel] = read(rel)
+        payload[rel] = read_at(snapshot, rel)
 
     payload["SOURCE_COMMIT.txt"] = (source_commit + "\n").encode()
     payload["RESULTS_COMMIT.txt"] = (results_commit + "\n").encode()
-    payload["REPOSITORY_COMMIT.txt"] = (repo_commit + "\n").encode()
+    payload["REPOSITORY_COMMIT.txt"] = (snapshot + "\n").encode()
     payload["LICENSE_STATUS.md"] = license_status().encode()
     payload["BUNDLE_CONTENTS.md"] = bundle_contents(
-        source_commit, results_commit, repo_commit).encode()
+        source_commit, results_commit, snapshot).encode()
 
-    # Deterministic zip: sorted entries, commit-dated timestamps.
-    commit_epoch = int(git("show", "-s", "--format=%ct", "HEAD").decode().strip())
-    import time
-    dt = time.gmtime(commit_epoch)
+    dt = time.gmtime(snapshot_epoch(snapshot))
     date_time = (dt.tm_year, dt.tm_mon, dt.tm_mday, dt.tm_hour, dt.tm_min, dt.tm_sec)
 
     zip_path = os.path.join(ROOT, BUNDLE_ZIP)
@@ -237,20 +244,24 @@ def validate(zip_path, sha_path):
     tracked = git("ls-files").decode().split("\n")
     zips = [t for t in tracked if t.endswith(".zip")]
     shas = [t for t in tracked if t.endswith(".sha256")]
-    # After the replacement commit exactly one of each must be tracked; before it
-    # the old pair is still tracked. Either way there must be no more than one.
     if len(zips) > 1 or len(shas) > 1:
         raise SystemExit("multiple tracked archives/checksums: %s %s" % (zips, shas))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--from", dest="mode", choices=("head", "worktree"),
-                    default="head", help="build from committed HEAD (default) or working tree")
+    ap.add_argument("--snapshot-commit", default=None)
     ap.add_argument("--results-commit", default=DEFAULT_RESULTS_COMMIT)
     args = ap.parse_args()
 
-    zip_path, sha_path, digest, n = build(args.mode, args.results_commit)
+    if args.snapshot_commit is None:
+        dirty = dirty_tracked_paths()
+        if dirty:
+            raise SystemExit("refusing to build: unrelated dirty tracked changes: %s" % dirty)
+    snapshot = resolve_snapshot(args.snapshot_commit)
+    print("snapshot commit: %s" % snapshot)
+
+    zip_path, sha_path, digest, n = build(snapshot, args.results_commit)
     validate(zip_path, sha_path)
     size = os.path.getsize(zip_path)
     print("bundle: %s" % zip_path)

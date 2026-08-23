@@ -237,14 +237,6 @@ def eval_utility_np(cfg, w, a):
 
 
 def solve_joint_allocation(data):
-    if not CVXPY_AVAILABLE:
-        return {
-            "status": "solver_error", "requested_utility": None, "solved_utility": None,
-            "solver": None, "objective_value": None, "allocations": None, "utilities": None,
-            "warnings": [], "error_type": "MissingDependency",
-            "error_message": "cvxpy is not installed",
-        }
-
     warnings = []
     meta = {}
     try:
@@ -253,6 +245,9 @@ def solve_joint_allocation(data):
         return _err("validation_error", "ValidationError", str(e), data)
     except UnsupportedModel as e:
         return _err("unsupported_model", "UnsupportedModel", str(e), data)
+
+    if not CVXPY_AVAILABLE:
+        return _err("solver_error", "MissingDependency", "cvxpy is not installed", data)
 
     requested = [_canonical_type(cfg) for cfg in cfgs]
 

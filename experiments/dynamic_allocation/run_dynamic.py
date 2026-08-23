@@ -125,6 +125,29 @@ def solve(active, caps, profiles, solver_floors):
     return res, W, mins, ideals, Q
 
 
+class SolverResultError(RuntimeError):
+    pass
+
+
+def validate_solution(res, n, m, seed, policy, epoch, stage):
+    status = res.get("status")
+    if status in ("optimal", "optimal_inaccurate"):
+        alloc = res.get("allocations")
+        if alloc is None or len(alloc) != n or any(len(row) != m for row in alloc):
+            raise SolverResultError(
+                "seed=%s policy=%s epoch=%s stage=%s status=%s but allocations invalid "
+                "(expected %dx%d)" % (seed, policy, epoch, stage, status, n, m))
+        return "feasible"
+    if status in ("infeasible", "infeasible_inaccurate"):
+        return "infeasible"
+    if status == "validation_error" and "exceeds capacity" in (res.get("error_message") or ""):
+        return "infeasible"
+    raise SolverResultError(
+        "seed=%s policy=%s epoch=%s stage=%s unexpected solver status=%s error_type=%s "
+        "error_message=%s" % (seed, policy, epoch, stage, status,
+                              res.get("error_type"), res.get("error_message")))
+
+
 def proportional_shortfall(active, caps, profiles, promised, iters=22):
     lo, hi = 0.0, 1.0
     for _ in range(iters):
@@ -218,7 +241,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
 
         res, W, mins, ideals, Q = solve(active, caps, profiles, active_solver_floors)
         original_status = res["status"]
-        infeasible = res["status"] not in ("optimal", "optimal_inaccurate")
+        infeasible = validate_solution(res, len(active), m, seed, policy, e, "base") != "feasible"
         original_floors_infeasible = bool(infeasible and active_promised)
         fallback_required = False
         shortfall_scale = 1.0
@@ -231,10 +254,34 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
                 scaled = {i: active_promised[i] * shortfall_scale for i in active_promised}
                 res, W, mins, ideals, Q = solve(active, caps, profiles, scaled)
                 active_solver_floors = scaled
-            if res["status"] not in ("optimal", "optimal_inaccurate"):
+            if validate_solution(res, len(active), m, seed, policy, e, "shortfall") != "feasible":
                 res, W, mins, ideals, Q = solve(active, caps, profiles, {})
                 active_solver_floors = {}
                 fallback_required = True
+
+        if validate_solution(res, len(active), m, seed, policy, e, "final") != "feasible":
+            agg["base_infeasible_epochs"] += 1
+            epoch_writer({
+                "seed": seed, "schedule_hash": schedule_hash, "epoch": e, "policy": policy,
+                "events": json.dumps(epoch_events),
+                "active": json.dumps([pool[i]["id"] for i in active]),
+                "pending": json.dumps([pool[i]["id"] for i in pending]),
+                "caps": json.dumps([caps[r] for r in RESOURCES]),
+                "promised_floors": json.dumps({pool[i]["id"]: active_promised[i] for i in active_promised}),
+                "solver_floors": json.dumps({pool[i]["id"]: active_solver_floors[i] for i in active_solver_floors}),
+                "original_solver_status": original_status,
+                "original_floors_infeasible": int(original_floors_infeasible),
+                "final_solver_status": res["status"],
+                "fallback_required": int(fallback_required),
+                "shortfall_scale": repr(shortfall_scale),
+                "continuous_alloc": json.dumps([]),
+                "discrete_alloc": json.dumps([]),
+                "achieved_utils": json.dumps([]),
+                "floor_shortfall_from_promise": json.dumps({}),
+                "residual_shortfall_from_scaled": json.dumps({}),
+                "capacity_violation": 0,
+            })
+            continue
 
         cont = [[max(0.0, v) for v in row] for row in res["allocations"]]
         disc = capacity_preserving_round(cont, mins, ideals, Q)
@@ -243,7 +290,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
         for cand in list(pending):
             trial = active + [cand]
             tres, tW, tmins, tideals, tQ = solve(trial, caps, profiles, active_solver_floors)
-            if tres["status"] in ("optimal", "optimal_inaccurate"):
+            if validate_solution(tres, len(trial), m, seed, policy, e, "admission") == "feasible":
                 active = trial
                 admitted_now.append(cand); arrived.add(cand)
                 agg["admissions"] += 1
@@ -334,6 +381,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
            "protected_agent_epochs": agg["protected_agent_epochs"],
            "active_floor_epochs": agg["active_floor_epochs"],
            "infeasible_floor_epochs": agg["infeasible_floor_epochs"],
+           "base_infeasible_epochs": agg["base_infeasible_epochs"],
            "discrete_floor_violations": agg["floor_violations"],
            "floor_shortfall_total": agg["floor_shortfall_total"],
            "scaled_floor_shortfall_total": agg["scaled_floor_shortfall_total"],
@@ -353,6 +401,7 @@ def simulate_policy(policy, pool, cfg, events, schedule_hash, seed, epoch_writer
 
 def defaultdict_counters():
     return {"admissions": 0, "noop_events": 0, "infeasible_floor_epochs": 0,
+            "base_infeasible_epochs": 0,
             "floor_violations": 0, "floor_shortfall_total": 0.0,
             "scaled_floor_shortfall_total": 0.0, "lease_expiries": 0,
             "capacity_violations": 0, "shortfall_epochs": 0, "shortfall_scale_sum": 0.0,
@@ -365,15 +414,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--output-dir", default=HERE)
     args = ap.parse_args()
     if args.smoke == args.full:
         ap.error("choose exactly one of --smoke / --full")
     mode = "smoke" if args.smoke else "full"
     cfg = CFG[mode]
 
-    os.makedirs(os.path.join(HERE, "results", "raw"), exist_ok=True)
-    os.makedirs(os.path.join(HERE, "tables"), exist_ok=True)
-    os.makedirs(os.path.join(HERE, "logs"), exist_ok=True)
+    out_base = args.output_dir
+    os.makedirs(os.path.join(out_base, "results", "raw"), exist_ok=True)
+    os.makedirs(os.path.join(out_base, "tables"), exist_ok=True)
+    os.makedirs(os.path.join(out_base, "logs"), exist_ok=True)
     log = []
 
     def L(msg):
@@ -391,7 +442,7 @@ def main():
                     "shortfall_scale", "continuous_alloc", "discrete_alloc", "achieved_utils",
                     "floor_shortfall_from_promise", "residual_shortfall_from_scaled",
                     "capacity_violation"]
-    epoch_path = os.path.join(HERE, "results", "raw", "epochs_%s.csv" % mode)
+    epoch_path = os.path.join(out_base, "results", "raw", "epochs_%s.csv" % mode)
     epoch_file = open(epoch_path, "w", newline="")
     epoch_csv = csv.DictWriter(epoch_file, fieldnames=epoch_fields)
     epoch_csv.writeheader()
@@ -408,14 +459,14 @@ def main():
     epoch_file.close()
 
     fields = list(policy_rows[0].keys())
-    with open(os.path.join(HERE, "results", "raw", "policy_seed_%s.csv" % mode), "w", newline="") as f:
+    with open(os.path.join(out_base, "results", "raw", "policy_seed_%s.csv" % mode), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(policy_rows)
 
     count_keys = ["admissions", "protected_agent_epochs", "active_floor_epochs",
-                  "infeasible_floor_epochs", "discrete_floor_violations", "lease_expiries",
-                  "shortfall_epochs", "noop_events", "capacity_violations"]
+                  "infeasible_floor_epochs", "base_infeasible_epochs", "discrete_floor_violations",
+                  "lease_expiries", "shortfall_epochs", "noop_events", "capacity_violations"]
     sum_keys = ["floor_shortfall_total", "scaled_floor_shortfall_total"]
     mean_keys = ["mean_waiting_time", "mean_floor_shortfall", "mean_churn_frac",
                  "mean_incumbent_utility_change", "mean_shortfall_scale"]
@@ -448,7 +499,7 @@ def main():
             flat[k] = rec[k]
         agg.append(rec)
         table_rows.append(flat)
-    with open(os.path.join(HERE, "tables", "policy_means_%s.csv" % mode), "w", newline="") as f:
+    with open(os.path.join(out_base, "tables", "policy_means_%s.csv" % mode), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(table_rows[0].keys()))
         w.writeheader()
         w.writerows(table_rows)
@@ -460,16 +511,17 @@ def main():
                "denominator_note": ("counts are per policy across all seeds; mean_per_seed divides by "
                                     "n_seeds; rate_per_seed_epoch divides by n_seeds*epochs"),
                "capacity_violations_total": cap_viol, "aggregate": agg}
-    with open(os.path.join(HERE, "results", "summary_%s.json" % mode), "w") as f:
+    with open(os.path.join(out_base, "results", "summary_%s.json" % mode), "w") as f:
         json.dump(summary, f, indent=2)
-    with open(os.path.join(HERE, "results", "summary.json"), "w") as f:
-        json.dump(summary, f, indent=2)
+    if mode == "full":
+        with open(os.path.join(out_base, "results", "summary.json"), "w") as f:
+            json.dump(summary, f, indent=2)
     L("Done: %d policy-seed rows, %d epoch rows; capacity_violations=%d"
       % (len(policy_rows), len(policy_rows) * cfg["epochs"], cap_viol))
     L("RUN COMPLETE: mode=%s policy_seed_rows=%d epoch_rows=%d expected_epoch_rows=%d" %
       (mode, len(policy_rows), len(policy_rows) * cfg["epochs"],
        len(POLICIES) * cfg["seeds"] * cfg["epochs"]))
-    with open(os.path.join(HERE, "logs", "dynamic_%s.log" % mode), "w") as f:
+    with open(os.path.join(out_base, "logs", "dynamic_%s.log" % mode), "w") as f:
         f.write("\n".join(log) + "\n")
 
 

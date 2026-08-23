@@ -33,8 +33,26 @@ jobs:
           SOLVER_PYTHON: python
         run: mvn -B test
 
+      - name: Build solver classpath
+        run: mvn -B -q dependency:build-classpath -Dmdep.outputFile=cp.txt
+
+      - name: Enforcement smoke
+        run: |
+          out=$(mktemp -d)
+          python experiments/enforcement/run_enforcement.py --smoke --solver-python python --output-dir "$out"
+
+      - name: Dynamic smoke
+        run: |
+          out=$(mktemp -d)
+          python experiments/dynamic_allocation/run_dynamic.py --smoke --output-dir "$out"
+
       - name: Repository claim scan
         run: python experiments/platform_mediation/claim_scan.py
 
       - name: Results/documentation consistency
         run: python experiments/platform_mediation/check_consistency.py --with-manifest
+
+      - name: Bundle reproducibility
+        run: |
+          python experiments/platform_mediation/make_bundle.py
+          git diff --exit-code -- platform_evaluation_results_bundle.zip platform_evaluation_results_bundle.sha256

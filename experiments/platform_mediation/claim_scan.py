@@ -5,8 +5,6 @@ import sys
 
 DEFAULT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-# Exact affirmative claim strings (case-insensitive substring). These have no
-# legitimate negated form, so any occurrence is a violation.
 FORBIDDEN = [
     "PASS: All 11 utility types",
     "All 11 utility types working correctly",
@@ -38,8 +36,6 @@ FORBIDDEN = [
     "| Optimality |",
 ]
 
-# Case-sensitive removed-implementation symbols. Their reappearance means a
-# removed algorithm/claim was reintroduced.
 FORBIDDEN_CASE = [
     "splitBySpectral",
     "approximateFiedlerVector",
@@ -63,17 +59,13 @@ FORBIDDEN_LOWER = [
 
 README_CANON_LOWER = ["golden ratio", "golden-ratio", "38.2%"]
 
-# Regex checks applied per line.
 WITHIN_OPT_RE = re.compile(r"within\s*1\s*[-‐-―]\s*3\s*%\s*of\s*optimal", re.I)
-RETENTION_RE = re.compile(r"~\s*\d{1,3}\s*%")            # e.g. ~95% / ~90% shorthand
+RETENTION_RE = re.compile(r"~\s*\d{1,3}\s*%")
 ENUM_SPECTRAL_RE = re.compile(r"^\s*SPECTRAL\s*,?\s*$")
 FALLBACK_RE = re.compile(r"fall[s]?\s*back\s*to\s*sequential|fallback\s*to\s*sequential", re.I)
 FALLBACK_OK = ("explicit", "fails closed", "only when", "not automatic", "unless", "must be enabled")
-# Only an error/dependency-triggered fallback contradicts the fail-closed default;
-# config-gated mode switches (e.g. joint optimization disabled) are legitimate.
 FALLBACK_TRIGGER = ("error", "fail", "without", "missing", "depend", "unavailable", "timeout")
 
-# Tokens that are violations only in an affirmative (non-negated) context.
 CLAIM_TOKENS = [
     "pareto optimal",
     "globally pareto",
@@ -85,8 +77,6 @@ CLAIM_TOKENS = [
     "aggressive burning",
 ]
 
-# A claim token is allowed when a negation marker precedes it within the same
-# sentence window (covers wrapped limitation statements). Kept narrow.
 NEG_MARKERS = (
     "not", "n't", "never", "without", "cannot", "rather than", "fails closed",
     "only when", "explicitly enabled", "unless", "no longer", "neither", " no ",
@@ -151,7 +141,6 @@ def scan_text(root):
             if (FALLBACK_RE.search(ln) and any(t in low for t in FALLBACK_TRIGGER)
                     and not any(k in low for k in FALLBACK_OK)):
                 issues.append("%s: automatic sequential-fallback claim: %s" % (rel, ln.strip()[:80]))
-        # negation-aware token scan over the whole file (handles line wraps)
         for tok in CLAIM_TOKENS:
             start = 0
             while True:
@@ -193,7 +182,6 @@ def scan_grouping(root):
             issues.append("GroupingPolicyDemo claims measured speedup")
         if "proxy" not in text.lower():
             issues.append("GroupingPolicyDemo grouping output does not say proxy")
-    # SPECTRAL must be entirely absent from the grouping enum and splitter.
     for fn in ("GroupingPolicy.java", "GroupingSplitter.java"):
         p = os.path.join(mech, fn)
         if os.path.exists(p) and "SPECTRAL" in open(p).read():
