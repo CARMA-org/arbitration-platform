@@ -34,15 +34,13 @@ public class ParetoVerifier {
     }
 
     /**
-     * Verify Pareto optimality of a single-round allocation.
-     *
-     * An allocation is Pareto optimal if no agent can be made better off
-     * without making another agent worse off.
-     *
-     * For WPF with water-filling, this is guaranteed by the KKT conditions,
-     * but we verify empirically by checking all pairwise transfers.
+     * Pairwise single-unit transfer diagnostic. Returns true when no transfer of
+     * one unit between any ordered pair of agents is a Pareto improvement under
+     * the log-based WPF utility. This is a necessary local condition; it is not a
+     * proof of global Pareto optimality, which would also require checking
+     * multi-unit and multi-agent transfers.
      */
-    public boolean isParetoOptimal(
+    public boolean hasNoPairwiseUnitParetoImprovement(
             Map<String, Long> allocations,
             Map<String, Double> weights,
             long totalAvailable) {

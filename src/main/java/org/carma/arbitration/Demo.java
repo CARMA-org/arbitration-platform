@@ -42,8 +42,8 @@ public class Demo {
         boolean onlyAsymptotic = Arrays.asList(args).contains("--asymptotic");
         
         System.out.println(SEP);
-        System.out.println("   PLATFORM-MEDIATED PARETO-OPTIMIZED MULTI-AGENT INTERACTION");
-        System.out.println("   Complete Implementation with Validation Scenarios");
+        System.out.println("   PLATFORM-MEDIATED MULTI-AGENT RESOURCE ARBITRATION");
+        System.out.println("   Illustrative scenarios (single constructed instances)");
         System.out.println(SEP);
         System.out.println();
         
@@ -53,10 +53,10 @@ public class Demo {
             
             runScenario1_BasicMechanism(arbitrator);
             runScenario2_JointVsSeparate(arbitrator);
-            runScenario3_CollusionResistance(arbitrator);
+            runScenario3_MinimumBoundUnderManyRequests(arbitrator);
             runScenario4_ComplementaryPreferences(arbitrator);
             runScenario5_PriorityEconomy(arbitrator, economy);
-            runScenario6_IndividualRationality(arbitrator);
+            runScenario6_DeclaredMinimumCompliance(arbitrator);
             runScenario7_StarvationProtection(arbitrator);
         }
         
@@ -158,8 +158,8 @@ public class Demo {
     static void runScenario2_JointVsSeparate(ProportionalFairnessArbitrator arbitrator) {
         System.out.println("SCENARIO 2: JOINT VS SEPARATE OPTIMIZATION");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Demonstrate that Proportional Fairness improves welfare");
-        System.out.println("         compared to naive proportional allocation.");
+        System.out.println("Purpose: Compare Proportional Fairness with naive proportional");
+        System.out.println("         allocation on one constructed instance.");
         System.out.println();
         
         Agent a1 = new Agent("A1", "Compute-Heavy",
@@ -236,66 +236,70 @@ public class Demo {
     }
 
     // ========================================================================
-    // SCENARIO 3: priority-weighted allocation under grouped requests
+    // SCENARIO 3: minimum-bound compliance under many competing requests
     // ========================================================================
-    
-    static void runScenario3_CollusionResistance(ProportionalFairnessArbitrator arbitrator) {
-        System.out.println("SCENARIO 3: PRIORITY-WEIGHTED ALLOCATION UNDER GROUPED REQUESTS");
+
+    static void runScenario3_MinimumBoundUnderManyRequests(ProportionalFairnessArbitrator arbitrator) {
+        System.out.println("SCENARIO 3: MINIMUM-BOUND COMPLIANCE UNDER MANY COMPETING REQUESTS");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Verify that colluding attackers cannot reduce victim's");
-        System.out.println("         allocation below their minimum regardless of coalition size.");
+        System.out.println("Purpose: In one constructed instance, check whether a feasible declared");
+        System.out.println("         minimum is respected when many higher-weight agents compete.");
+        System.out.println("Scope: this checks bound compliance in a single instance only. It does");
+        System.out.println("         not test coordinated misreporting, coalition gain, or collusion");
+        System.out.println("         resistance.");
         System.out.println();
-        
-        Agent victim = new Agent("VICTIM", "Honest Agent", Map.of(ResourceType.COMPUTE, 1.0), 100);
-        victim.setRequest(ResourceType.COMPUTE, 20, 50);
-        
+
+        Agent focal = new Agent("A0", "Low-weight agent", Map.of(ResourceType.COMPUTE, 1.0), 100);
+        focal.setRequest(ResourceType.COMPUTE, 20, 50);
+
         List<Agent> agents = new ArrayList<>();
-        agents.add(victim);
-        
+        agents.add(focal);
+
         Map<String, BigDecimal> burns = new HashMap<>();
-        burns.put("VICTIM", BigDecimal.ZERO);
-        
-        int numAttackers = 100;
-        BigDecimal attackerBurn = BigDecimal.valueOf(10);
-        
-        for (int i = 0; i < numAttackers; i++) {
-            Agent attacker = new Agent("ATK" + i, "Attacker " + i, 
+        burns.put("A0", BigDecimal.ZERO);
+
+        int numCompeting = 100;
+        BigDecimal competingBurn = BigDecimal.valueOf(10);
+
+        for (int i = 0; i < numCompeting; i++) {
+            Agent other = new Agent("R" + i, "Requester " + i,
                 Map.of(ResourceType.COMPUTE, 1.0), 1000);
-            attacker.setRequest(ResourceType.COMPUTE, 1, 100);
-            agents.add(attacker);
-            burns.put("ATK" + i, attackerBurn);
+            other.setRequest(ResourceType.COMPUTE, 1, 100);
+            agents.add(other);
+            burns.put("R" + i, competingBurn);
         }
-        
+
         System.out.println("Setup:");
-        System.out.println("  1 victim: minimum 20 units, ideal 50, burns 0");
-        System.out.println("  " + numAttackers + " attackers: each burns " + attackerBurn + " currency");
+        System.out.println("  1 low-weight agent: minimum 20 units, ideal 50, burns 0");
+        System.out.println("  " + numCompeting + " competing agents: each burns " + competingBurn + " currency");
         System.out.println("  Pool: 500 compute units");
-        System.out.println("  Total attacker weight: " + (numAttackers * (10 + attackerBurn.intValue())));
-        System.out.println("  Victim weight: 10");
-        System.out.println("  Ratio: " + (numAttackers * 20) + ":10 = " + (numAttackers * 2) + ":1");
+        System.out.println("  Total competing weight: " + (numCompeting * (10 + competingBurn.intValue())));
+        System.out.println("  Low-weight agent weight: 10");
+        System.out.println("  Ratio: " + (numCompeting * 20) + ":10 = " + (numCompeting * 2) + ":1");
         System.out.println();
-        
+
         Contention contention = new Contention(ResourceType.COMPUTE, agents, 500);
         AllocationResult result = arbitrator.arbitrate(contention, burns);
-        
-        long victimAlloc = result.getAllocation("VICTIM");
-        long totalAttackerAlloc = 0;
-        for (int i = 0; i < numAttackers; i++) {
-            totalAttackerAlloc += result.getAllocation("ATK" + i);
+
+        long focalAlloc = result.getAllocation("A0");
+        long totalCompetingAlloc = 0;
+        for (int i = 0; i < numCompeting; i++) {
+            totalCompetingAlloc += result.getAllocation("R" + i);
         }
-        
+
         System.out.println("Results:");
-        System.out.println("  Victim allocation: " + victimAlloc + " units");
-        System.out.println("  Victim's minimum: " + victim.getMinimum(ResourceType.COMPUTE) + " units");
-        System.out.println("  Total attacker allocation: " + totalAttackerAlloc + " units");
-        System.out.println("  Average per attacker: " + (totalAttackerAlloc / numAttackers) + " units");
+        System.out.println("  Low-weight agent allocation: " + focalAlloc + " units");
+        System.out.println("  Its declared minimum: " + focal.getMinimum(ResourceType.COMPUTE) + " units");
+        System.out.println("  Total competing allocation: " + totalCompetingAlloc + " units");
+        System.out.println("  Average per competing agent: " + (totalCompetingAlloc / numCompeting) + " units");
         System.out.println();
-        
-        boolean victimProtected = victimAlloc >= victim.getMinimum(ResourceType.COMPUTE);
+
+        boolean minimumRespected = focalAlloc >= focal.getMinimum(ResourceType.COMPUTE);
         System.out.println(SEP);
-        System.out.println("  " + (victimProtected ? "✓ PASS" : "✗ FAIL") + 
-            ": Victim received at least minimum despite " + (numAttackers * 2) + ":1 weight disadvantage");
-        System.out.println("  The logarithmic barrier spreads allocation across grouped requests");
+        System.out.println("  " + (minimumRespected ? "Observed" : "✗ FAIL") +
+            ": declared minimum " + (minimumRespected ? "respected" : "not respected")
+            + " in this instance despite a " + (numCompeting * 2) + ":1 weight disadvantage");
+        System.out.println("  This is one constructed instance, not a collusion-resistance result.");
         System.out.println(SEP);
         System.out.println();
     }
@@ -445,55 +449,52 @@ public class Demo {
     // SCENARIO 6: allocations respect declared minimums
     // ========================================================================
     
-    static void runScenario6_IndividualRationality(ProportionalFairnessArbitrator arbitrator) {
+    static void runScenario6_DeclaredMinimumCompliance(ProportionalFairnessArbitrator arbitrator) {
         System.out.println("SCENARIO 6: ALLOCATIONS RESPECT DECLARED MINIMUMS");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Verify that agents receive at least as much utility");
-        System.out.println("         from participation as from non-participation.");
+        System.out.println("Purpose: Verify that each agent's allocation is at least its declared");
+        System.out.println("         minimum request in this feasible instance.");
         System.out.println();
-        
+
         Agent a1 = new Agent("A1", "High Demand", Map.of(ResourceType.COMPUTE, 1.0), 100);
         a1.setRequest(ResourceType.COMPUTE, 30, 80);
-        
+
         Agent a2 = new Agent("A2", "Medium Demand", Map.of(ResourceType.COMPUTE, 1.0), 100);
         a2.setRequest(ResourceType.COMPUTE, 20, 50);
-        
+
         Agent a3 = new Agent("A3", "Low Demand", Map.of(ResourceType.COMPUTE, 1.0), 100);
         a3.setRequest(ResourceType.COMPUTE, 10, 30);
-        
+
         List<Agent> agents = List.of(a1, a2, a3);
         Map<String, BigDecimal> noBurn = agents.stream()
             .collect(Collectors.toMap(Agent::getId, a -> BigDecimal.ZERO));
-        
-        Map<String, Long> outsideOption = Map.of("A1", 30L, "A2", 20L, "A3", 10L);
-        
+
         System.out.println("Setup:");
-        System.out.println("  Outside option = minimum request (what agent could get alone)");
         System.out.println("  A1: minimum 30, ideal 80");
         System.out.println("  A2: minimum 20, ideal 50");
         System.out.println("  A3: minimum 10, ideal 30");
         System.out.println("  Pool: 100 compute units");
         System.out.println();
-        
+
         Contention c = new Contention(ResourceType.COMPUTE, agents, 100);
         AllocationResult r = arbitrator.arbitrate(c, noBurn);
-        
-        System.out.println("Allocations from participation:");
-        boolean allRational = true;
+
+        System.out.println("Allocations:");
+        boolean allMet = true;
         for (Agent a : agents) {
             long allocation = r.getAllocation(a.getId());
-            long outside = outsideOption.get(a.getId());
-            boolean rational = allocation >= outside;
-            allRational &= rational;
+            long minimum = a.getMinimum(ResourceType.COMPUTE);
+            boolean met = allocation >= minimum;
+            allMet &= met;
             System.out.println("  " + a.getId() + ": got " + allocation +
-                ", outside option " + outside + " → " + (rational ? "✓" : "✗"));
+                ", declared minimum " + minimum + " → " + (met ? "✓" : "✗"));
         }
-        
+
         System.out.println();
         System.out.println(SEP);
-        System.out.println("  " + (allRational ? "✓ PASS" : "✗ FAIL") +
-            ": All agents received at least their outside option");
-        System.out.println("  Each agent receives at least its declared minimum request");
+        System.out.println("  " + (allMet ? "Observed" : "✗ FAIL") +
+            ": all agents received at least their declared minimum in this instance");
+        System.out.println("  This checks declared-minimum compliance, not individual rationality.");
         System.out.println(SEP);
         System.out.println();
     }
@@ -503,10 +504,12 @@ public class Demo {
     // ========================================================================
     
     static void runScenario7_StarvationProtection(ProportionalFairnessArbitrator arbitrator) {
-        System.out.println("SCENARIO 7: STARVATION PROTECTION");
+        System.out.println("SCENARIO 7: MINIMUM-BOUND ALLOCATION FOR LOW-WEIGHT AGENTS");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Verify that even agents with minimal weight receive");
-        System.out.println("         non-zero allocation due to logarithmic barrier.");
+        System.out.println("Purpose: With feasible declared minimums (9 x 5 + 10 = 55 <= 100),");
+        System.out.println("         check that low-weight agents receive at least their minimum.");
+        System.out.println("         The nonzero allocation follows from the explicit minimum");
+        System.out.println("         bounds being feasible, not from the barrier alone.");
         System.out.println();
         
         Agent whale = new Agent("WHALE", "Wealthy Agent", Map.of(ResourceType.COMPUTE, 1.0), 10000);
@@ -554,9 +557,9 @@ public class Demo {
         System.out.println();
         
         System.out.println(SEP);
-        System.out.println("  " + (allMinnowsGotMinimum ? "✓ PASS" : "✗ FAIL") +
-            ": All minnows received at least their minimum (5 units)");
-        System.out.println("  Despite 55:1 weight disadvantage against whale");
+        System.out.println("  " + (allMinnowsGotMinimum ? "Observed" : "✗ FAIL") +
+            ": each low-weight agent received at least its declared minimum (5 units)");
+        System.out.println("  This follows from the feasible minimum bounds, not the barrier alone.");
         System.out.println(SEP);
         System.out.println();
     }
@@ -607,14 +610,15 @@ public class Demo {
     }
 
     // ========================================================================
-    // SCENARIO 9: JOINT OPTIMIZATION TEST ("Paretotopia")
+    // SCENARIO 9: JOINT VS SEQUENTIAL ON ONE CROSS-RESOURCE INSTANCE
     // ========================================================================
-    
+
     static void runJointOptimizationTest() {
-        System.out.println("SCENARIO 9: JOINT OPTIMIZATION (\"Paretotopia\")");
+        System.out.println("SCENARIO 9: JOINT VS SEQUENTIAL ON ONE CROSS-RESOURCE INSTANCE");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Demonstrate cross-resource trades that sequential");
-        System.out.println("         optimization cannot discover (the \"Paretotopia\" thesis).");
+        System.out.println("Purpose: On one constructed two-resource instance, compare joint and");
+        System.out.println("         per-resource sequential allocation. This is a single instance,");
+        System.out.println("         not a general joint-allocation advantage.");
         System.out.println();
         
         PriorityEconomy economy = new PriorityEconomy();
@@ -707,12 +711,12 @@ public class Demo {
         double improvement = (jointWelfare - seqWelfare) / Math.abs(seqWelfare) * 100;
         
         System.out.println(SEP);
-        System.out.printf("  Welfare improvement: %.2f%%\n", improvement);
-        
+        System.out.printf("  Declared-welfare difference in this instance: %.2f%%\n", improvement);
+
         if (improvement > 0.5) {
-            System.out.println("  ✓ PASS: Joint optimization found cross-resource trades");
+            System.out.println("  Observed: joint allocation used cross-resource trades here");
         } else {
-            System.out.println("  Note: Minimal improvement in this scenario (may be near-optimal)");
+            System.out.println("  Observed: little difference in this instance");
         }
         
         System.out.printf("  Solver used: %s\n", solverUsed);
@@ -843,7 +847,7 @@ public class Demo {
         System.out.println();
         
         System.out.println(SEP);
-        System.out.println("  ✓ PASS: Service integration working");
+        System.out.println("  Observed: service arbitration produced allocations for both teams");
         System.out.println(SEP);
         System.out.println();
     }
@@ -853,46 +857,53 @@ public class Demo {
     // ========================================================================
     
     static void runScenario12_NonlinearUtilities() {
-        System.out.println("SCENARIO 12: NONLINEAR UTILITY FUNCTIONS");
+        System.out.println("SCENARIO 12: UTILITY FUNCTIONS");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Demonstrate all 11 utility function types and show");
-        System.out.println("         how the optimizer makes different decisions.");
+        System.out.println("Purpose: Evaluate the four solver-supported families and, separately,");
+        System.out.println("         several local legacy evaluator functions.");
+        System.out.println("Scope: the canonical convex solver supports LINEAR, COBB_DOUGLAS, CES,");
+        System.out.println("         and LEONTIEF only. It rejects any other family request. The");
+        System.out.println("         remaining functions below are local UtilityFunction evaluators");
+        System.out.println("         used for scoring, not solver-supported models.");
         System.out.println();
-        
+
         Map<ResourceType, Double> weights = Map.of(
             ResourceType.COMPUTE, 0.6,
             ResourceType.STORAGE, 0.4
         );
-        
+
         Map<ResourceType, Double> refPoints = Map.of(
             ResourceType.COMPUTE, 50.0,
             ResourceType.STORAGE, 50.0
         );
-        
-        // Create all utility types
-        Map<String, UtilityFunction> utilities = new LinkedHashMap<>();
-        utilities.put("LINEAR", UtilityFunction.linear(weights));
-        utilities.put("SQRT", UtilityFunction.sqrt(weights));
-        utilities.put("LOG", UtilityFunction.log(weights));
-        utilities.put("COBB_DOUGLAS", UtilityFunction.cobbDouglas(weights));
-        utilities.put("CES(ρ=0.5)", UtilityFunction.ces(weights, 0.5));
-        utilities.put("LEONTIEF", UtilityFunction.leontief(weights));
-        utilities.put("THRESHOLD", UtilityFunction.threshold(UtilityFunction.linear(weights), 60, 0.5));
-        utilities.put("SATIATION", UtilityFunction.satiation(UtilityFunction.linear(weights), 100, 20));
-        utilities.put("SOFTPLUS_LA", UtilityFunction.softplusLossAversion(weights, refPoints, 2.0, 5.0));
-        utilities.put("ASYMLOG_LA", UtilityFunction.asymmetricLogLossAversion(weights, refPoints, 2.0, 20.0));
-        
-        System.out.println("Utility Function Comparison at (C=60, S=40):");
-        System.out.println();
-        
+
+        Map<String, UtilityFunction> solverSupported = new LinkedHashMap<>();
+        solverSupported.put("LINEAR", UtilityFunction.linear(weights));
+        solverSupported.put("COBB_DOUGLAS", UtilityFunction.cobbDouglas(weights));
+        solverSupported.put("CES(rho=0.5)", UtilityFunction.ces(weights, 0.5));
+        solverSupported.put("LEONTIEF", UtilityFunction.leontief(weights));
+
+        Map<String, UtilityFunction> localOnly = new LinkedHashMap<>();
+        localOnly.put("SQRT", UtilityFunction.sqrt(weights));
+        localOnly.put("LOG", UtilityFunction.log(weights));
+        localOnly.put("THRESHOLD", UtilityFunction.threshold(UtilityFunction.linear(weights), 60, 0.5));
+        localOnly.put("SATIATION", UtilityFunction.satiation(UtilityFunction.linear(weights), 100, 20));
+        localOnly.put("SOFTPLUS_LA", UtilityFunction.softplusLossAversion(weights, refPoints, 2.0, 5.0));
+        localOnly.put("ASYMLOG_LA", UtilityFunction.asymmetricLogLossAversion(weights, refPoints, 2.0, 20.0));
+
         Map<ResourceType, Long> testAlloc = Map.of(
             ResourceType.COMPUTE, 60L,
             ResourceType.STORAGE, 40L
         );
-        
-        for (var entry : utilities.entrySet()) {
-            double utility = entry.getValue().evaluate(testAlloc);
-            System.out.printf("  %-15s: %8.3f\n", entry.getKey(), utility);
+
+        System.out.println("Solver-supported families at (C=60, S=40):");
+        for (var entry : solverSupported.entrySet()) {
+            System.out.printf("  %-15s: %8.3f\n", entry.getKey(), entry.getValue().evaluate(testAlloc));
+        }
+        System.out.println();
+        System.out.println("Local-only legacy evaluators (not solver-supported) at (C=60, S=40):");
+        for (var entry : localOnly.entrySet()) {
+            System.out.printf("  %-15s: %8.3f\n", entry.getKey(), entry.getValue().evaluate(testAlloc));
         }
         System.out.println();
         
@@ -973,8 +984,9 @@ public class Demo {
         System.out.println();
         
         System.out.println(SEP);
-        System.out.println("  ✓ PASS: All 11 utility types working correctly");
-        System.out.println("  Run NonlinearUtilityDemo for comprehensive scenarios");
+        System.out.println("  Observed: four solver-supported families and six local evaluators");
+        System.out.println("  scored above; unsupported families are rejected by the canonical solver.");
+        System.out.println("  Run NonlinearUtilityDemo for more scenarios.");
         System.out.println(SEP);
         System.out.println();
     }

@@ -161,16 +161,13 @@ public class PriorityEconomy {
     // ========================================================================
 
     /**
-     * Suggest optimal burn amount based on competition and resources.
-     * 
-     * Strategy: Burn up to X% of balance where X depends on:
-     * - Contention ratio (higher = burn more)
-     * - Resource importance (preference weight)
-     * 
+     * Heuristic burn amount based on contention and preference weight. This is an
+     * illustrative rule, not an optimal or game-theoretically established strategy.
+     *
      * @param agent The agent deciding how much to burn
      * @param contentionRatio Demand/supply ratio for contested resource
      * @param preferenceWeight Agent's preference weight for this resource
-     * @return Suggested burn amount
+     * @return Heuristic burn amount
      */
     public BigDecimal suggestBurnAmount(Agent agent, double contentionRatio, double preferenceWeight) {
         BigDecimal balance = agent.getCurrencyBalance();

@@ -104,10 +104,11 @@ def main():
 
     run_counts = {
         "platform_mediation_test_runs": (platform_summary or {}).get("total_test_runs"),
-        "platform_mediation_calibration_pairs": (platform_summary or {}).get("calibration_pairs"),
+        "platform_mediation_infeasible_runs": (platform_summary or {}).get("infeasible_runs"),
+        "platform_mediation_seeds_per_cell": (platform_summary or {}).get("n_test_seeds_per_cell"),
         "dynamic_seeds": (dynamic_summary or {}).get("seeds"),
         "dynamic_epochs": (dynamic_summary or {}).get("epochs"),
-        "enforcement_reps": (enforcement or {}).get("reps_for_concurrency_cases"),
+        "enforcement_repeated_case_trials": (enforcement or {}).get("repeated_case_trials"),
     }
     test_counts = {
         "java": (test_report or {}).get("java", {}).get("totals"),
@@ -130,7 +131,8 @@ def main():
             "operating_system": platform.platform(),
         },
         "seed_derivation": "SHA-256 of pipe-joined string labels, low 64 bits mod 2**32; "
-                           "disjoint calibration and test splits; same seed and scenario per policy in a cell",
+                           "each test seed is an independent workload draw (no calibration phase); "
+                           "all seven policies share one scenario per cell and seed",
         "run_counts": run_counts,
         "test_counts": test_counts,
         "canonical_runtime_entrypoints": [

@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
  * Demonstration of Grouping Policy Configuration.
  *
  * Shows how configurable policies (k-hop limits, size bounds, compatibility matrices)
- * allow trading off Pareto optimality for performance in multi-agent arbitration.
+ * trade smaller groups (lower per-group cost) against cut contention edges.
  *
  * Run with: java -cp out org.carma.arbitration.GroupingPolicyDemo
  */
@@ -20,7 +20,7 @@ public class GroupingPolicyDemo {
     public static void main(String[] args) {
         System.out.println("╔══════════════════════════════════════════════════════════════════════════════╗");
         System.out.println("║                    GROUPING POLICY CONFIGURATION DEMO                        ║");
-        System.out.println("║  Configurable policies for trading off Pareto optimality vs performance     ║");
+        System.out.println("║  Configurable policies: smaller groups vs cut contention edges              ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════╝");
         System.out.println();
 
@@ -116,9 +116,9 @@ public class GroupingPolicyDemo {
         }
 
         System.out.println();
-        System.out.println("  ✓ k=1: Only direct competitors grouped (agents sharing same resource)");
-        System.out.println("  ✓ k=2: Competitors-of-competitors included");
-        System.out.println("  ✓ k=∞: Full transitive closure (maximum Pareto optimality)");
+        System.out.println("  k=1: Only direct competitors grouped (agents sharing same resource)");
+        System.out.println("  k=2: Competitors-of-competitors included");
+        System.out.println("  k=inf: Full transitive closure (largest groups, no cut edges)");
         printScenarioFooter();
     }
 
@@ -166,8 +166,8 @@ public class GroupingPolicyDemo {
                 .mapToDouble(g -> Math.pow(g.getAgentCount(), 3))
                 .sum();
             double unlimitedCost = Math.pow(20, 3);
-            double speedup = unlimitedCost / totalCost;
-            System.out.printf("    Estimated speedup: %.1fx (O(n³) reduction)%n", speedup);
+            double proxyRatio = unlimitedCost / totalCost;
+            System.out.printf("    Cubic work proxy ratio: %.1fx (per-group n^3 work proxy, not a wall-clock timing)%n", proxyRatio);
         }
 
         System.out.println();
@@ -440,20 +440,20 @@ public class GroupingPolicyDemo {
             GroupingPolicy.BALANCED
         };
 
-        System.out.println("  ┌─────────────────────────────────────┬────────┬─────────┬─────────┬──────────┐");
-        System.out.println("  │ Policy                              │ Groups │ MaxSize │ Speedup │ EdgeCut% │");
-        System.out.println("  ├─────────────────────────────────────┼────────┼─────────┼─────────┼──────────┤");
+        System.out.println("  ┌─────────────────────────────────────┬────────┬─────────┬──────────┬──────────┐");
+        System.out.println("  │ Policy                              │ Groups │ MaxSize │ WorkProxy│ CutEdge% │");
+        System.out.println("  ├─────────────────────────────────────┼────────┼─────────┼──────────┼──────────┤");
 
         for (GroupingPolicy policy : policies) {
             GroupingSplitter splitter = new GroupingSplitter(policy);
             GroupingSplitter.PolicyAnalysis analysis = splitter.analyzePolicy(agents, pool);
-            
-            System.out.printf("  │ %-35s │ %6d │ %7d │ %6.1fx │ %6.1f%% │%n",
+
+            System.out.printf("  │ %-35s │ %6d │ %7d │ %7.1fx │ %6.1f%% │%n",
                 truncate(policy.toString(), 35),
                 analysis.policyGroupCount,
                 analysis.policyMaxSize,
-                analysis.getPerformanceImprovementFactor(),
-                analysis.getEstimatedOptimalityLoss() * 100);
+                analysis.getCubicWorkProxyRatio(),
+                analysis.getCutEdgeFraction() * 100);
         }
 
         System.out.println("  └─────────────────────────────────────┴────────┴─────────┴─────────┴──────────┘");
@@ -518,7 +518,7 @@ public class GroupingPolicyDemo {
                 baseline.size(), baselineMaxSize, baselineTime / 1e6);
             System.out.printf("    Policy:   %d groups, max=%d, detection=%.2fms%n",
                 withPolicy.size(), policyMaxSize, policyTime / 1e6);
-            System.out.printf("    Estimated optimization speedup: %.1fx%n",
+            System.out.printf("    Cubic work proxy ratio: %.1fx (work proxy, not a wall-clock timing)%n",
                 baselineOptCost / Math.max(1, policyOptCost));
             System.out.println();
         }

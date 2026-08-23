@@ -250,6 +250,13 @@ def main():
         if manifest.get("source_commit") is None:
             errors.append("manifest missing source_commit")
 
+    import claim_scan
+    scan_root = os.environ.get("CLAIM_SCAN_ROOT", ROOT)
+    claim_issues = claim_scan.scan_text(scan_root) + claim_scan.scan_demo(scan_root) + \
+        claim_scan.scan_grouping(scan_root)
+    for issue in claim_issues:
+        errors.append("claim scan: " + issue)
+
     if errors:
         print("CONSISTENCY CHECK FAILED (%d issues):" % len(errors))
         for e in errors:

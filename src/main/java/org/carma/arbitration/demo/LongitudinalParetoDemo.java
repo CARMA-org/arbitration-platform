@@ -343,8 +343,9 @@ public class LongitudinalParetoDemo {
             (result.allAgentsBetterOff() ? "YES" : "NO"));
         if (result.allAgentsBetterOff()) {
             System.out.println("   Over " + result.roundsCompleted() +
-                " rounds, every agent accumulated positive total utility.");
-            System.out.println("   WPF provides universal benefit through fair proportional allocation.");
+                " rounds, every agent accumulated positive total utility in this run.");
+            System.out.println("   Positive cumulative utility here is not individual rationality or");
+            System.out.println("   universal benefit; it is the observed outcome of this simulation.");
         }
         System.out.println();
 

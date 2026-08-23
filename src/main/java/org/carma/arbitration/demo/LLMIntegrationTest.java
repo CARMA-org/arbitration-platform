@@ -135,8 +135,8 @@ public class LLMIntegrationTest {
             System.out.println("   LLM INTEGRATION TEST COMPLETE");
             System.out.println("════════════════════════════════════════════════════════════════════════");
             System.out.println();
-            System.out.println("The platform successfully made REAL API calls to LLM providers.");
-            System.out.println("This proves the architecture supports real agent integration.");
+            System.out.println("The platform made REAL API calls to LLM providers in this run.");
+            System.out.println("This exercises the real agent integration path.");
             System.out.println();
 
             // Shutdown

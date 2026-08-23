@@ -282,11 +282,13 @@ def main():
     resolved["mode"] = mode
     with open(os.path.join(RESULTS, "resolved_config_%s.json" % mode), "w") as f:
         json.dump(resolved, f, indent=2)
-    with open(os.path.join(LOGS, "sweep_%s.log" % mode), "w") as f:
-        f.write("\n".join(log_lines) + "\n")
     log("Done: %d feasible runs, %d infeasible (expected total %d), %d agent records; cap_viol=%d bound_viol=%d" %
         (len(run_rows), len(infeasible_rows), expected_runs, len(agent_rows),
          summary["capacity_violations_total"], summary["bound_violations_total"]))
+    log("RUN COMPLETE: mode=%s feasible=%d infeasible=%d expected=%d agent_records=%d" %
+        (mode, len(run_rows), len(infeasible_rows), expected_runs, len(agent_rows)))
+    with open(os.path.join(LOGS, "sweep_%s.log" % mode), "w") as f:
+        f.write("\n".join(log_lines) + "\n")
 
 
 if __name__ == "__main__":

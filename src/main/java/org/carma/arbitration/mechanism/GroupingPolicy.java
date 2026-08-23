@@ -7,17 +7,18 @@ import java.util.*;
 /**
  * Configurable policies for controlling how agents get grouped for joint optimization.
  * 
- * Joint optimization achieves global Pareto optimality but has computational cost O(n³)
- * in the number of agents. These policies allow trading off optimality for performance
- * by limiting group formation.
+ * Joint optimization over a group considers cross-resource trades within that
+ * group at a per-group cost that grows roughly cubically with group size. These
+ * policies limit group formation, cutting some contention edges in exchange for
+ * smaller groups.
  * 
  * <h2>Policy Dimensions</h2>
  * 
  * <h3>1. K-Hop Limits</h3>
  * Controls how far contention can spread through the resource-sharing graph.
  * - k=1: Only agents directly competing for the same resource are grouped
- * - k=2: Agents competing for resources with common competitors are grouped  
- * - k=∞ (default): Full transitive closure, maximum Pareto optimality
+ * - k=2: Agents competing for resources with common competitors are grouped
+ * - k=∞ (default): Full transitive closure, largest groups, no cut edges
  * 
  * Example with k=1:
  *   A wants {Compute, Storage}, B wants {Compute}, C wants {Storage}
@@ -26,8 +27,8 @@ import java.util.*;
  * 
  * <h3>2. Size Bounds</h3>
  * Maximum number of agents in any single optimization group.
- * - Larger groups = better optimality but O(n³) cost
- * - Smaller groups = faster but may miss cross-agent trades
+ * - Larger groups = more cross-agent trades considered, higher per-group cost
+ * - Smaller groups = lower per-group cost but may cut cross-agent trades
  * 
  * <h3>3. Compatibility Matrices</h3>
  * Explicit specification of which agents can be optimized together.

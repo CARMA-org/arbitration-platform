@@ -15,8 +15,8 @@ import java.util.*;
  * 2. Non-negativity: All allocations and balances ≥ 0
  * 3. Bound Compliance: min ≤ allocation ≤ ideal for all agents
  * 4. Currency Conservation: No currency created from nothing
- * 5. Individual Rationality: Agents receive ≥ outside option
- * 
+ * 5. Declared-Minimum Compliance: allocation ≥ declared minimum
+ *
  * This centralizes checks that were previously scattered throughout the codebase.
  */
 public class SafetyMonitor {
@@ -290,38 +290,35 @@ public class SafetyMonitor {
     }
 
     // ========================================================================
-    // Invariant 5: Individual Rationality
+    // Invariant 5: Declared-Minimum Compliance
     // ========================================================================
 
-    /**
-     * Verify all agents receive at least their outside option (minimum allocation).
-     */
-    public SafetyCheckResult checkIndividualRationality(
+    public SafetyCheckResult checkDeclaredMinimumCompliance(
             Map<String, Long> allocations,
             List<Agent> agents,
             ResourceType type) {
-        
+
         List<String> violations = new ArrayList<>();
-        
+
         for (Agent agent : agents) {
             Long alloc = allocations.get(agent.getId());
             if (alloc == null) alloc = 0L;
-            
-            long outsideOption = agent.getMinimum(type);
-            
-            if (alloc < outsideOption) {
+
+            long minimum = agent.getMinimum(type);
+
+            if (alloc < minimum) {
                 violations.add(String.format(
-                    "Individual rationality violated: agent %s got %d < outside option %d",
-                    agent.getId(), alloc, outsideOption));
+                    "Declared-minimum compliance violated: agent %s got %d < declared minimum %d",
+                    agent.getId(), alloc, minimum));
             }
         }
-        
-        SafetyCheckResult result = violations.isEmpty() 
-            ? SafetyCheckResult.pass() 
+
+        SafetyCheckResult result = violations.isEmpty()
+            ? SafetyCheckResult.pass()
             : SafetyCheckResult.fail(violations);
-        
+
         log.record(result);
-        enforceIfStrict(result, "Individual rationality");
+        enforceIfStrict(result, "Declared-minimum compliance");
         return result;
     }
 
@@ -352,11 +349,10 @@ public class SafetyMonitor {
             allViolations.addAll(bounds.getViolations());
         }
         
-        // Check individual rationality
-        SafetyCheckResult ir = checkIndividualRationality(
+        SafetyCheckResult minCompliance = checkDeclaredMinimumCompliance(
             result.getAllocations(), agents, result.getResourceType());
-        if (!ir.isSafe()) {
-            allViolations.addAll(ir.getViolations());
+        if (!minCompliance.isSafe()) {
+            allViolations.addAll(minCompliance.getViolations());
         }
         
         return allViolations.isEmpty() 

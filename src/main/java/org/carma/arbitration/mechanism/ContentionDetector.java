@@ -7,9 +7,9 @@ import java.util.*;
 /**
  * Detects and groups contentions using graph-based connected component analysis.
  * 
- * When multiple agents compete for overlapping sets of resources, they must be
- * arbitrated together as an atomic transaction to enable cross-resource trades
- * and achieve global Pareto optimality.
+ * When multiple agents compete for overlapping sets of resources, they are
+ * arbitrated together as one group so the joint arbitrator can consider
+ * cross-resource trades within that group.
  * 
  * Example: If Agent A wants {Compute, Storage} and Agent B wants {Compute},
  * and Agent C wants {Storage}, all three form a connected component because

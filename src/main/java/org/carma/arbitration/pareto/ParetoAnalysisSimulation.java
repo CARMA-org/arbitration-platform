@@ -191,8 +191,8 @@ public class ParetoAnalysisSimulation {
             );
         }
 
-        // 5. Verify Pareto optimality
-        boolean isOptimal = verifier.isParetoOptimal(allocations, weights, resourceCapacity);
+        // 5. Pairwise single-unit transfer diagnostic (necessary condition only)
+        boolean isOptimal = verifier.hasNoPairwiseUnitParetoImprovement(allocations, weights, resourceCapacity);
         tracker.recordParetoOptimality(isOptimal);
 
         // 6. Compare with previous round (if not first round)

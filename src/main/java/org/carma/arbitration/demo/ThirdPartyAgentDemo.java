@@ -10,7 +10,7 @@ import java.util.*;
  * Demonstrates that third-party agents can be defined ENTIRELY in YAML
  * without any Java code changes to the platform.
  *
- * This proves the architectural goal:
+ * This illustrates the architectural goal:
  * "The platform supports introduction of arbitrary and previously unseen
  *  third-party (but structured and limited to conform with platform support) agents."
  *

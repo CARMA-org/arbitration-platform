@@ -12,7 +12,9 @@ import java.util.stream.Collectors;
  * Demonstration of nonlinear utility functions in the arbitration platform.
  * 
  * This demo showcases:
- * 1. All 11 utility function types and their behaviors
+ * 1. The local UtilityFunction evaluator library. The canonical convex solver
+ *    supports only LINEAR, COBB_DOUGLAS, CES, and LEONTIEF; the other evaluators
+ *    here are local scoring functions, not solver-supported models.
  * 2. How different utility functions lead to different optimal allocations
  * 3. The optimizer choosing different allocations under nonlinear utilities
  * 4. Auto-generated agents with diverse utility functions
@@ -56,8 +58,9 @@ public class NonlinearUtilityDemo {
     static void runUtilityComparisonDemo() {
         System.out.println("SCENARIO 1: UTILITY FUNCTION COMPARISON");
         System.out.println(SUBSEP);
-        System.out.println("Purpose: Compare all 11 utility function types with the same");
-        System.out.println("         allocation to understand their different behaviors.");
+        System.out.println("Purpose: Compare the local utility evaluator functions on the same");
+        System.out.println("         allocation. The canonical solver supports LINEAR,");
+        System.out.println("         COBB_DOUGLAS, CES, and LEONTIEF only.");
         System.out.println();
         
         Map<ResourceType, Double> weights = Map.of(

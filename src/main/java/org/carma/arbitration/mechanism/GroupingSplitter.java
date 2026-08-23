@@ -623,13 +623,7 @@ public class GroupingSplitter {
     /**
      * Split using spectral clustering on contention graph.
      */
-    private List<Set<Agent>> splitBySpectral(Set<Agent> agents, int maxSize, ResourcePool pool) {
-        // Spectral clustering is expensive - for small groups, use min-cut
-        if (agents.size() <= 50) {
-            return splitByMinCut(agents, maxSize, pool);
-        }
-        
-        // For larger groups, use a simplified spectral approach
+    List<Set<Agent>> splitBySpectral(Set<Agent> agents, int maxSize, ResourcePool pool) {
         List<Agent> agentList = new ArrayList<>(agents);
         int numGroups = (int) Math.ceil((double) agents.size() / maxSize);
         
@@ -1093,9 +1087,15 @@ public class GroupingSplitter {
             .mapToInt(ContentionDetector.ContentionGroup::getAgentCount)
             .max().orElse(0);
         
-        // Estimate edge cuts (loss of optimality potential)
         int edgesCut = estimateEdgesCut(original, withPolicy, agents, pool);
-        
+
+        Map<String, Set<String>> contentionGraph = buildContentionGraph(agents, pool);
+        int totalContentionEdges = 0;
+        for (Set<String> neighbors : contentionGraph.values()) {
+            totalContentionEdges += neighbors.size();
+        }
+        totalContentionEdges /= 2;
+
         return new PolicyAnalysis(
             policy,
             originalGroups,
@@ -1103,6 +1103,7 @@ public class GroupingSplitter {
             originalMaxSize,
             policyMaxSize,
             edgesCut,
+            totalContentionEdges,
             original,
             withPolicy
         );
@@ -1166,11 +1167,13 @@ public class GroupingSplitter {
         public final int originalMaxSize;
         public final int policyMaxSize;
         public final int edgesCut;
+        public final int totalContentionEdges;
         public final List<ContentionDetector.ContentionGroup> originalGroups;
         public final List<ContentionDetector.ContentionGroup> policyGroups;
 
         public PolicyAnalysis(GroupingPolicy policy, int originalGroupCount, int policyGroupCount,
                             int originalMaxSize, int policyMaxSize, int edgesCut,
+                            int totalContentionEdges,
                             List<ContentionDetector.ContentionGroup> originalGroups,
                             List<ContentionDetector.ContentionGroup> policyGroups) {
             this.policy = policy;
@@ -1179,45 +1182,40 @@ public class GroupingSplitter {
             this.originalMaxSize = originalMaxSize;
             this.policyMaxSize = policyMaxSize;
             this.edgesCut = edgesCut;
+            this.totalContentionEdges = totalContentionEdges;
             this.originalGroups = originalGroups;
             this.policyGroups = policyGroups;
         }
 
         /**
-         * Estimate performance improvement factor.
-         * Based on O(n³) complexity reduction.
+         * Ratio of the cube of the largest original group size to the cube of the
+         * largest policy group size. This is a proxy for how a per-group cubic-cost
+         * solver's work scales with the largest group; it is not a measured speedup.
          */
-        public double getPerformanceImprovementFactor() {
+        public double getCubicWorkProxyRatio() {
             if (originalMaxSize <= 0 || policyMaxSize <= 0) return 1.0;
-            // O(n³) → improvement is ratio of cubes
             return Math.pow((double) originalMaxSize / policyMaxSize, 3);
         }
 
         /**
-         * Estimate optimality loss (rough approximation).
+         * Fraction of actual contention edges that the policy cuts, relative to the
+         * total number of contention edges in the graph. This is a structural
+         * cut-edge statistic, not a welfare or optimality loss.
          */
-        public double getEstimatedOptimalityLoss() {
-            if (originalGroupCount == 0) return 0.0;
-            // Each cut edge represents a potential trade opportunity lost
-            // This is a rough approximation
-            int totalOriginalEdges = 0;
-            for (ContentionDetector.ContentionGroup g : originalGroups) {
-                int n = g.getAgentCount();
-                totalOriginalEdges += n * (n - 1) / 2; // Upper bound
-            }
-            if (totalOriginalEdges == 0) return 0.0;
-            return Math.min(1.0, (double) edgesCut / totalOriginalEdges);
+        public double getCutEdgeFraction() {
+            if (totalContentionEdges == 0) return 0.0;
+            return Math.min(1.0, (double) edgesCut / totalContentionEdges);
         }
 
         @Override
         public String toString() {
             return String.format(
-                "PolicyAnalysis[policy=%s, groups: %d→%d, maxSize: %d→%d, edgesCut=%d, " +
-                "perfImprovement=%.1fx, optimalityLoss=%.1f%%]",
+                "PolicyAnalysis[policy=%s, groups: %d→%d, maxSize: %d→%d, edgesCut=%d/%d, " +
+                "cubicWorkProxyRatio=%.1fx, cutEdgeFraction=%.1f%%]",
                 policy, originalGroupCount, policyGroupCount,
-                originalMaxSize, policyMaxSize, edgesCut,
-                getPerformanceImprovementFactor(),
-                getEstimatedOptimalityLoss() * 100);
+                originalMaxSize, policyMaxSize, edgesCut, totalContentionEdges,
+                getCubicWorkProxyRatio(),
+                getCutEdgeFraction() * 100);
         }
     }
 }

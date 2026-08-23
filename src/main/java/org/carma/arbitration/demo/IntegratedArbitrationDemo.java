@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 /**
  * INTEGRATED ARBITRATION DEMO
  *
- * This demo proves the platform works end-to-end:
+ * This demo exercises the end-to-end path:
  *
  *   Agents → Contention Detection → Arbitration → CONSTRAINED Execution
  *

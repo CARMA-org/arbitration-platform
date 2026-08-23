@@ -16,7 +16,7 @@ import java.util.*;
 /**
  * End-to-end demonstration with REAL agent execution and REAL LLM calls.
  *
- * This demo proves the platform is fully functional:
+ * This demo exercises the platform end-to-end:
  * 1. Loads agent configs from YAML files
  * 2. Detects contentions automatically
  * 3. Arbitrates resources using real algorithms

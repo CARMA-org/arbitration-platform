@@ -464,10 +464,13 @@ def main():
         json.dump(summary, f, indent=2)
     with open(os.path.join(HERE, "results", "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
-    with open(os.path.join(HERE, "logs", "dynamic_%s.log" % mode), "w") as f:
-        f.write("\n".join(log) + "\n")
     L("Done: %d policy-seed rows, %d epoch rows; capacity_violations=%d"
       % (len(policy_rows), len(policy_rows) * cfg["epochs"], cap_viol))
+    L("RUN COMPLETE: mode=%s policy_seed_rows=%d epoch_rows=%d expected_epoch_rows=%d" %
+      (mode, len(policy_rows), len(policy_rows) * cfg["epochs"],
+       len(POLICIES) * cfg["seeds"] * cfg["epochs"]))
+    with open(os.path.join(HERE, "logs", "dynamic_%s.log" % mode), "w") as f:
+        f.write("\n".join(log) + "\n")
 
 
 if __name__ == "__main__":

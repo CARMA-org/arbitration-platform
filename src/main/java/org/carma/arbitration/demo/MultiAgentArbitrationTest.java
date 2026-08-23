@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 /**
  * End-to-end multi-agent arbitration test with REAL LLM calls.
  *
- * This test proves the platform is a faithful multi-agent arbitration system:
+ * This test exercises the multi-agent arbitration path:
  * 1. Multiple agents compete for limited LLM API quota
  * 2. Arbitration allocates quota based on priority/currency
  * 3. Agents make REAL LLM calls within their allocated quota

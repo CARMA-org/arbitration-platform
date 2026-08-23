@@ -39,7 +39,11 @@ computation requires cross-resource coordination.
   completion, optional refinement rate, capacity utilization, and allocation
   consumption (these last two are distinct fields). Declared welfare is reported
   only within a utility family; `decomposed_cobb_douglas` is labelled Cobb–Douglas
-  for welfare. Latency is a budget of service constants and is reported per policy.
+  for welfare. Reported latency is allocation-computation latency (the wall-clock
+  time to compute an allocation: process startup, model construction, solve,
+  parsing, and integer conversion), measured per policy. It is distinct from the
+  synthetic per-service resource-cost constants used to model task execution,
+  which are not a latency measurement.
 - Analysis: paired seed-level differences with 95% bootstrap confidence intervals.
   Mixed-bundle results are primary, with a stratified paired bootstrap that
   resamples seeds within each mixed cell and averages the two cell means; the

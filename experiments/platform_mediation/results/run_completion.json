@@ -1,0 +1,16 @@
+{
+  "note": "completion status derived from committed raw row counts, not from run logs",
+  "primary": {
+    "runs_csv_rows": 2800,
+    "infeasible_rows": 0,
+    "expected_runs": 2800,
+    "agent_records": 16800,
+    "complete": true
+  },
+  "dynamic": {
+    "epoch_rows": 40000,
+    "expected_epoch_rows": 40000,
+    "complete": true
+  },
+  "all_complete": true
+}
