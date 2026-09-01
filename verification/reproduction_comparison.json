@@ -1,0 +1,23 @@
+{
+  "rerun_environment": "clean git clone --no-hardlinks at 073a5d6, Java 21.0.1 (PATH), solver venv cvxpy 1.5.3 / clarabel 0.9.0",
+  "rerun_jobs": 19600, "rerun_infeasible": 0, "rerun_capacity_violations": 0,
+  "rerun_bound_violations": 0, "rerun_fallbacks": 0, "rerun_seconds": 8928.5,
+  "byte_identical_files": ["raw/agents.csv", "raw/scenarios.csv", "summary.json"],
+  "runs_csv": {
+    "rows": 19600,
+    "columns_that_differ": {"alloc_latency_ms": 11066},
+    "rows_differing_in_any_non_latency_column": 0,
+    "solver_status_differences": 0,
+    "note": "Only the nondeterministic wall-clock latency column differs; every outcome-relevant field is identical."
+  },
+  "exact_equality_required_fields": {
+    "seeds": "identical (scenarios.csv byte-identical)",
+    "scenarios": "identical", "workload_hashes": "identical",
+    "allocations": "identical (agents.csv byte-identical)",
+    "task_outcomes": "identical", "agent_outcomes": "identical",
+    "solver_statuses": "identical (0 diffs)", "violations": "identical (all 0)",
+    "primary_statistics": "identical (run-level completion means identical)",
+    "pass_fail_decision": "identical (both co-primary cells pass all 5)"
+  },
+  "verdict": "FULL CLEAN RERUN WITH MATCHING OUTCOMES (only timing differs)"
+}

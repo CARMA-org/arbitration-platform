@@ -1,0 +1,23 @@
+REPRODUCTION TEST LOG (clone at 073a5d6)
+=== pilot+confirmatory+local_opt tests ===
+...................................................................      [100%]
+67 passed in 53.73s
+=== canonical python suite ===
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+86 passed, 2 warnings in 17.38s
+=== claim scan (whole repo) ===
+claim scan passed: no stale claims in /private/tmp/claude-501/-Users-avyaycasheekar-Documents-arbitration-platform/9155f83f-feee-462f-81a4-af4f93c67682/scratchpad/verify_clone2
+=== canonical consistency (--with-manifest) ===
+consistency check passed: 2800 runs, 16800 agents, 4 cells, 7 policies; solver statuses, mixed CIs, dynamic epoch aggregates, and decomposition validation reconstructed from raw
+=== pilot audit (audit_pilot.py) ===
+wrote PILOT_AUDIT_EXACT.md
+AUDIT PASSED: all 21 checks passed
+=== confirmatory manifest verify ===
+top-level: 55/55 ok
+confirmatory: 19/19 ok
+=== git diff --check ===
+clean
+=== mvn -o test (clone) ===
+[INFO] Tests run: 63, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

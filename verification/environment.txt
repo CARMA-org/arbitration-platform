@@ -1,0 +1,8 @@
+python_version: Python 3.12.12
+java_version_PATH: openjdk version "21.0.1" 2023-10-17 LTS
+mvn_java_version: Java version: 24.0.1, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk/24.0.1/libexec/openjdk.jdk/Contents/Home
+maven_version: Apache Maven 3.9.10 (5f519b97e944483d878815739f519b2eade0a91d)
+os: Darwin 24.6.0 arm64 arm
+packages: cvxpy 1.5.3 clarabel 0.9.0 numpy 1.26.4 scipy 1.13.1 pandas 2.2.2
+clone_path: /private/tmp/claude-501/-Users-avyaycasheekar-Documents-arbitration-platform/9155f83f-feee-462f-81a4-af4f93c67682/scratchpad/verify_clone2
+clone_head: 073a5d6f0c1196f60ac8029bc4ee0971db8f099b

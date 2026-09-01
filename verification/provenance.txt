@@ -1,0 +1,84 @@
+PROVENANCE AUDIT — heterogeneity confirmatory experiment
+=========================================================
+(clean-room verification; all facts derived from `git`, read-only)
+
+INITIAL REPOSITORY STATE
+  branch: platform-heterogeneity-pilot
+  HEAD:   073a5d6f0c1196f60ac8029bc4ee0971db8f099b
+  worktree: CLEAN (git status --porcelain empty at start)
+  origin/platform-evaluation: bfab534bba977d5f7c40b0407b83036b38dfbf4a (matches expected)
+  origin/main:                91d8ad77d2b549933b46d566e5776b67b87628ff (matches expected)
+  local platform-evaluation:  bfab534 (== origin/platform-evaluation)
+  canonical bundle sha256:    1324889bde926fa9624cc499f8f0728d716217f8671c6f97296a9a08988ed484 (matches expected)
+
+REPORTED HASHES — ALL RESOLVE UNIQUELY (single prefix match each)
+  816a0b7 -> 816a0b7f20b93099957e9426417c84ca9966340f
+  a64d09c -> a64d09c568d687d31c4e577129357b5151b8902e
+  bfab534 -> bfab534bba977d5f7c40b0407b83036b38dfbf4a
+  11fdccd -> 11fdccdec85639bf1eca0f362c3ed3c40c14ed1a
+  0caa1807 -> 0caa18071bf87c5df9a50ea18491dc013de22b8b   (preregistration)
+  c76b4c9 -> c76b4c9908d7dcfd2f182d6dc08f669805507818   (defect fix)
+  073a5d6 -> 073a5d6f0c1196f60ac8029bc4ee0971db8f099b   (results, == HEAD)
+
+COMMIT GRAPH (linear; all author+committer = Avyay <avyaymc@gmail.com>)
+  bfab534 (base, origin/platform-evaluation)
+    -> a64d09c  2026-08-31T19:21:18-04  pilot source+tests      (committer 20:05 = amended)
+    -> 816a0b7  2026-08-31T20:06:30-04  pilot results
+    -> 11fdccd  2026-08-31T22:04:46-04  pilot audit
+    -> 0caa180  2026-08-31T22:16:28-04  PREREGISTRATION         (author == committer time; not amended)
+    -> c76b4c9  2026-09-01T00:17:39-04  defect fix (import order)
+    -> 073a5d6  2026-09-01T00:20:26-04  confirmatory results    (committer 00:22:59 = amended)  [HEAD]
+  bfab534 is an ancestor of HEAD: YES.
+
+CHRONOLOGY — PREREGISTRATION PRECEDES DATA
+  Confirmatory raw files (runs/agents/scenarios/summary/headline) FIRST appear only at 073a5d6.
+  Files under results/confirmatory_v1/ present at: 0caa180 = 0, c76b4c9 = 0, 073a5d6 = 11.
+  Preregistration commit 0caa180 timestamp 22:16:28; committed run log shows the confirmatory
+  sweep STARTED 22:16:42 (14 s after the preregistration commit) and ended 00:14:42, 7053 s.
+  The preregistration commit itself is NOT amended (author time == committer time).
+  Amends exist on a64d09c and 073a5d6 (committer>author), consistent with the reported
+  line-ending amend of the first commit and the log/manifest amend of the results commit;
+  neither touches the preregistration, and both are on commits whose content is otherwise
+  additive. Chronology is verifiable.
+
+POST-PREREGISTRATION CHANGES (0caa180 -> 073a5d6)
+  Modified (non-added) files: exactly THREE
+    - make_confirmatory_analysis.py  (2 lines, import reorder only — see below)
+    - CHANGELOG.md                    (prose narrative)
+    - EXPERIMENT_MANIFEST.json (top)  (regenerated SHA index; source_commit c76b4c9, 55 artifacts)
+  Everything else added is result/report data.
+
+  OUTCOME-RELEVANT FILES — BYTE-IDENTICAL prereg -> HEAD (git object id equality):
+    config/confirmatory_v1.json      IDENTICAL   (config, seeds, cells, success rule)
+    run_confirmatory.py              IDENTICAL   (driver, scenario construction, seed schedule)
+    pilotlib/workload.py             IDENTICAL   (Dirichlet task sampling)
+    pilotlib/pilot_scenario.py       IDENTICAL   (scenario/capacity/declarations/hashes)
+    pilotlib/floors.py               IDENTICAL   (unit floor)
+    pilotlib/local_opt.py            IDENTICAL   (local task-selection rule)
+    pilotlib/measures.py             IDENTICAL   (TV/entropy definitions)
+    lib/seeds.py (canonical)         IDENTICAL bfab534->HEAD (derive_seed machinery)
+    canonical lib dir                0 files changed bfab534->HEAD
+    src/ (Java runtime+policies), pom.xml, scripts/  0 files changed after prereg
+
+  make_confirmatory_analysis.py defect fix (c76b4c9), COMPLETE patch (2 lines):
+    - from lib.analysis import cell_bootstrap        # (ran before pilotlib set sys.path -> ImportError)
+    - from pilotlib import pilot_analysis
+    + from pilotlib import pilot_analysis             # import first: sets canonical lib path
+    + from lib.analysis import cell_bootstrap
+  Effect: importing pilotlib first puts the canonical lib dir on sys.path so `lib.analysis`
+  resolves. cell_bootstrap is the identical function either way; it seeds a fresh
+  numpy Generator from hash(name, boot_seed), independent of import order and of global
+  random state. The script could not import (ModuleNotFoundError: lib) before the fix, so it
+  had never run; the fix enables execution and changes nothing computed. The success rule,
+  bootstrap seed, comparison set, and outcome definitions in the file are unchanged (only the
+  two import lines differ prereg->HEAD). Assessment: OUTCOME-NEUTRAL.
+
+DIFF bfab534 -> HEAD
+  71 files changed, 205453 insertions(+), 0 deletions from base tree of interest.
+  non-pilot files changed: 0 (all changes confined to experiments/platform_mediation_heterogeneity/).
+  Full name-status saved to verification/diff_bfab534_to_head.txt.
+
+ATTRIBUTION
+  Commit-message Claude/AI/Anthropic/Co-Authored attribution across bfab534..HEAD: 0.
+
+PROVENANCE DECISION: chronology verifiable; NO outcome-relevant post-preregistration change.

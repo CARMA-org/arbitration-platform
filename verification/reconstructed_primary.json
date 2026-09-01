@@ -1,0 +1,104 @@
+{
+  "bootstrap_seed": 20260901,
+  "n_bootstrap": 10000,
+  "cells": {
+    "dirichlet_0.1__moderate": {
+      "leontief_mean": 0.775,
+      "drf_mean": 0.7209375,
+      "equal_mean": 0.7038541666666667,
+      "leo_minus_drf_frac": 0.0540625,
+      "ci_lo_frac": 0.0478125,
+      "ci_hi_frac": 0.060210937499999964,
+      "leo_minus_drf_tasks": 2.5949999999999998,
+      "ci_lo_tasks": 2.295,
+      "ci_hi_tasks": 2.8901249999999985,
+      "paired_t_se_tasks": 0.15402432425533166,
+      "n_seeds": 200,
+      "leo_minus_equal_tasks": 3.415,
+      "leo_minus_equal_ci_lo_tasks": 3.1849999999999996,
+      "leo_minus_equal_ci_hi_tasks": 3.6449999999999996,
+      "frac_zero_leontief": 0.0,
+      "frac_zero_drf": 0.0008333333333333334,
+      "frac_zero_denominator": 1200,
+      "c1_mean_gt_drf": true,
+      "c2_ci_above_zero": true,
+      "c3_ge_one_task": true,
+      "c4_no_zero_increase": true,
+      "c5_zero_events": true,
+      "cell_pass": true
+    },
+    "dirichlet_0.1__high": {
+      "leontief_mean": 0.5452083333333334,
+      "drf_mean": 0.5083333333333333,
+      "equal_mean": 0.4733333333333334,
+      "leo_minus_drf_frac": 0.036875,
+      "ci_lo_frac": 0.03135416666666667,
+      "ci_hi_frac": 0.04260416666666666,
+      "leo_minus_drf_tasks": 1.77,
+      "ci_lo_tasks": 1.5050000000000001,
+      "ci_hi_tasks": 2.0449999999999995,
+      "paired_t_se_tasks": 0.1424322107999691,
+      "n_seeds": 200,
+      "leo_minus_equal_tasks": 3.4499999999999997,
+      "leo_minus_equal_ci_lo_tasks": 3.1850000000000005,
+      "leo_minus_equal_ci_hi_tasks": 3.7150000000000007,
+      "frac_zero_leontief": 0.0,
+      "frac_zero_drf": 0.004166666666666667,
+      "frac_zero_denominator": 1200,
+      "c1_mean_gt_drf": true,
+      "c2_ci_above_zero": true,
+      "c3_ge_one_task": true,
+      "c4_no_zero_increase": true,
+      "c5_zero_events": true,
+      "cell_pass": true
+    }
+  },
+  "confirmed_all_co_primary_pass": true,
+  "monotonicity": {
+    "moderate": {
+      "values_in_concentration_order": [
+        0.024999999999999988,
+        0.044999999999999894,
+        0.19500000000000026,
+        0.7899999999999999,
+        1.6549999999999998,
+        2.5949999999999998,
+        3.1549999999999994
+      ],
+      "strict": true,
+      "weak": true,
+      "violations": []
+    },
+    "high": {
+      "values_in_concentration_order": [
+        0.04000000000000002,
+        0.08499999999999983,
+        0.37000000000000016,
+        0.32999999999999985,
+        1.1899999999999997,
+        1.77,
+        1.7950000000000002
+      ],
+      "strict": false,
+      "weak": false,
+      "violations": [
+        [
+          "dirichlet_3.0",
+          0.37000000000000016,
+          "dirichlet_1.0",
+          0.32999999999999985
+        ]
+      ]
+    },
+    "res_tv_monotone_in_concentration_order": true,
+    "res_tv_sequence": [
+      0.0,
+      0.036222860515801335,
+      0.04800457659442144,
+      0.06504456349653923,
+      0.09243268578268711,
+      0.11673957705945998,
+      0.12480325808960469
+    ]
+  }
+}
