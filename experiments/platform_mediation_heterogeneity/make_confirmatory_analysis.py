@@ -13,8 +13,8 @@ from collections import defaultdict
 
 import numpy as np
 
-from lib.analysis import cell_bootstrap   # noqa: F401 (pilotlib import below sets path)
-from pilotlib import pilot_analysis  # noqa: F401  ensures canonical lib path is set
+from pilotlib import pilot_analysis  # noqa: F401  import first: sets the canonical lib path
+from lib.analysis import cell_bootstrap
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "results", "confirmatory_v1")
