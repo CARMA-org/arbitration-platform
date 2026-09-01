@@ -1,0 +1,121 @@
+{
+  "checkpoint": "development/platform-original-question-closure",
+  "note": "Machine-readable inventory of every file under experiments/platform_mediation_original_question. Files with committed=false are caches and are intentionally not committed. This inventory file is not listed in itself because it cannot hash itself.",
+  "base_commit": "6e44d54b6ebddb2d659b891fda135e257f6f7e07",
+  "committed_count": 9,
+  "excluded_cache_count": 7,
+  "files": [
+    {
+      "path": "DEVELOPMENT_CHECKPOINT.md",
+      "bytes": 4725,
+      "sha256": "e0b3296d4d66ab9a72c2a879ea74dc6828765134c0a264a5b48aedcafa8f80eb",
+      "type": "documentation",
+      "committed": true
+    },
+    {
+      "path": "dev_checks.log",
+      "bytes": 544,
+      "sha256": "a9a0ad6dbfc7f12fbfdb76a527ce1831508cb6edfe102255ec46def5d26bc4d9",
+      "type": "development output",
+      "committed": true
+    },
+    {
+      "path": "oqlib/__init__.py",
+      "bytes": 819,
+      "sha256": "219b5938d623275270231982f937ee12e8806e487b08ad3a14ea84d817d50d85",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/__pycache__/__init__.cpython-312.pyc",
+      "bytes": 1555,
+      "sha256": "0051879257771c19923f53f366bb01801c1752b81871ed923882096527d882d6",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/central.cpython-312.pyc",
+      "bytes": 5278,
+      "sha256": "de8e4f3600a5d17f339af2f7fb37498bfe8ae3b7f8b8abbc2e1aed4dae7cda2b",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/declarations.cpython-312.pyc",
+      "bytes": 5629,
+      "sha256": "75e87ba434695d0ac48d36dcdd5446ae6c3c313c67e52f2bee931c2dcd217313",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/distributed.cpython-312.pyc",
+      "bytes": 8324,
+      "sha256": "936fbca99eef1050049ae5a354bf7ab8cadf205aa84410c3e1c8654e9d1fe094",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/driftgen.cpython-312.pyc",
+      "bytes": 7411,
+      "sha256": "cfbc86c7d326e4aefb32275daaa3790a88cb65e5dccc575000d4b7f558bcc970",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/maxmin.cpython-312.pyc",
+      "bytes": 5820,
+      "sha256": "116a8789a22ced41f9b00b6704318be7170fc0bd41fa575d5a9dc1a4eda25c13",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/__pycache__/seeds_oq.cpython-312.pyc",
+      "bytes": 3497,
+      "sha256": "51a8f163e35cd8730747ebda816094099e1c81f2d11b0fbf5cf996ba5d1fe550",
+      "type": "cache",
+      "committed": false
+    },
+    {
+      "path": "oqlib/central.py",
+      "bytes": 2421,
+      "sha256": "841d94a1f8a76c9920f6a8657de5355bacd837c9b265267d2f2dcc76b19112c5",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/declarations.py",
+      "bytes": 3785,
+      "sha256": "d8b6ea99733d02b858f286ba6768d971403e0794a72a58cdeeb7514f720b502e",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/distributed.py",
+      "bytes": 5006,
+      "sha256": "60b69938a6be93c00058e8710a374682268c543f5b1b76c42c4f185e00d6be9f",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/driftgen.py",
+      "bytes": 4493,
+      "sha256": "d4aa56f4af475d0cc85b7a5051d9b3a0f68a74564f648c3c2b4c2c1193555415",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/maxmin.py",
+      "bytes": 3375,
+      "sha256": "05f5a32e3b842dd14731a9c2933407de7a7cd1adfda6b7c263c5662b58b58fd6",
+      "type": "source",
+      "committed": true
+    },
+    {
+      "path": "oqlib/seeds_oq.py",
+      "bytes": 2760,
+      "sha256": "772479a29892578dc39473a015e192a98805d5bce1684f00ca6f1f3e9e2491fd",
+      "type": "source",
+      "committed": true
+    }
+  ]
+}

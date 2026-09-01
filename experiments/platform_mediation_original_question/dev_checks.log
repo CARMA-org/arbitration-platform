@@ -1,0 +1,8 @@
+DEVELOPMENT-STAGE SAFE CHECKS (2026-09-01T21:00:04Z)
+=== module import check (syntax + resolvability, no execution of scenarios) ===
+PASS: all 7 oqlib source files parse
+PASS: all oqlib modules import cleanly
+=== structural seed-namespace disjointness (no scientific outcome) ===
+PASS: 200 declaration-drift + 200 architecture confirmatory scenario seeds disjoint from canonical/pilot/heterogeneity-confirmatory
+bootstrap seed: 20260902 resamples: 20000
+=== END (no drivers built, no confirmatory seeds run, no effect sizes inspected here) ===
