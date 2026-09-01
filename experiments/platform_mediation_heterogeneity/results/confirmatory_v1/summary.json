@@ -1,0 +1,41 @@
+{
+  "protocol": "confirmatory_v1",
+  "floor_regime": "unit",
+  "n_regimes": 7,
+  "n_contention": 2,
+  "n_seeds_per_cell": 200,
+  "policies": [
+    "equal",
+    "drf",
+    "decomposed_cobb_douglas",
+    "joint_linear",
+    "joint_cobb_douglas",
+    "joint_ces",
+    "joint_leontief"
+  ],
+  "n_agents": 6,
+  "tasks_per_agent": 8,
+  "expected_runs": 19600,
+  "feasible_runs": 19600,
+  "infeasible_runs": 0,
+  "n_agent_records": 117600,
+  "n_scenario_rows": 2800,
+  "capacity_violations_total": 0,
+  "bound_violations_total": 0,
+  "fallback_used_total": 0,
+  "bootstrap_seed": 20260901,
+  "n_bootstrap": 10000,
+  "seed_label": "heterogeneity_confirmatory_v1",
+  "primary_policy": "joint_leontief",
+  "co_primary_cells": [
+    "dirichlet_0.1__moderate",
+    "dirichlet_0.1__high"
+  ],
+  "disjointness": {
+    "seeds_vs_canonical_overlap": 0,
+    "seeds_vs_exploratory_overlap": 0,
+    "workload_hash_vs_canonical_overlap": 0,
+    "workload_hash_vs_exploratory_overlap": 0
+  },
+  "declaration_source": "exact_pending_queue"
+}

@@ -1,0 +1,161 @@
+{
+  "generated_utc": "2026-09-01T04:20:05Z",
+  "experiment": "platform_mediation_heterogeneity/confirmatory_v1",
+  "source_commit": "c76b4c9908d7dcfd2f182d6dc08f669805507818",
+  "preregistration_commit": "0caa18071bf87c5df9a50ea18491dc013de22b8b",
+  "canonical_base_commit": "bfab534bba977d5f7c40b0407b83036b38dfbf4a",
+  "config_hash": "406b5d2b3231cf8828ebc135b8542730ca7eb44268381d8147d133b0647e1b83",
+  "environment": {
+    "python_version": "3.12.12",
+    "dependencies": {
+      "cvxpy": "1.5.3",
+      "clarabel": "0.9.0",
+      "numpy": "1.26.4",
+      "scipy": "1.13.1",
+      "pandas": "2.2.2"
+    },
+    "java_version": "openjdk version \"21.0.1\" 2023-10-17 LTS\nOpenJDK Runtime Environment Zulu21.30+15-CA (build 21.0.1+12-LTS)\nOpenJDK 64-Bit Server VM Zulu21.30+15-CA (build 21.0.1+12-LTS, mixed mode, sharing)",
+    "operating_system": "macOS-15.6.1-arm64-arm-64bit"
+  },
+  "seed_derivation": "SHA-256 of pipe-joined labels, low 64 bits mod 2**32; 200 confirmatory seeds from label 'heterogeneity_confirmatory_v1' (disjoint from canonical and exploratory seeds and task-workload hashes; asserted in the driver)",
+  "canonical_runtime_entrypoint": "org.carma.arbitration.experiment.PlatformMediationHarness",
+  "summary": {
+    "protocol": "confirmatory_v1",
+    "floor_regime": "unit",
+    "n_regimes": 7,
+    "n_contention": 2,
+    "n_seeds_per_cell": 200,
+    "policies": [
+      "equal",
+      "drf",
+      "decomposed_cobb_douglas",
+      "joint_linear",
+      "joint_cobb_douglas",
+      "joint_ces",
+      "joint_leontief"
+    ],
+    "n_agents": 6,
+    "tasks_per_agent": 8,
+    "expected_runs": 19600,
+    "feasible_runs": 19600,
+    "infeasible_runs": 0,
+    "n_agent_records": 117600,
+    "n_scenario_rows": 2800,
+    "capacity_violations_total": 0,
+    "bound_violations_total": 0,
+    "fallback_used_total": 0,
+    "bootstrap_seed": 20260901,
+    "n_bootstrap": 10000,
+    "seed_label": "heterogeneity_confirmatory_v1",
+    "primary_policy": "joint_leontief",
+    "co_primary_cells": [
+      "dirichlet_0.1__moderate",
+      "dirichlet_0.1__high"
+    ],
+    "disjointness": {
+      "seeds_vs_canonical_overlap": 0,
+      "seeds_vs_exploratory_overlap": 0,
+      "workload_hash_vs_canonical_overlap": 0,
+      "workload_hash_vs_exploratory_overlap": 0
+    },
+    "declaration_source": "exact_pending_queue"
+  },
+  "artifact_count": 19,
+  "artifacts": [
+    {
+      "path": "experiments/platform_mediation_heterogeneity/config/confirmatory_v1.json",
+      "sha256": "406b5d2b3231cf8828ebc135b8542730ca7eb44268381d8147d133b0647e1b83",
+      "bytes": 3073
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/run_confirmatory.py",
+      "sha256": "1212edf0f856594f8fb73428f1bc24334360fccd72840d84c468f07f459cd31d",
+      "bytes": 17975
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_confirmatory_analysis.py",
+      "sha256": "2f86e9da0f51f695bf2b1b31c9ed0accc49782ef89de757c30ea4b7a94f37dfc",
+      "bytes": 15317
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_confirmatory_manifest.py",
+      "sha256": "ed2c80fd18bb7ae598e1c7bd2567fa2e41d7652c055d7a97ef6ebf94bca6e7b3",
+      "bytes": 4279
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/local_opt.py",
+      "sha256": "b8df38a65abd39e27fa82e2aae7af59bd4d715618abe5f13c93f7d11fff70f84",
+      "bytes": 3563
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/CONFIRMATORY_PROTOCOL.md",
+      "sha256": "9923f8030d650cc20b15e80c2cbff77a1c0232749ef124586bb54dc322469738",
+      "bytes": 7681
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/CONFIRMATORY_RESULTS.md",
+      "sha256": "22380c7860f94be52f4f56b41d8157777b054282d4a7ff5bdccb6c116b59d3b7",
+      "bytes": 7745
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/CONFIRMATORY_DECISION.md",
+      "sha256": "b09bd8f6daed2a0928e032cc50e04228971fb1aeb001524f4baf3f4336ec73a9",
+      "bytes": 5770
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/confirmatory_headline.json",
+      "sha256": "e2e2c07036cae19b45341363b23e7bc4a01f15cc081c727d3eea0b0fa04656c0",
+      "bytes": 177086
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/summary.json",
+      "sha256": "bc7865d8aa8c53b13548937b8217744587f663909f3dc6066251cfc9ca2a939b",
+      "bytes": 1019
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/raw/agents.csv",
+      "sha256": "ee241dfa71a7f53860a7d3f4e951a8c95da654e5e24bdedf7ae12bf9fd27f118",
+      "bytes": 75307047
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/raw/infeasible.csv",
+      "sha256": "4af4ff25bdf57959c98b7dda1b622df122400250f6fd83766ec5e076697b22c7",
+      "bytes": 60
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/raw/runs.csv",
+      "sha256": "f7ec31e94b708b79e9bbba8df2cb0106479c3193546afb4aced0fb5f3b8c5568",
+      "bytes": 11630865
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/raw/scenarios.csv",
+      "sha256": "598a30c3550bdadc44a23d65b44e74df9220d7aec984f4f1d14b3404c78aa67c",
+      "bytes": 4400725
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/tables/cell_policy_effects.csv",
+      "sha256": "4744442835ba54424776b7b69078d2aecd1968fc927480a87b73013d1413f2d8",
+      "bytes": 11903
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/tables/dissimilarity.csv",
+      "sha256": "9ae5ffbafd38549ba42b4da98035a0c1e6ddd14856b1a7af28476e751496c182",
+      "bytes": 1721
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/tables/distributional.csv",
+      "sha256": "c15e0f9c4abf495139ef80b5f878d201a6ef4b1c9841ae6c1c47f45d4b8bcbd6",
+      "bytes": 17279
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/confirmatory_v1/tables/paired_comparisons.csv",
+      "sha256": "a6e9d5864c103b454faf5e9a2f6109d11cc664d7eea449673bc31f3a959ebfd8",
+      "bytes": 34182
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/logs/run_confirmatory_v1.log",
+      "sha256": "e9bb41bf53bb18e9b970d85322a6020d617d7434b821f4589c6e0fe7e533ccf1",
+      "bytes": 455
+    }
+  ]
+}

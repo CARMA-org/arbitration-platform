@@ -1,7 +1,7 @@
 {
-  "generated_utc": "2026-09-01T00:06:09Z",
+  "generated_utc": "2026-09-01T04:22:45Z",
   "pilot": "platform_mediation_heterogeneity",
-  "source_commit": "a64d09c568d687d31c4e577129357b5151b8902e",
+  "source_commit": "c76b4c9908d7dcfd2f182d6dc08f669805507818",
   "canonical_base_commit": "bfab534bba977d5f7c40b0407b83036b38dfbf4a",
   "config_hash": "7998188bac5f18e080adf35bf0cd0ea1fd073718f60f42cbb94326ca22d21aed",
   "environment": {
@@ -146,8 +146,13 @@
       "declaration_source": "exact_pending_queue"
     }
   },
-  "artifact_count": 46,
+  "artifact_count": 55,
   "artifacts": [
+    {
+      "path": "experiments/platform_mediation_heterogeneity/config/confirmatory_v1.json",
+      "sha256": "406b5d2b3231cf8828ebc135b8542730ca7eb44268381d8147d133b0647e1b83",
+      "bytes": 3073
+    },
     {
       "path": "experiments/platform_mediation_heterogeneity/config/pilot.json",
       "sha256": "7998188bac5f18e080adf35bf0cd0ea1fd073718f60f42cbb94326ca22d21aed",
@@ -162,6 +167,11 @@
       "path": "experiments/platform_mediation_heterogeneity/pilotlib/floors.py",
       "sha256": "c79e7d523009f0474d83d5a7ac6640df1479c7e9ef57a870f882cde26b650120",
       "bytes": 5132
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/local_opt.py",
+      "sha256": "b8df38a65abd39e27fa82e2aae7af59bd4d715618abe5f13c93f7d11fff70f84",
+      "bytes": 3563
     },
     {
       "path": "experiments/platform_mediation_heterogeneity/pilotlib/measures.py",
@@ -184,9 +194,24 @@
       "bytes": 4034
     },
     {
+      "path": "experiments/platform_mediation_heterogeneity/audit_pilot.py",
+      "sha256": "1fa67fc7f9169431fa306fcc1542a253f6b36ea064c8b62d327830183b44196e",
+      "bytes": 29401
+    },
+    {
       "path": "experiments/platform_mediation_heterogeneity/diagnostic_baseline.py",
       "sha256": "eb13bb5b9ecc1a575d6375c3d6e3332c6e2e5dbf8fd68939b263aa5fb1ed885e",
       "bytes": 31012
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_confirmatory_analysis.py",
+      "sha256": "2f86e9da0f51f695bf2b1b31c9ed0accc49782ef89de757c30ea4b7a94f37dfc",
+      "bytes": 15317
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_confirmatory_manifest.py",
+      "sha256": "ed2c80fd18bb7ae598e1c7bd2567fa2e41d7652c055d7a97ef6ebf94bca6e7b3",
+      "bytes": 4279
     },
     {
       "path": "experiments/platform_mediation_heterogeneity/make_pilot_manifest.py",
@@ -204,6 +229,11 @@
       "bytes": 11472
     },
     {
+      "path": "experiments/platform_mediation_heterogeneity/run_confirmatory.py",
+      "sha256": "1212edf0f856594f8fb73428f1bc24334360fccd72840d84c468f07f459cd31d",
+      "bytes": 17975
+    },
+    {
       "path": "experiments/platform_mediation_heterogeneity/run_pilot.py",
       "sha256": "81e2dc6d5814ec3ec73477f6067c4465ba20db03be096099230cbb1a88b4b6de",
       "bytes": 17503
@@ -214,9 +244,19 @@
       "bytes": 2124
     },
     {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_confirmatory.py",
+      "sha256": "d2d248a2cf03b25ea17346a334173e9f46e6b170713aeb9117e04d49b2f258c9",
+      "bytes": 3786
+    },
+    {
       "path": "experiments/platform_mediation_heterogeneity/tests/test_floors.py",
       "sha256": "2c28d750403c2f3a63132c37fc9138f48c910ed8b5e062c72e0dfa0a7f687d0a",
       "bytes": 3931
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_local_opt.py",
+      "sha256": "2038df8273073d2331117ef4efb9e0a2f92649bafb7b6ddb5d7bcb1f06cc72ff",
+      "bytes": 5250
     },
     {
       "path": "experiments/platform_mediation_heterogeneity/tests/test_measures.py",
@@ -344,6 +384,11 @@
       "bytes": 3277
     },
     {
+      "path": "experiments/platform_mediation_heterogeneity/logs/run_confirmatory_v1.log",
+      "sha256": "e9bb41bf53bb18e9b970d85322a6020d617d7434b821f4589c6e0fe7e533ccf1",
+      "bytes": 455
+    },
+    {
       "path": "experiments/platform_mediation_heterogeneity/logs/run_pilot_all.log",
       "sha256": "578eb6fe20b07336b1a6a2bebceaa77a80cd84fa72498fe76b965bb61681700e",
       "bytes": 474
@@ -375,8 +420,8 @@
     },
     {
       "path": "experiments/platform_mediation_heterogeneity/CHANGELOG.md",
-      "sha256": "f675fb1e03429b270bf1a3cfc7e75252eb99d5f1c36291f0cd46701d0fba4da7",
-      "bytes": 5152
+      "sha256": "0395f5fd6c3332e141d34f0268e8cd937ee0e348e6d815724370a7850f80ac13",
+      "bytes": 8964
     }
   ]
 }

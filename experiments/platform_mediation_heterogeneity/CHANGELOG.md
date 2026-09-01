@@ -111,6 +111,36 @@ The preregistration commit is the commit that introduces this section together w
 the protocol, configuration, diagnostic, driver, analysis, and tests, with no
 confirmatory results present.
 
+## Confirmatory v1 -- defect fix
+
+* `make_confirmatory_analysis.py` -- fixed a post-preregistration import-order defect
+  (imported `lib.analysis` before the `pilotlib` import that sets the canonical
+  library path). Two lines reordered; committed separately with a defect description.
+  It changes nothing about the frozen configuration, the driver, the confirmatory
+  data, the bootstrap seed, the comparisons, or the success rule; no data run is void.
+
 ## Confirmatory v1 -- results
 
-_(added in the confirmatory results commit)_
+Preregistration commit `0caa1807`. Confirmatory run: 19,600 runs, 117,600 agent
+records, 2,800 scenarios, unit floors, all through the canonical Java runtime; 0
+infeasible, 0 capacity/bound violations, 0 fallback; confirmatory seeds and
+task-workload hashes disjoint from canonical and exploratory data.
+
+* `results/confirmatory_v1/raw/{scenarios,runs,agents,infeasible}.csv`,
+  `results/confirmatory_v1/summary.json` -- raw scenario-, run-, and agent-level data
+  recording both queue-order and locally-optimized completion.
+* `results/confirmatory_v1/confirmatory_headline.json` and
+  `results/confirmatory_v1/tables/{paired_comparisons,cell_policy_effects,
+  distributional,dissimilarity}.csv` -- per-cell paired comparisons for both metrics,
+  distributional tables, and realized dissimilarity summaries.
+* `results/confirmatory_v1/EXPERIMENT_MANIFEST.json` -- confirmatory artifact manifest.
+* `CONFIRMATORY_RESULTS.md`, `CONFIRMATORY_DECISION.md` -- results and the frozen
+  decision.
+
+Decision: **category 1, confirmed under the frozen primary rule.** Joint Leontief
+minus DRF (queue-order) is +2.595 tasks/run (95% CI [2.295, 2.890]) at Dirichlet 0.1
+moderate and +1.770 (95% CI [1.505, 2.045]) at Dirichlet 0.1 high; both co-primary
+cells pass all five conditions and the advantage survives locally-optimized task
+selection (+2.555 and +1.895). The effect is conditional on realized resource-demand
+dissimilarity (null at the current iid_uniform design), Cobb-Douglas is separable,
+CES turns negative under concentration, and joint linear is a large loss.

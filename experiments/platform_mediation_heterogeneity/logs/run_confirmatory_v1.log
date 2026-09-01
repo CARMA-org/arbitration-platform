@@ -1,0 +1,3 @@
+22:16:42 confirmatory v1: solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3 regimes=7 seeds=200 policies=7 floor=unit
+00:14:25 ran 19600 jobs in 7053.3s
+00:14:42 feasible=19600 infeasible=0 agents=117600 scenarios=2800 capviol=0 bndviol=0 fallback=0 disjoint={'seeds_vs_canonical_overlap': 0, 'seeds_vs_exploratory_overlap': 0, 'workload_hash_vs_canonical_overlap': 0, 'workload_hash_vs_exploratory_overlap': 0}
