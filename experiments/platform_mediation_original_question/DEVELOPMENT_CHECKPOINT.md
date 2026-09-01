@@ -85,3 +85,25 @@ original question.
   seed or outcome is generated. The public push must precede confirmatory execution.
 - Development-seed effect sizes must not be used to choose the algorithm, tolerances,
   drift levels, primary cells, or thresholds.
+
+## Update: separable Leontief comparator (still development-only)
+
+Added `oqlib/leontief_relaxation.py`, a clean separable relaxation of the central
+Leontief objective. Each resource owner solves weighted proportional fairness over the
+agents that require that resource, dropping the cross-resource utility consensus.
+
+Development-seed structural observation (correctness only, not an effect size): on the
+sampled development scenarios this mechanism produced feasible allocations that differ
+from DRF but, under equal weights and the exact-information bounds, coincide with equal
+quotas. This happens because dropping the cross-resource consensus makes the requirement
+magnitude cancel inside a single resource, so the per-resource allocation becomes an
+equal share among the agents that require the resource, which the harness equal policy
+already implements through the zero upper bound on unused resources. This is a reason
+the comparator audit and the independent-comparator selection must be completed and
+documented before any preregistration, so that the strongest tested independent
+mechanism is chosen transparently rather than assumed.
+
+This remains development-only work. No confirmatory seed or outcome has been generated.
+The experiment drivers, complete tests, analysis, adaptive carrier selection, public
+protocol, confirmatory execution, independent verification, and promotion remain
+unfinished.
