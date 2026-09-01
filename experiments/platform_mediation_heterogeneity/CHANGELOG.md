@@ -78,3 +78,39 @@ concentration; joint_linear is a large loss throughout. Cobb-Douglas is separabl
 higher floor bounds the joint_linear loss but never makes it competitive and does so
 by forcing near-proportional allocation. Decision: credible conditional advantage,
 warranting a fresh-seed confirmatory run (see `NEXT_EXPERIMENT_DECISION.md`).
+
+## Pilot audit
+
+* `audit_pilot.py` + `PILOT_AUDIT_EXACT.md` -- independent reconstruction of every
+  reported pilot statistic from the committed raw records, cross-checked against the
+  committed headline/summaries/manifest. All 21 integrity checks pass. Resolves the
+  earlier report's prose conflations (Dirichlet 0.3 vs 0.1 thresholds; no sharp
+  dissimilarity cutoff; "worst-agent-safe" replaced by the finite-sample statement
+  that the observed minimum did not deteriorate relative to DRF).
+
+## Confirmatory v1 -- preregistration
+
+Frozen before any confirmatory outcome was generated:
+
+* `CONFIRMATORY_PROTOCOL.md` + `config/confirmatory_v1.json` -- frozen design and
+  hypotheses. Primary policy joint Leontief; co-primary cells Dirichlet 0.1 at both
+  contention levels; unit floors only; 200 fresh seeds/cell from namespace
+  `heterogeneity_confirmatory_v1`; 10,000-resample paired bootstrap at fixed seed
+  20260901; frozen five-part success rule.
+* `pilotlib/local_opt.py` + `tests/test_local_opt.py` -- policy-independent
+  locally-optimized-completion diagnostic (256-subset enumeration with a
+  deterministic selection order) and its hand-constructed and runtime-cross-checked
+  tests.
+* `run_confirmatory.py`, `make_confirmatory_analysis.py`,
+  `make_confirmatory_manifest.py`, `tests/test_confirmatory.py` -- confirmatory
+  driver (records both completion measures, asserts seed/hash disjointness), the
+  preregistered analysis (per-cell bootstrap + frozen success-rule evaluation), the
+  manifest generator, and tests including a reduced live run.
+
+The preregistration commit is the commit that introduces this section together with
+the protocol, configuration, diagnostic, driver, analysis, and tests, with no
+confirmatory results present.
+
+## Confirmatory v1 -- results
+
+_(added in the confirmatory results commit)_
