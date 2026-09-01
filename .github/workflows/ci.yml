@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -54,10 +54,16 @@ jobs:
       - name: Results/documentation consistency
         run: python experiments/platform_mediation/check_consistency.py --with-manifest
 
-      - name: Bundle reproducibility
+      - name: Frozen canonical bundle reproducibility
         run: |
-          git rev-parse --verify HEAD^
-          changed="$(git diff --name-only HEAD^ HEAD | sort | tr '\n' ' ')"
-          test "$changed" = "platform_evaluation_results_bundle.sha256 platform_evaluation_results_bundle.zip "
-          python experiments/platform_mediation/make_bundle.py
+          expected_snapshot="6e98e0c22dd67cd11d3f0921feae23804c1d3bf8"
+          expected_sha="1324889bde926fa9624cc499f8f0728d716217f8671c6f97296a9a08988ed484"
+          embedded_snapshot="$(unzip -p platform_evaluation_results_bundle.zip REPOSITORY_COMMIT.txt | tr -d '\r\n')"
+          test "$embedded_snapshot" = "$expected_snapshot"
+          test "$(awk '{print $1}' platform_evaluation_results_bundle.sha256)" = "$expected_sha"
+          sha256sum -c platform_evaluation_results_bundle.sha256
+          git cat-file -e "${expected_snapshot}^{commit}"
+          python experiments/platform_mediation/make_bundle.py --snapshot-commit "$expected_snapshot"
           git diff --exit-code -- platform_evaluation_results_bundle.zip platform_evaluation_results_bundle.sha256
+          test "$(awk '{print $1}' platform_evaluation_results_bundle.sha256)" = "$expected_sha"
+          sha256sum -c platform_evaluation_results_bundle.sha256
