@@ -1,0 +1,5 @@
+cell,n_agents_total,with_2plus,with_3plus,with_4,raw_with_4,regen_with_4
+homogeneous__high,600,600,576,336,336,336
+homogeneous__moderate,600,600,588,396,396,396
+mixed_bundle__high,600,600,584,377,377,377
+mixed_bundle__moderate,600,600,580,356,356,356

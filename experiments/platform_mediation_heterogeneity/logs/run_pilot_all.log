@@ -1,0 +1,5 @@
+19:21:54 heterogeneity pilot: sweep=all solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3
+19:40:11   workload: 2940 jobs across 14 cells x 30 seeds x 7 policies in 1097.6s
+19:40:12   workload: feasible=2940 infeasible=0 agents=17640 capviol=0 bndviol=0 fallback=0
+19:52:10   floor: 3240 jobs across 36 cells x 30 seeds x 3 policies in 717.1s
+19:52:10   floor: feasible=3240 infeasible=0 agents=19440 capviol=0 bndviol=0 fallback=0

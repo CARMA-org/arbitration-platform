@@ -1,0 +1,5 @@
+cell,n_agents,frac_zero_completion,frac_any_used_at_lower_bound,frac_all_used_above_lower_bound,mean_completion_when_any_at_floor,mean_completion_when_all_above_floor,alloc_distance_from_equal_mean,capacity_utilization_mean
+homogeneous__high,600,0.0000,0.0000,1.0000,n/a,0.5167,0.009713,0.9178
+homogeneous__moderate,600,0.0000,0.0000,1.0000,n/a,0.7331,0.006435,0.9418
+mixed_bundle__high,600,0.7683,0.9650,0.0350,0.0376,0.2976,0.929645,0.0582
+mixed_bundle__moderate,600,0.4650,0.8500,0.1500,0.0650,0.3264,0.742682,0.0950

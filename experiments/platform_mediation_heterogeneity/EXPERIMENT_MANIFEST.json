@@ -1,0 +1,382 @@
+{
+  "generated_utc": "2026-09-01T00:06:09Z",
+  "pilot": "platform_mediation_heterogeneity",
+  "source_commit": "a64d09c568d687d31c4e577129357b5151b8902e",
+  "canonical_base_commit": "bfab534bba977d5f7c40b0407b83036b38dfbf4a",
+  "config_hash": "7998188bac5f18e080adf35bf0cd0ea1fd073718f60f42cbb94326ca22d21aed",
+  "environment": {
+    "python_version": "3.12.12",
+    "dependencies": {
+      "cvxpy": "1.5.3",
+      "clarabel": "0.9.0",
+      "numpy": "1.26.4",
+      "scipy": "1.13.1",
+      "pandas": "2.2.2"
+    },
+    "java_version": "openjdk version \"21.0.1\" 2023-10-17 LTS\nOpenJDK Runtime Environment Zulu21.30+15-CA (build 21.0.1+12-LTS)\nOpenJDK 64-Bit Server VM Zulu21.30+15-CA (build 21.0.1+12-LTS, mixed mode, sharing)",
+    "maven_version": "Apache Maven 3.9.10 (5f519b97e944483d878815739f519b2eade0a91d)",
+    "operating_system": "macOS-15.6.1-arm64-arm-64bit"
+  },
+  "seed_derivation": "SHA-256 of pipe-joined labels, low 64 bits mod 2**32; 30 development workload seeds from label 'heterogeneity_pilot' (disjoint from the canonical '*__* test' seeds); per-agent numpy Generators for Dirichlet draws; the same task workload is used at both contention levels",
+  "declaration_source": "exact_pending_queue",
+  "canonical_runtime_entrypoint": "org.carma.arbitration.experiment.PlatformMediationHarness",
+  "summaries": {
+    "workload": {
+      "sweep": "workload",
+      "n_cells": 14,
+      "n_seeds_per_cell": 30,
+      "policies": [
+        "equal",
+        "drf",
+        "decomposed_cobb_douglas",
+        "joint_linear",
+        "joint_cobb_douglas",
+        "joint_ces",
+        "joint_leontief"
+      ],
+      "n_agents": 6,
+      "tasks_per_agent": 8,
+      "contention": {
+        "moderate": 1.3,
+        "high": 1.9
+      },
+      "expected_runs": 2940,
+      "feasible_runs": 2940,
+      "infeasible_runs": 0,
+      "n_agent_records": 17640,
+      "n_workload_rows": 420,
+      "capacity_violations_total": 0,
+      "bound_violations_total": 0,
+      "fallback_used_total": 0,
+      "bootstrap_seed": 20260831,
+      "n_bootstrap": 2000,
+      "seed_label": "heterogeneity_pilot",
+      "dev_seeds": [
+        2098221685,
+        1138347673,
+        2342860720,
+        1473714878,
+        2114544130,
+        147595965,
+        393081195,
+        1217898226,
+        1595745102,
+        2413048586,
+        453209340,
+        2920410359,
+        4282649469,
+        2089981338,
+        1751949247,
+        4210982914,
+        3922112564,
+        183163032,
+        4222305526,
+        3706283824,
+        927763105,
+        642816875,
+        2485047775,
+        1464621060,
+        1594198431,
+        2964826275,
+        3703943727,
+        1321997983,
+        2789760346,
+        4250606291
+      ],
+      "declaration_source": "exact_pending_queue"
+    },
+    "floor": {
+      "sweep": "floor",
+      "n_cells": 36,
+      "n_seeds_per_cell": 30,
+      "policies": [
+        "equal",
+        "drf",
+        "joint_linear"
+      ],
+      "n_agents": 6,
+      "tasks_per_agent": 8,
+      "contention": {
+        "moderate": 1.3,
+        "high": 1.9
+      },
+      "expected_runs": 3240,
+      "feasible_runs": 3240,
+      "infeasible_runs": 0,
+      "n_agent_records": 19440,
+      "n_workload_rows": 1080,
+      "capacity_violations_total": 0,
+      "bound_violations_total": 0,
+      "fallback_used_total": 0,
+      "bootstrap_seed": 20260831,
+      "n_bootstrap": 2000,
+      "seed_label": "heterogeneity_pilot",
+      "dev_seeds": [
+        2098221685,
+        1138347673,
+        2342860720,
+        1473714878,
+        2114544130,
+        147595965,
+        393081195,
+        1217898226,
+        1595745102,
+        2413048586,
+        453209340,
+        2920410359,
+        4282649469,
+        2089981338,
+        1751949247,
+        4210982914,
+        3922112564,
+        183163032,
+        4222305526,
+        3706283824,
+        927763105,
+        642816875,
+        2485047775,
+        1464621060,
+        1594198431,
+        2964826275,
+        3703943727,
+        1321997983,
+        2789760346,
+        4250606291
+      ],
+      "declaration_source": "exact_pending_queue"
+    }
+  },
+  "artifact_count": 46,
+  "artifacts": [
+    {
+      "path": "experiments/platform_mediation_heterogeneity/config/pilot.json",
+      "sha256": "7998188bac5f18e080adf35bf0cd0ea1fd073718f60f42cbb94326ca22d21aed",
+      "bytes": 2142
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/__init__.py",
+      "sha256": "9116a5bef7a3505f5869ee5697e10617c63c359ec31e4e553d96784a1a0f3fe1",
+      "bytes": 653
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/floors.py",
+      "sha256": "c79e7d523009f0474d83d5a7ac6640df1479c7e9ef57a870f882cde26b650120",
+      "bytes": 5132
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/measures.py",
+      "sha256": "28ae7a1d2eb7d90e051b26af2e7ca1db99604d21c4f67834e11e8187e36bfeac",
+      "bytes": 3227
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/pilot_analysis.py",
+      "sha256": "df9e517c456de360ae1e946be382f128b8dee6f30a4e1989377d2f1608ded921",
+      "bytes": 3350
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/pilot_scenario.py",
+      "sha256": "aed6ee20f2e540bf8c86687f458e920298f6d13a2b52939319281dc5a10b7a32",
+      "bytes": 6155
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/pilotlib/workload.py",
+      "sha256": "2191d15c7f17bfb031d7553c3d478973a15a7e6126de8676f6051e297244b9e3",
+      "bytes": 4034
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/diagnostic_baseline.py",
+      "sha256": "eb13bb5b9ecc1a575d6375c3d6e3332c6e2e5dbf8fd68939b263aa5fb1ed885e",
+      "bytes": 31012
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_pilot_manifest.py",
+      "sha256": "551fb74e3de00267aa00bb0d5a67f127de23a976d3ccedb2b7f559f15e982744",
+      "bytes": 4385
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_pilot_memo.py",
+      "sha256": "d1cfa1f13972d6dec5b81b57239106c9e271cef880c1b62cbf87a2547e15781c",
+      "bytes": 5113
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_pilot_tables.py",
+      "sha256": "4d1fdfbb795d1504134a203951f99eef0e5d9223a828767fa160751cd74b2ed2",
+      "bytes": 11472
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/run_pilot.py",
+      "sha256": "81e2dc6d5814ec3ec73477f6067c4465ba20db03be096099230cbb1a88b4b6de",
+      "bytes": 17503
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/conftest.py",
+      "sha256": "16daeec33fe2ffcb932cfced487a4de4028551ea19c24917e309a0ea6f61d1e5",
+      "bytes": 2124
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_floors.py",
+      "sha256": "2c28d750403c2f3a63132c37fc9138f48c910ed8b5e062c72e0dfa0a7f687d0a",
+      "bytes": 3931
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_measures.py",
+      "sha256": "2054990c4ec1ed34a37c9cdbf29f5e7de71d1d493a448d7b12ed438dd8e4bd08",
+      "bytes": 3035
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_pilot_integration.py",
+      "sha256": "318cf06c4a4ddbd08e2c50c7c45f3abd7090857762a381eb297e3b50fa08d013",
+      "bytes": 4624
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_scenario.py",
+      "sha256": "cd1f7eeb104ce3f66611b78467df011f065a78c7d169ae451780cfefc8b8a0a5",
+      "bytes": 4521
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_workload.py",
+      "sha256": "d34f35677a325321da8ff341ab1a146e6237623b01b002930f32572a6daa6f90",
+      "bytes": 3395
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/baseline_diagnostic.json",
+      "sha256": "8e2e109b7e89e4d0413495911629bc9534e2bad8291da426ce88c65c2c0d328e",
+      "bytes": 43458
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/pilot_headline.json",
+      "sha256": "aea46c4046cfc461cafef1f65756652febaa121a71be19e6cd3c107c51c61a1e",
+      "bytes": 262586
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/summary_floor.json",
+      "sha256": "4e708f7e6a84cbc69d432a9bc15e43ce6c52cc4465247b3524b88592ddbab8dd",
+      "bytes": 1086
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/summary_workload.json",
+      "sha256": "68f406b8ad33ccf33d73bb0acd3c3f7dd1024fdeb17f5d9bceb6d84d2762c4e2",
+      "bytes": 1184
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/PILOT_MEMO.md",
+      "sha256": "615da0e9b6c3a1664f75a8567cac0daf4a87b9877419fe9cd580ba5dcc1eb501",
+      "bytes": 25427
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/floor_agents.csv",
+      "sha256": "ddc8e940fe9fa640a3b58e5b2cd8d9595a1ef818b256d9958dea0513271ecae6",
+      "bytes": 11478312
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/floor_infeasible.csv",
+      "sha256": "3dbd829ea5940042721b9409e95ec7e10eed87972d900ea84c2f9a65b366c43f",
+      "bytes": 83
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/floor_runs.csv",
+      "sha256": "779bc72d395b2b1bcef6e10e43bb348ed19e0b59fa8a1effdf84512e8213dd0a",
+      "bytes": 1964386
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/floor_workloads.csv",
+      "sha256": "47f486eba5f0dc89daa0af24ead482683e3873d47e6f115743ea22e43f551b48",
+      "bytes": 1713371
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/workload_agents.csv",
+      "sha256": "ebd0fe24b31a7b8142260af7897dc11022c3200fa0995bca2795209c73091569",
+      "bytes": 10351653
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/workload_infeasible.csv",
+      "sha256": "3dbd829ea5940042721b9409e95ec7e10eed87972d900ea84c2f9a65b366c43f",
+      "bytes": 83
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/workload_runs.csv",
+      "sha256": "417d0359bf0db68293cedea25cf9936da956065ad211bd5d3ffd1fbed3f0a5a5",
+      "bytes": 1758030
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/results/raw/workload_workloads.csv",
+      "sha256": "8c4991f52a08d9de115e4ab1e682fdf2f0c0e4d72a0076e3df0c032d4ad270f2",
+      "bytes": 670530
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/baseline_alloc_distance.csv",
+      "sha256": "5813b689bd52426e330e9b45a5c54ac96ada8b4e8f5b0fe6e92b7cbdca25cfcc",
+      "bytes": 2278
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/baseline_archetype_coverage.csv",
+      "sha256": "6a4debf057fd5da99a8f9177a96f6e03e38a1c4c33acf5ac295d26437e60593a",
+      "bytes": 251
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/baseline_dissimilarity.csv",
+      "sha256": "b762ea88a5c35ca6493340fc68647d06eb8567b67847423a27b69ecebf8dd4ef",
+      "bytes": 735
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/baseline_effect_sizes.csv",
+      "sha256": "3e6a0ec9239809e0d1a95474514562d4ac1d671f84100cfd211e8feb0b432d54",
+      "bytes": 3081
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/baseline_joint_linear_floor.csv",
+      "sha256": "810be763787216d43f3616e6137215885af5a7ebfd1e795ea0d0f05122d7a2d8",
+      "bytes": 520
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/cell_policy_effects.csv",
+      "sha256": "5b827d1256c7f390e912faf4b878325de1be915ee409904fe3e7701592f9d6c8",
+      "bytes": 35928
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/floor_sensitivity.csv",
+      "sha256": "fc0d63037bc90bb0a2a3123bb7a94bef64c06539da2fd703070cffececfe9be2",
+      "bytes": 30961
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tables/workload_dissimilarity.csv",
+      "sha256": "6d23d0f1a2c30d0b373c16fe60261e3610da2d160aa8497e5cebb87532752f1b",
+      "bytes": 3277
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/logs/run_pilot_all.log",
+      "sha256": "578eb6fe20b07336b1a6a2bebceaa77a80cd84fa72498fe76b965bb61681700e",
+      "bytes": 474
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/BASELINE_DIAGNOSTIC.md",
+      "sha256": "a2512cc04c408abae47cef626199abd34b0ccb747655d1e47fc51a5f685280f6",
+      "bytes": 7169
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/PILOT_RESULTS.md",
+      "sha256": "0b0a98f68ca9f286c54117daaef5ca6bea7dea31ca52f8a11966fb0f0537f37c",
+      "bytes": 13155
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/NEXT_EXPERIMENT_DECISION.md",
+      "sha256": "065a1b7b4c7c027f963894b30267999afc5aefb717dde3666f27bcd99cca3a8b",
+      "bytes": 6717
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/DECLARATION_STALENESS_DESIGN.md",
+      "sha256": "6318978aed86bcd05ae8ebc06b483e5490e9185cd06115b6317c72956abace91",
+      "bytes": 5343
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/REPRODUCIBILITY.md",
+      "sha256": "2ab24e895ef4fdc87a3fbb74cc38c7be8dd8e749e6088b1986b1b89beea64931",
+      "bytes": 6337
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/CHANGELOG.md",
+      "sha256": "f675fb1e03429b270bf1a3cfc7e75252eb99d5f1c36291f0cd46701d0fba4da7",
+      "bytes": 5152
+    }
+  ]
+}

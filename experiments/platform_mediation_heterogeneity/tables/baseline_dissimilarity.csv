@@ -1,0 +1,9 @@
+cell,measure,mean,median,min,max,p95,n
+homogeneous__high,task_mixture_tv,0.000000,0.000000,0.000000,0.000000,0.000000,100
+homogeneous__moderate,task_mixture_tv,0.000000,0.000000,0.000000,0.000000,0.000000,100
+mixed_bundle__high,task_mixture_tv,0.336833,0.333333,0.166667,0.500000,0.442083,100
+mixed_bundle__moderate,task_mixture_tv,0.348500,0.350000,0.216667,0.575000,0.450417,100
+homogeneous__high,resource_demand_tv,0.000000,0.000000,0.000000,0.000000,0.000000,100
+homogeneous__moderate,resource_demand_tv,0.000000,0.000000,0.000000,0.000000,0.000000,100
+mixed_bundle__high,resource_demand_tv,0.035496,0.034536,0.013081,0.065364,0.056418,100
+mixed_bundle__moderate,resource_demand_tv,0.037569,0.036155,0.014980,0.082956,0.062852,100

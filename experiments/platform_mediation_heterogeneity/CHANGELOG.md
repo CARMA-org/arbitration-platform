@@ -44,4 +44,37 @@ New directory `experiments/platform_mediation_heterogeneity/`:
 
 ## Results
 
-_(added in the results commit)_
+Generated pilot artifacts (from source at the previous commit; canonical evaluation
+untouched):
+
+* `BASELINE_DIAGNOSTIC.md` + `results/baseline_diagnostic.json` +
+  `tables/baseline_*.csv` -- read-only reconstruction of the canonical evaluation.
+  Regeneration matches the canonical raw records on 400/400 scenario/workload hashes;
+  reproduces resource-demand TV 0.036532, archetype coverage 356/600 (mixed,
+  moderate) and 396/600 (homogeneous, moderate), and the allocation distances DRF
+  11.49% / decomposed CD 4.24% / joint CD 4.25% / CES 7.77% / Leontief 6.96% /
+  linear 83.62%.
+* `results/raw/workload_*.csv`, `results/summary_workload.json` -- workload-
+  concentration sweep: 2,940 runs, 17,640 agent records, 0 infeasible, 0 capacity/
+  bound violations, 0 fallback.
+* `results/raw/floor_*.csv`, `results/summary_floor.json` -- floor-sensitivity
+  sweep: 3,240 runs, 19,440 agent records, 0 infeasible, 0 violations, 0 fallback.
+* `tables/cell_policy_effects.csv`, `tables/workload_dissimilarity.csv`,
+  `tables/floor_sensitivity.csv`, `results/pilot_headline.json`,
+  `results/PILOT_MEMO.md` -- per-cell effects, dissimilarity, floors, and the
+  machine-generated memo.
+* `PILOT_RESULTS.md`, `NEXT_EXPERIMENT_DECISION.md` -- findings and the selected
+  next-experiment decision.
+* `EXPERIMENT_MANIFEST.json` -- SHA-256 manifest of the pilot artifacts.
+
+Finding (summary): at the current design's realized resource-demand dissimilarity
+(0.035) the nonlinear-vs-DRF differences are small with intervals including zero, as
+in the canonical evaluation. As cross-agent concentration raises resource-demand
+dissimilarity, Cobb-Douglas and Leontief develop a stable, per-cell, worst-agent-safe
+completion advantage over both equal and DRF that grows with dissimilarity (about 1
+to 3.7 tasks per 48-task run in the concentrated cells); CES degrades under
+concentration; joint_linear is a large loss throughout. Cobb-Douglas is separable
+(joint = decomposed); Leontief is the joint-coupling result. The floor sweep shows a
+higher floor bounds the joint_linear loss but never makes it competitive and does so
+by forcing near-proportional allocation. Decision: credible conditional advantage,
+warranting a fresh-seed confirmatory run (see `NEXT_EXPERIMENT_DECISION.md`).
