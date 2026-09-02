@@ -1,0 +1,10 @@
+# Clean-clone reproduction (git clone --no-hardlinks at 1e2e1d968e9204a44567c3571c0d75f5900319cc)
+
+14:20:59 finalized raw: {'scenarios': 400, 'runs': 2400, 'agents': 14400, 'distributed': 400, 'infeasible': 0}
+14:20:59 summary: feasible=2400 infeasible=0 capviol=0 bndviol=0 fallback=0
+17:03:00 finalized raw: {'scenarios': 2000, 'runs': 18000, 'agents': 108000, 'declarations': 48000, 'distributed': 0, 'infeasible': 0}
+17:03:00 summary: feasible=18000 infeasible=0 capviol=0 bndviol=0 fallback=0
+drift analysis: classification=ROBUST_AT_MODEST_DRIFT carrier=central_joint_leontief
+  co-primary delta0.25__moderate: carrier-drf stale 1.605 [1.315,1.895] pass=True
+  co-primary delta0.25__high: carrier-drf stale 1.500 [1.230,1.775] pass=True
+clean reproduction: all non-timing fields identical

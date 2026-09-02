@@ -1,0 +1,69 @@
+{
+  "verifier": "verify_oq",
+  "imports_experiment_modules": false,
+  "architecture": {
+    "checks": {
+      "runs_rowcount": true,
+      "agents_rowcount": true,
+      "scenarios_rowcount": true,
+      "distributed_rowcount": true,
+      "seeds_match_namespace": true,
+      "unique_run_keys": true,
+      "all_arms_present_each_seed": true,
+      "headline_paired_matches_reconstruction": true,
+      "replication_flag": true,
+      "coordination_flag": true,
+      "independent_positive_flag": true,
+      "independent_noninferior_flag": true,
+      "distributed_equivalent_flag": true,
+      "carrier_matches_committed": true,
+      "best_subset_counts_in_range": true,
+      "no_violations": true
+    },
+    "reconstructed_carrier": "central_joint_leontief",
+    "branch": 3,
+    "flags": {
+      "replication": true,
+      "coordination": false,
+      "independent_positive": true,
+      "independent_noninferior": false,
+      "distributed_equivalent": true
+    },
+    "distributed_gap_max": 7.566374563759968e-05,
+    "distributed_frac_le_1e-4": 1.0,
+    "separable_relaxation_equals_equal_alloc_rate": {
+      "dirichlet_0.1__moderate": 1.0,
+      "dirichlet_0.1__high": 1.0
+    },
+    "all_checks_pass": true
+  },
+  "drift": {
+    "present": true,
+    "checks": {
+      "seeds_match_namespace": true,
+      "no_violations": true,
+      "coprimary_delta0.25__moderate_matches": true,
+      "coprimary_delta0.25__high_matches": true,
+      "classification_matches": true
+    },
+    "coprimary": {
+      "delta0.25__moderate": {
+        "mean_tasks": 1.605,
+        "ci_lo": 1.315,
+        "ci_hi": 1.895,
+        "pass": true
+      },
+      "delta0.25__high": {
+        "mean_tasks": 1.5,
+        "ci_lo": 1.2299999999999998,
+        "ci_hi": 1.7749999999999997,
+        "pass": true
+      }
+    },
+    "reconstructed_robust": true,
+    "committed_classification": "ROBUST_AT_MODEST_DRIFT",
+    "all_checks_pass": true
+  },
+  "distributed_no_central_call": true,
+  "verification_status": "VERIFIED"
+}
