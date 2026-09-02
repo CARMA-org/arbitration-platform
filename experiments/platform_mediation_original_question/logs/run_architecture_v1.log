@@ -1,0 +1,10 @@
+09:41:12 architecture v1: solver=/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3 seeds=200 cells=2 arms=6 units_total=400 units_todo=400
+09:42:08 block 0-50 done (55.9s elapsed)
+09:43:07 block 50-100 done (114.4s elapsed)
+09:44:06 block 100-150 done (173.6s elapsed)
+09:45:05 block 150-200 done (232.4s elapsed)
+09:45:58 block 200-250 done (285.1s elapsed)
+09:46:51 block 250-300 done (338.5s elapsed)
+09:47:44 block 300-350 done (391.7s elapsed)
+09:48:37 block 350-400 done (444.4s elapsed)
+09:48:37 finalized raw: {'scenarios': 400, 'runs': 2400, 'agents': 14400, 'distributed': 400, 'infeasible': 0}

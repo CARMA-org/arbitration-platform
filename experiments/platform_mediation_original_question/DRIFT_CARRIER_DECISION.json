@@ -1,0 +1,90 @@
+{
+  "selected_carrier": "central_joint_leontief",
+  "interpretation": "The prior existence result replicates; central Leontief carries the drift test.",
+  "branch": 3,
+  "conditions": {
+    "replication_pass": true,
+    "coordination_pass": false,
+    "independent_positive": true,
+    "independent_noninferior": false,
+    "distributed_equivalent": true
+  },
+  "inputs": {
+    "central_joint_leontief_minus_drf": {
+      "dirichlet_0.1__moderate": {
+        "mean_tasks": 2.6550000000000002,
+        "ci_lo_tasks": 2.36,
+        "ci_hi_tasks": 2.95
+      },
+      "dirichlet_0.1__high": {
+        "mean_tasks": 1.8249999999999997,
+        "ci_lo_tasks": 1.545,
+        "ci_hi_tasks": 2.0999999999999996
+      }
+    },
+    "central_joint_leontief_minus_independent_bundle_maxmin": {
+      "dirichlet_0.1__moderate": {
+        "mean_tasks": 0.685,
+        "ci_lo_tasks": 0.4949999999999999,
+        "ci_hi_tasks": 0.8799999999999999
+      },
+      "dirichlet_0.1__high": {
+        "mean_tasks": 0.3550000000000001,
+        "ci_lo_tasks": 0.1500000000000001,
+        "ci_hi_tasks": 0.56
+      }
+    },
+    "independent_bundle_maxmin_minus_drf": {
+      "dirichlet_0.1__moderate": {
+        "mean_tasks": 1.9700000000000002,
+        "ci_lo_tasks": 1.6500000000000001,
+        "ci_hi_tasks": 2.285
+      },
+      "dirichlet_0.1__high": {
+        "mean_tasks": 1.4699999999999998,
+        "ci_lo_tasks": 1.1849999999999996,
+        "ci_hi_tasks": 1.755
+      }
+    },
+    "independent_bundle_maxmin_minus_central_joint_leontief": {
+      "dirichlet_0.1__moderate": {
+        "mean_tasks": -0.685,
+        "ci_lo_tasks": -0.8749999999999999,
+        "ci_hi_tasks": -0.4900000000000001
+      },
+      "dirichlet_0.1__high": {
+        "mean_tasks": -0.3550000000000001,
+        "ci_lo_tasks": -0.56,
+        "ci_hi_tasks": -0.15000000000000005
+      }
+    },
+    "five_condition_fresh_replication": {
+      "dirichlet_0.1__moderate": true,
+      "dirichlet_0.1__high": true
+    },
+    "five_condition_coordination": {
+      "dirichlet_0.1__moderate": false,
+      "dirichlet_0.1__high": false
+    },
+    "five_condition_independent_vs_drf": {
+      "dirichlet_0.1__moderate": true,
+      "dirichlet_0.1__high": true
+    },
+    "distributed_classification": "OBJECTIVE_AND_OUTCOME_EQUIVALENT",
+    "indep_noninferior_by_cell": {
+      "dirichlet_0.1__moderate": false,
+      "dirichlet_0.1__high": false
+    }
+  },
+  "architecture_raw_hashes": {
+    "scenarios": "d710ab840c75de5b9888b22273670444b12065fd7ec42971adef4f3114cca187",
+    "runs": "89778e8e597dc3165a8b43344e25e366976d11a0026ed0de49ff672af0080b15",
+    "agents": "3232fbe6c0c89ed3b9b29c74bd1d85f611eb7310104e20c75f385e5597f8dd7d",
+    "distributed": "f9d18a0914a62bea5b770bb29f4807d65e9024bb0bd909b3cc7c60b0458a3e37",
+    "infeasible": "6b837f17972613c7d2e1e0fa48ac22b468aaa4a7d95608afbba27bb248ccee7d"
+  },
+  "architecture_headline_sha256": "51a2e01481a5aa791b969fa24aa457677ad071d59b522bde56d383769f59b95c",
+  "public_preregistration_protocol_sha256": "24e35fecbfdc153bfacd7db2ffd4916f4b1c8c87b78e3dcc4c27c83a5cd0150c",
+  "public_preregistration_commit": "7ebf8b70366b8b68a90554a722f097d8acea3f01",
+  "script_sha256": "42373cb7ef22c99bbdd1e27ca1ca78b67e1eadb7cdd0fc7c36382b122a9cc995"
+}

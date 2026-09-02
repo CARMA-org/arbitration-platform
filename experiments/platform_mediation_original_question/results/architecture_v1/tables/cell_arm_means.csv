@@ -1,0 +1,13 @@
+cell,arm,qo_tasks_per_run,bs_tasks_per_run,frac_zero_qo,cap_util
+dirichlet_0.1__moderate,equal,33.8250,34.2050,0.000000,0.881346
+dirichlet_0.1__moderate,drf,34.5950,34.8100,0.000000,0.898267
+dirichlet_0.1__moderate,central_joint_leontief,37.2500,37.4450,0.000000,0.950280
+dirichlet_0.1__moderate,independent_bundle_maxmin,36.5650,36.7850,0.000000,0.932466
+dirichlet_0.1__moderate,separable_leontief_relaxation,33.8250,34.2050,0.000000,0.881346
+dirichlet_0.1__moderate,distributed_price_leontief,37.2450,37.4550,0.000000,0.950395
+dirichlet_0.1__high,equal,23.1050,23.8200,0.000000,0.823803
+dirichlet_0.1__high,drf,24.6350,25.0350,0.002500,0.866228
+dirichlet_0.1__high,central_joint_leontief,26.4600,26.8850,0.000000,0.913650
+dirichlet_0.1__high,independent_bundle_maxmin,26.1050,26.5900,0.000000,0.874204
+dirichlet_0.1__high,separable_leontief_relaxation,23.1050,23.8200,0.000000,0.823803
+dirichlet_0.1__high,distributed_price_leontief,26.4650,26.9200,0.000000,0.914876

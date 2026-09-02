@@ -1,0 +1,16 @@
+{
+  "generated_utc": "2026-09-02T13:40:56Z",
+  "python": "3.12.12",
+  "platform": "macOS-15.6.1-arm64-arm-64bit",
+  "solver_python": "/Users/avyaycasheekar/Documents/arbitration-platform/experiments_venv_tmp/bin/python3",
+  "java": "openjdk version \"21.0.1\" 2023-10-17 LTS",
+  "maven": "Apache Maven 3.9.10 (5f519b97e944483d878815739f519b2eade0a91d)",
+  "packages": {
+    "numpy": "1.26.4",
+    "cvxpy": "1.5.3",
+    "clarabel": "0.9.0",
+    "scipy": "1.13.1"
+  },
+  "protocol_sha256": "24e35fecbfdc153bfacd7db2ffd4916f4b1c8c87b78e3dcc4c27c83a5cd0150c",
+  "git_head": "7ebf8b70366b8b68a90554a722f097d8acea3f01"
+}

@@ -1,0 +1,36 @@
+{
+  "experiment": "architecture",
+  "version": "v1",
+  "arms": [
+    "equal",
+    "drf",
+    "central_joint_leontief",
+    "independent_bundle_maxmin",
+    "separable_leontief_relaxation",
+    "distributed_price_leontief"
+  ],
+  "n_seeds": 200,
+  "cells": [
+    "dirichlet_0.1__moderate",
+    "dirichlet_0.1__high"
+  ],
+  "expected_runs": 2400,
+  "feasible_runs": 2400,
+  "infeasible_runs": 0,
+  "n_agent_records": 14400,
+  "n_scenario_rows": 400,
+  "capacity_violations_total": 0,
+  "bound_violations_total": 0,
+  "fallback_used_total": 0,
+  "bootstrap_seed": 20260902,
+  "n_bootstrap": 20000,
+  "seed_namespace": "arb_original_question_closure_v1/architecture/confirmatory",
+  "co_primary_cells": [
+    "dirichlet_0.1__moderate",
+    "dirichlet_0.1__high"
+  ],
+  "disjointness": {
+    "arch_seeds_vs_prior_overlap": 0,
+    "n_workload_hashes": 200
+  }
+}

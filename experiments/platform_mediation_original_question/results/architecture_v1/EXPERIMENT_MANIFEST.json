@@ -1,0 +1,58 @@
+{
+  "scope": "architecture",
+  "generated_utc": "2026-09-02T13:49:55Z",
+  "source_commit": "7ebf8b70366b8b68a90554a722f097d8acea3f01",
+  "n_artifacts": 10,
+  "artifacts": [
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/raw/agents.csv",
+      "bytes": 6811679,
+      "sha256": "3232fbe6c0c89ed3b9b29c74bd1d85f611eb7310104e20c75f385e5597f8dd7d"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/raw/distributed.csv",
+      "bytes": 103824,
+      "sha256": "f9d18a0914a62bea5b770bb29f4807d65e9024bb0bd909b3cc7c60b0458a3e37"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/raw/infeasible.csv",
+      "bytes": 43,
+      "sha256": "6b837f17972613c7d2e1e0fa48ac22b468aaa4a7d95608afbba27bb248ccee7d"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/raw/runs.csv",
+      "bytes": 406887,
+      "sha256": "89778e8e597dc3165a8b43344e25e366976d11a0026ed0de49ff672af0080b15"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/raw/scenarios.csv",
+      "bytes": 613356,
+      "sha256": "d710ab840c75de5b9888b22273670444b12065fd7ec42971adef4f3114cca187"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/summary.json",
+      "bytes": 855,
+      "sha256": "8a7ab164a58b5aa4c33d7f9bcf43f1a5640e417105b75551c916224863096cda"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/architecture_headline.json",
+      "bytes": 37640,
+      "sha256": "51a2e01481a5aa791b969fa24aa457677ad071d59b522bde56d383769f59b95c"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/tables/cell_arm_means.csv",
+      "bytes": 969,
+      "sha256": "5502a73fc59cf8e66eab80244530d9e0c40ed0c2720a51e50964e7937787993b"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/architecture_v1/tables/paired_comparisons.csv",
+      "bytes": 1862,
+      "sha256": "f3af30bff5d4dd90b1a561ab163db2efacbc8e24d852316a331b0e17ba1ad5ac"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/DRIFT_CARRIER_DECISION.json",
+      "bytes": 3241,
+      "sha256": "a02b5af970ccdbd0b476730f3a20b490527bb69371ea12a34ab16ce1453a1335"
+    }
+  ]
+}
