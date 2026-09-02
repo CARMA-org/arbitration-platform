@@ -1,0 +1,38 @@
+{
+  "experiment": "declaration_drift",
+  "version": "v1",
+  "carrier": "central_joint_leontief",
+  "carrier_kind": "native",
+  "is_distributed_carrier": false,
+  "n_seeds": 200,
+  "deltas": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "contention": [
+    "moderate",
+    "high"
+  ],
+  "n_arms_per_unit": 9,
+  "feasible_runs": 18000,
+  "infeasible_runs": 0,
+  "capacity_violations_total": 0,
+  "bound_violations_total": 0,
+  "fallback_used_total": 0,
+  "bootstrap_seed": 20260902,
+  "n_bootstrap": 20000,
+  "seed_namespace": "arb_original_question_closure_v1/declaration_drift/confirmatory",
+  "co_primary_cells": [
+    {
+      "delta": 0.25,
+      "contention": "moderate"
+    },
+    {
+      "delta": 0.25,
+      "contention": "high"
+    }
+  ]
+}

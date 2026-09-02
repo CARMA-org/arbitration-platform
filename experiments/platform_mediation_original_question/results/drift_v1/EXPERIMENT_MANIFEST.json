@@ -1,0 +1,53 @@
+{
+  "scope": "drift",
+  "generated_utc": "2026-09-02T18:07:59Z",
+  "source_commit": "2f9fa1b05a38d941511491e030d3e964232350eb",
+  "n_artifacts": 9,
+  "artifacts": [
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/agents.csv",
+      "bytes": 35206690,
+      "sha256": "0ea591330f4901a906748d92335185655af704cad58532526874d92614492413"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/declarations.csv",
+      "bytes": 10143467,
+      "sha256": "f57c00933e85b6387ab6bb6fab327fc0275f0c19318eda48a0e826f4fe0f645b"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/distributed.csv",
+      "bytes": 253,
+      "sha256": "7b89bf2883e0cd87ca66d695bd631015eba9a76ca2229c19fe8f3cc53b18e7e2"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/infeasible.csv",
+      "bytes": 43,
+      "sha256": "6b837f17972613c7d2e1e0fa48ac22b468aaa4a7d95608afbba27bb248ccee7d"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/runs.csv",
+      "bytes": 3369014,
+      "sha256": "1c130c6a6fcd0a09bf396cde38df3e0068cfa605a06a54295eff94bedf235340"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/raw/scenarios.csv",
+      "bytes": 822619,
+      "sha256": "4a235e7f645a5857d80a586e0ceb88f5cf27250b3cd6a127944627981f9cbe82"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/summary.json",
+      "bytes": 755,
+      "sha256": "9ebf93f9c1f453b10ae4aea047738010145b550e29ec21054f4a62e380c7314b"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/drift_headline.json",
+      "bytes": 35772,
+      "sha256": "ef1fe25dae9c832c6ee3b5b90b7cb4011f6c97bd5d305592bb1871c2c6896c5c"
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/results/drift_v1/tables/drift_response.csv",
+      "bytes": 7290,
+      "sha256": "e5183899a4a569845cb3fd3dd8321ba9c0db8bfeb2d5077a6b6878b64bde1a9f"
+    }
+  ]
+}
