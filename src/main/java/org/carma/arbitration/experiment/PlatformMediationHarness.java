@@ -168,7 +168,29 @@ public class PlatformMediationHarness {
                 }
                 solverStatus = runtime.getSnapshot().getSolverStatus();
             } else {
-                if (policy.equals("equal")) {
+                List<Map<String, Object>> preinstalled =
+                    (List<Map<String, Object>>) job.get("preinstalledAllocation");
+                if (preinstalled != null) {
+                    // A mechanism computed outside this harness (for example the
+                    // resource-local independent bundle max-min, the separable Leontief
+                    // relaxation, or the distributed price-mediated Leontief solve)
+                    // supplies its precomputed integer bundle. The bundle is installed
+                    // and enforced through the identical canonical contract path used by
+                    // every internally computed policy: installContracts checks
+                    // conservation and versioning, and execution runs unchanged. This
+                    // harness performs no allocation computation for such a policy.
+                    if (preinstalled.size() != n) {
+                        throw new IllegalArgumentException(
+                            "preinstalledAllocation has " + preinstalled.size() + " agents != " + n);
+                    }
+                    for (int i = 0; i < n; i++) {
+                        Map<String, Object> bundle = preinstalled.get(i);
+                        for (int j = 0; j < m; j++) {
+                            alloc[i][j] = lng(bundle.get(resources.get(j).name()), 0);
+                        }
+                    }
+                    solverStatus = "preinstalled";
+                } else if (policy.equals("equal")) {
                     alloc = equalSplit(ids, lower, upper, cap);
                 } else if (policy.equals("drf")) {
                     alloc = drf(demand, lower, upper, cap);

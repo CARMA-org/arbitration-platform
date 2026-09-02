@@ -1,0 +1,7 @@
+# Development-only outputs (never committed; disjoint dev namespaces)
+results/_dev_architecture/
+results/_dev_drift*/
+# Resumable partial caches (the canonical finalized raw/ is committed instead)
+results/*/_partial/
+__pycache__/
+*.pyc

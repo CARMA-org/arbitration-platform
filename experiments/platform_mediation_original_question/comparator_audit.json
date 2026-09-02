@@ -1,0 +1,209 @@
+{
+  "randomized": {
+    "n_scenarios": 120,
+    "maxmin_differs_from_drf_count": 120,
+    "maxmin_differs_from_drf_frac": 1.0,
+    "alloc_l1_norm_mean": 0.19347719430016028,
+    "alloc_l1_norm_max": 0.3081395348837209,
+    "alloc_linf_max": 71,
+    "maxmin_minus_drf_tasks_mean": 1.9916666666666667,
+    "maxmin_minus_drf_tasks_min": -4.0,
+    "maxmin_minus_drf_tasks_max": 7.0,
+    "relaxation_equals_equal_count": 120,
+    "relaxation_equals_equal_frac": 1.0,
+    "relaxation_equals_drf_count": 0,
+    "relaxation_equals_drf_frac": 0.0
+  },
+  "hand_examples": [
+    {
+      "name": "mirror_heterogeneous_symmetric_capacity",
+      "demand": [
+        {
+          "COMPUTE": 10,
+          "MEMORY": 2
+        },
+        {
+          "COMPUTE": 2,
+          "MEMORY": 10
+        }
+      ],
+      "capacity": {
+        "COMPUTE": 6,
+        "MEMORY": 6
+      },
+      "resources": [
+        "COMPUTE",
+        "MEMORY"
+      ],
+      "maxmin": [
+        {
+          "COMPUTE": 5,
+          "MEMORY": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 5
+        }
+      ],
+      "drf": [
+        {
+          "COMPUTE": 5,
+          "MEMORY": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 5
+        }
+      ],
+      "differ": false
+    },
+    {
+      "name": "heavy_plus_balanced",
+      "demand": [
+        {
+          "COMPUTE": 9,
+          "MEMORY": 9
+        },
+        {
+          "COMPUTE": 9,
+          "MEMORY": 1
+        }
+      ],
+      "capacity": {
+        "COMPUTE": 9,
+        "MEMORY": 6
+      },
+      "resources": [
+        "COMPUTE",
+        "MEMORY"
+      ],
+      "maxmin": [
+        {
+          "COMPUTE": 3,
+          "MEMORY": 5
+        },
+        {
+          "COMPUTE": 6,
+          "MEMORY": 1
+        }
+      ],
+      "drf": [
+        {
+          "COMPUTE": 4,
+          "MEMORY": 3
+        },
+        {
+          "COMPUTE": 5,
+          "MEMORY": 1
+        }
+      ],
+      "differ": true
+    },
+    {
+      "name": "three_specialists",
+      "demand": [
+        {
+          "COMPUTE": 8,
+          "MEMORY": 1,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 8,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 1,
+          "API_CREDITS": 8
+        }
+      ],
+      "capacity": {
+        "COMPUTE": 6,
+        "MEMORY": 6,
+        "API_CREDITS": 6
+      },
+      "resources": [
+        "COMPUTE",
+        "MEMORY",
+        "API_CREDITS"
+      ],
+      "maxmin": [
+        {
+          "COMPUTE": 4,
+          "MEMORY": 1,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 4,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 1,
+          "API_CREDITS": 4
+        }
+      ],
+      "drf": [
+        {
+          "COMPUTE": 4,
+          "MEMORY": 1,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 4,
+          "API_CREDITS": 1
+        },
+        {
+          "COMPUTE": 1,
+          "MEMORY": 1,
+          "API_CREDITS": 4
+        }
+      ],
+      "differ": false
+    }
+  ],
+  "relaxation_cases": {
+    "equal_weights_slack_bounds": {
+      "alloc": [
+        {
+          "COMPUTE": 5,
+          "MEMORY": 5
+        },
+        {
+          "COMPUTE": 5,
+          "MEMORY": 5
+        }
+      ],
+      "equals_equal_quota": true
+    },
+    "unequal_weights_3_1": {
+      "alloc": [
+        {
+          "COMPUTE": 8,
+          "MEMORY": 8
+        },
+        {
+          "COMPUTE": 2,
+          "MEMORY": 2
+        }
+      ],
+      "equals_equal_quota": false
+    },
+    "active_upper_bound_a0_compute_le_2": {
+      "alloc": [
+        {
+          "COMPUTE": 2,
+          "MEMORY": 5
+        },
+        {
+          "COMPUTE": 8,
+          "MEMORY": 5
+        }
+      ],
+      "equals_equal_quota": false
+    }
+  }
+}

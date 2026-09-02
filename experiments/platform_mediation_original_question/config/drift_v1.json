@@ -1,0 +1,52 @@
+{
+  "description": "Frozen declaration-calibration-and-drift experiment configuration for the original-question closure (v1). Applied to whichever mechanism the architecture experiment selects under the frozen adaptive carrier rule (select_drift_carrier.py); the carrier name is read from DRIFT_CARRIER_DECISION.json and is not chosen here. The design, delta grid, declaration sources, arms as a function of the carrier, co-primary cells, pass rule, capacity/floor/bound construction, common-random-number discipline, seed namespace, and bootstrap are all frozen before any confirmatory seed or outcome is generated and must not be edited afterward. Declarations are constructed by a developer or platform integrator from finite calibration histories; strategic reporting is not modeled.",
+  "experiment": "declaration_drift",
+  "version": "v1",
+  "resources": ["COMPUTE", "MEMORY", "API_CREDITS", "DATASET"],
+  "task_types": ["research", "code_review", "doc_processing", "monitoring"],
+  "n_agents": 6,
+  "tasks_per_agent": 8,
+  "tasks_per_run": 48,
+  "calibration_history": 48,
+  "alpha": 0.1,
+  "delta_levels": [0.0, 0.25, 0.5, 0.75, 1.0],
+  "contention": {"moderate": 1.3, "high": 1.9},
+  "n_seeds": 200,
+  "seed_namespace": "arb_original_question_closure_v1/declaration_drift/confirmatory",
+  "floor_regime": "unit_from_baseline_latent",
+  "capacity_source": "baseline_latent_expected_demand",
+  "declaration_sources": ["stale_calibration", "refreshed_calibration", "latent_distribution_oracle", "execution_queue_oracle"],
+  "base_arms": [
+    "equal",
+    "drf_stale_calibration",
+    "carrier_stale_calibration",
+    "drf_refreshed_calibration",
+    "carrier_refreshed_calibration",
+    "drf_latent_distribution_oracle",
+    "carrier_latent_distribution_oracle",
+    "drf_execution_queue_oracle",
+    "carrier_execution_queue_oracle"
+  ],
+  "distributed_reference_arms_if_carrier_is_distributed": [
+    "central_ref_stale_calibration",
+    "central_ref_refreshed_calibration",
+    "central_ref_latent_distribution_oracle",
+    "central_ref_execution_queue_oracle"
+  ],
+  "primary_outcome": "queue_order_completion",
+  "robustness_outcome": "exact_best_subset_completion",
+  "co_primary_cells": [
+    {"delta": 0.25, "contention": "moderate"},
+    {"delta": 0.25, "contention": "high"}
+  ],
+  "primary_comparison": {"treat": "carrier_stale_calibration", "base": "drf_stale_calibration"},
+  "five_condition_rule": "For the primary comparison (carrier_stale_calibration minus drf_stale_calibration) in each co-primary cell, using queue-order completion: (1) carrier mean completion higher than DRF; (2) paired 95% percentile bootstrap interval strictly above zero; (3) point estimate at least +1.000 completed task per 48-task run; (4) carrier does not increase the observed zero-completion fraction relative to DRF; (5) both arms have zero infeasibility, fallback, capacity, and bound violations. Both co-primary cells must pass for ROBUST_AT_MODEST_DRIFT.",
+  "classifications": ["ROBUST_AT_MODEST_DRIFT", "REFRESH_DEPENDENT", "ORACLE_DEPENDENT", "NO_MATERIAL_ADVANTAGE_IN_NEW_DESIGN"],
+  "bootstrap_seed": 20260902,
+  "n_bootstrap": 20000,
+  "resampling_unit": "scenario_seed",
+  "common_random_numbers": "The per-draw source uniform and the per-draw baseline-source and drift-target archetypes are fixed across delta levels within a scenario seed, so raising delta only switches draws whose uniform falls below delta. Drift-source draw count is recorded separately from the number of changed task identities.",
+  "practical_reference_tasks_per_run": 1.0,
+  "chunk": 300,
+  "monotonicity": "Strict monotonicity over delta is neither required nor claimed."
+}

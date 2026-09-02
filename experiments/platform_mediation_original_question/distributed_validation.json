@@ -1,0 +1,76 @@
+{
+  "n_scenarios_total": 575,
+  "n_wellposed": 575,
+  "n_illposed_excluded": 0,
+  "illposed_failure_mode": "Floors alone saturate a resource that another agent requires, so that agent's achievable Leontief utility is zero and the central objective is unbounded below; the canonical central solver returns a floor-violating, inaccurate solution. The relative objective gap is undefined in this regime. It does not occur in the confirmatory experiments, where unit floors never bind (0 of 2626 binding cells on the natural Dirichlet(0.1) architecture scenarios).",
+  "objective_gap": {
+    "mean": 2.0256846661042757e-07,
+    "median": 1.3493200966298777e-09,
+    "p95": 1.7691204165300155e-07,
+    "max": 3.650937156169137e-05,
+    "frac_le_1e-4": 1.0,
+    "frac_le_1e-3": 1.0
+  },
+  "max_capacity_residual": 1.0000036354540498e-09,
+  "max_bound_residual": 0.0,
+  "allocation_l1_norm_mean": 0.153540093690664,
+  "allocation_l1_norm_max": 1.1599406791803695,
+  "allocation_linf_max": 33.817727363137074,
+  "iterations_mean": 1841.0765217391304,
+  "nonconvergence_count": 0,
+  "per_case_type": {
+    "natural": {
+      "n": 120,
+      "max_gap": 3.650937156169137e-05,
+      "max_feas": 1.0000036354540498e-09
+    },
+    "symmetric": {
+      "n": 65,
+      "max_gap": 3.2163887922339366e-09,
+      "max_feas": 1.8479795471648686e-10
+    },
+    "tie_kink": {
+      "n": 65,
+      "max_gap": 4.319907102421824e-09,
+      "max_feas": 5.2175153086864157e-11
+    },
+    "tiny_zero": {
+      "n": 65,
+      "max_gap": 5.20043773064928e-09,
+      "max_feas": 6.269118557611364e-11
+    },
+    "active_floor": {
+      "n": 65,
+      "max_gap": 1.1053753247629542e-07,
+      "max_feas": 6.332356861094013e-11
+    },
+    "active_bound": {
+      "n": 65,
+      "max_gap": 5.2014946855033416e-09,
+      "max_feas": 1.000000082740371e-09
+    },
+    "near_degenerate": {
+      "n": 65,
+      "max_gap": 4.404078940697006e-09,
+      "max_feas": 4.808242692888598e-11
+    },
+    "heterogeneous": {
+      "n": 65,
+      "max_gap": 6.647821480373586e-09,
+      "max_feas": 1.000000082740371e-09
+    }
+  },
+  "parameters": {
+    "ETA": 0.5,
+    "ITERS": 8000,
+    "STOP_TOL": 1e-12,
+    "LAMBDA_INIT": 1.0,
+    "LAMBDA_FLOOR": 1e-12,
+    "LAMBDA_MAX": 1000000000000.0,
+    "SCALE_BISECT": 100,
+    "REPAIR_TOL": 1e-09,
+    "FEAS_TOL": 1e-07
+  },
+  "all_wellposed_pass_1e-4": true,
+  "all_feasible_1e-7": true
+}
