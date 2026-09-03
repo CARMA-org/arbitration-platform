@@ -1,0 +1,113 @@
+{
+  "verifier": "verify_oq_v2",
+  "imports_experiment_modules": false,
+  "uses_only_stdlib_and_numpy": true,
+  "sections": {
+    "git": {
+      "checks": {
+        "chronology_prereg_before_arch": true,
+        "chronology_arch_before_drift": true,
+        "chronology_drift_before_head": true,
+        "prereg_is_ancestor_of_head": true,
+        "no_outcome_relevant_change_prereg_to_head": true
+      },
+      "detail": {
+        "outcome_relevant_changed": []
+      }
+    },
+    "manifests": {
+      "checks": {
+        "architecture_manifest_hashes": true,
+        "drift_manifest_hashes": true,
+        "correction_manifest_hashes": true,
+        "correction_manifest_invariance": true
+      },
+      "detail": {}
+    },
+    "architecture": {
+      "checks": {
+        "runs_rowcount": true,
+        "agents_rowcount": true,
+        "scenarios_rowcount": true,
+        "distributed_rowcount": true,
+        "infeasible_empty": true,
+        "unique_run_keys": true,
+        "all_arms_present_each_seed": true,
+        "workload_hash_unique_per_seed": true,
+        "workload_hash_count": true,
+        "seeds_match_namespace": true,
+        "arch_disjoint_from_drift": true,
+        "arch_disjoint_from_prior_and_canonical": true,
+        "arch_disjoint_from_development": true,
+        "every_arm_mean": true,
+        "every_paired_qo_mean_and_ci": true,
+        "every_paired_best_subset_mean_and_ci": true,
+        "every_five_condition_component": true,
+        "noninferiority_by_cell": true,
+        "central_independent_equivalence_by_cell": true,
+        "separable_relaxation_structural": true,
+        "distributed_gap_summary_all_fields": true,
+        "distributed_outcome_stats": true,
+        "distributed_classification": true,
+        "every_distributional_statistic": true,
+        "every_harmed_set_statistic": true,
+        "adaptive_carrier_rule": true,
+        "exact_best_subset_enumeration": true,
+        "allocation_feasibility": true,
+        "summary_aggregations": true,
+        "zero_events_all": true
+      },
+      "detail": {
+        "bs_checked_arch": 14400
+      }
+    },
+    "drift": {
+      "checks": {
+        "runs_rowcount": true,
+        "agents_rowcount": true,
+        "scenarios_rowcount": true,
+        "declarations_rowcount": true,
+        "infeasible_empty": true,
+        "unique_run_keys": true,
+        "all_arms_present_each_seed": true,
+        "seeds_match_namespace": true,
+        "drift_disjoint_from_arch": true,
+        "drift_disjoint_from_prior_and_canonical": true,
+        "drift_disjoint_from_development": true,
+        "drift_co_primary_mean_and_ci": true,
+        "drift_primary_both_seeded_appearances": true,
+        "every_drift_secondary_mean_and_ci": true,
+        "drift_classification": true,
+        "all_drift_metrics": true,
+        "exact_best_subset_enumeration": true,
+        "drift_composition_unique": true,
+        "allocation_feasibility": true,
+        "summary_aggregations": true,
+        "zero_events_all": true
+      },
+      "detail": {
+        "bs_checked_drift": 108000
+      }
+    },
+    "secondary_supplement": {
+      "checks": {
+        "secondary_supplement_present": true,
+        "secondary_supplement_shape": true,
+        "secondary_supplement_reconstructs": true
+      },
+      "detail": {}
+    },
+    "distributed": {
+      "checks": {
+        "distributed_no_central_call": true,
+        "distributed_single_process_global_scale": true
+      },
+      "detail": {}
+    }
+  },
+  "n_checks": 65,
+  "n_pass": 65,
+  "n_fail": 0,
+  "failed_checks": [],
+  "verification_status": "VERIFIED"
+}

@@ -1,0 +1,34 @@
+# Deterministic-analysis reproduction (verification v2)
+# Reran ONLY the deterministic analyses (make_oq_analysis architecture+drift, select_drift_carrier,
+# complete_drift_secondary, make_oq_manifest, make_correction_manifest) over a temporary copy of the
+# frozen raw data, and compared regenerated outputs to the committed frozen outputs. No Java/experiment run.
+# Also diffed a preserved clean-clone (git clone --no-hardlinks at 1e2e1d9) raw tables (non-timing fields).
+
+Deterministic-analysis reproduction (v2)
+  temp tree: <tmp>/experiments/platform_mediation_original_question
+  clone: compared against clean clone at <clean-clone-at-1e2e1d9>
+  [OK  ] results/architecture_v1/architecture_headline.json  (semantic-equal, byte-identical)
+  [OK  ] results/drift_v1/drift_headline.json  (semantic-equal)
+  [OK  ] results/architecture_v1/summary.json  (semantic-equal, byte-identical)
+  [OK  ] results/drift_v1/summary.json  (semantic-equal, byte-identical)
+  [OK  ] DRIFT_CARRIER_DECISION.json  (semantic-equal, byte-identical)
+  [OK  ] results/drift_v1/preregistered_secondary_completion/drift_secondary_completion.json  (semantic-equal, byte-identical)
+  [OK  ] results/architecture_v1/tables/cell_arm_means.csv  (byte-identical)
+  [OK  ] results/architecture_v1/tables/paired_comparisons.csv  (byte-identical)
+  [OK  ] results/drift_v1/tables/drift_response.csv  (byte-identical)
+  [OK  ] results/drift_v1/preregistered_secondary_completion/drift_secondary_completion.csv  (byte-identical)
+  [OK  ] results/architecture_v1/EXPERIMENT_MANIFEST.json  (artifacts-identical (excl generated_utc/source_commit, EXPERIMENT_MANIFEST + drift_headline entries))
+  [OK  ] results/drift_v1/EXPERIMENT_MANIFEST.json  (artifacts-identical (excl generated_utc/source_commit, EXPERIMENT_MANIFEST + drift_headline entries))
+  [OK  ] CORRECTION_MANIFEST.json  (artifacts-identical (excl generated_utc/source_commit, EXPERIMENT_MANIFEST + drift_headline entries))
+  [OK  ] results/architecture_v1/raw/scenarios.csv  (clone-raw (non-timing))
+  [OK  ] results/architecture_v1/raw/runs.csv  (clone-raw (non-timing))
+  [OK  ] results/architecture_v1/raw/agents.csv  (clone-raw (non-timing))
+  [OK  ] results/architecture_v1/raw/distributed.csv  (clone-raw (non-timing))
+  [OK  ] results/architecture_v1/raw/infeasible.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/scenarios.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/runs.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/agents.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/declarations.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/distributed.csv  (clone-raw (non-timing))
+  [OK  ] results/drift_v1/raw/infeasible.csv  (clone-raw (non-timing))
+RESULT: REPRODUCED (all compared outputs match)
