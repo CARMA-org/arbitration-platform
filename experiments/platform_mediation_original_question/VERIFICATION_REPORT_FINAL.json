@@ -1,0 +1,250 @@
+{
+  "verifier": "verify_oq_final",
+  "supersedes": "verify_oq_v2",
+  "imports_experiment_modules": false,
+  "uses_only_stdlib_and_numpy": true,
+  "reran_confirmatory_runs": false,
+  "sections": {
+    "provenance": {
+      "checks": {
+        "chronology_prereg_before_arch": true,
+        "chronology_arch_before_drift": true,
+        "chronology_drift_before_result_head": true,
+        "chronology_result_before_correction": true,
+        "chronology_correction_before_v2": true,
+        "prereg_is_ancestor_of_candidate": true,
+        "v2_is_ancestor_of_candidate": true,
+        "prereg_immutable_bytes_match_working_and_candidate": true,
+        "result_immutable_bytes_match_working_and_candidate": true,
+        "correction_manifest_base_is_result_head": true,
+        "correction_manifest_original_hashes_independently_confirmed": true,
+        "carrier_decision_prereg_commit_matches": true,
+        "carrier_decision_prereg_protocol_sha_matches": true
+      },
+      "detail": {
+        "prereg_immutable_mismatches": [],
+        "result_immutable_mismatches": [],
+        "n_prereg_immutable": 22,
+        "n_result_immutable": 21,
+        "correction_manifest_mismatches": []
+      }
+    },
+    "manifests": {
+      "checks": {
+        "architecture_manifest_artifact_hashes": true,
+        "drift_manifest_artifact_hashes": true,
+        "correction_manifest_artifact_hashes": true,
+        "correction_manifest_artifact_count": true
+      },
+      "detail": {
+        "architecture_manifest_bad": [],
+        "drift_manifest_bad": [],
+        "correction_manifest_bad": []
+      }
+    },
+    "seeds": {
+      "checks": {
+        "actual_seed_overlaps_all_zero": true,
+        "arch_seeds_200_unique": true,
+        "drift_seeds_200_unique": true,
+        "prior_seed_sets_nonempty": true,
+        "arch_seeds_match_formula": true,
+        "drift_seeds_match_formula": true,
+        "arch_seeds_match_manifest_list": true,
+        "drift_seeds_match_manifest_list": true,
+        "confirmatory_disjoint_from_development_formula": true,
+        "confirmatory_disjoint_from_canonical_formula": true
+      },
+      "detail": {
+        "counts": {
+          "arch": 200,
+          "drift": 200,
+          "canonical": 400,
+          "pilot": 30,
+          "heterogeneity_confirmatory": 200
+        },
+        "actual_overlaps": {
+          "arch_vs_drift": 0,
+          "arch_vs_canonical": 0,
+          "arch_vs_pilot": 0,
+          "arch_vs_hetconf": 0,
+          "drift_vs_canonical": 0,
+          "drift_vs_pilot": 0,
+          "drift_vs_hetconf": 0
+        }
+      }
+    },
+    "schemas": {
+      "checks": {
+        "exact_headers_all_tables": true,
+        "arch_rowcounts": true,
+        "drift_rowcounts": true,
+        "arch_unique_keys": true,
+        "drift_unique_keys": true,
+        "arch_structural_joins": true,
+        "drift_structural_joins": true,
+        "drift_declarations_complete_join": true,
+        "arch_cells_exact": true,
+        "drift_cells_exact": true
+      },
+      "detail": {
+        "header_mismatches": [],
+        "tables_present": [
+          "arch/agents",
+          "arch/distributed",
+          "arch/infeasible",
+          "arch/runs",
+          "arch/scenarios",
+          "drift/agents",
+          "drift/declarations",
+          "drift/distributed",
+          "drift/infeasible",
+          "drift/runs",
+          "drift/scenarios"
+        ]
+      }
+    },
+    "workload_crn": {
+      "checks": {
+        "arch_workload_reused_across_contention": true,
+        "arch_workload_hash_count_is_200": true,
+        "arch_composition_reused_across_contention": true,
+        "drift_workload_hash_unique_per_scenario_2000": true,
+        "drift_agents_join_workload_hash": true,
+        "arch_agents_join_workload_hash": true,
+        "drift_composition_reused_across_contention": true,
+        "drift_capacity_invariant_across_delta": true,
+        "drift_crn_drift_source_monotonic_in_delta": true,
+        "drift_crn_zero_drift_at_delta0": true,
+        "drift_crn_full_drift_at_delta1": true,
+        "drift_changed_identities_le_drift_source": true
+      },
+      "detail": {
+        "arch_unique_workload_hashes": 200,
+        "drift_unique_workload_hashes": 2000,
+        "drift_capacity_groups": 400
+      }
+    },
+    "architecture": {
+      "checks": {
+        "footprint_table_reconstructs_aggregate_demand": true,
+        "every_arm_every_field_mean": true,
+        "every_paired_qo_mean_and_ci": true,
+        "every_paired_best_subset_mean_and_ci": true,
+        "zero_events_reconstructed_from_raw": true,
+        "summary_zero_event_totals_match_raw": true,
+        "every_five_condition_component_from_raw": true,
+        "noninferiority_by_cell_from_raw": true,
+        "central_independent_equivalence_by_cell_from_raw": true,
+        "separable_relaxation_structural": true,
+        "distributed_gap_summary_all_fields": true,
+        "distributed_outcome_stats_from_raw": true,
+        "distributed_classification_from_raw": true,
+        "every_distributional_statistic": true,
+        "every_harmed_set_statistic": true,
+        "raw_derived_flags_match_headline": true,
+        "raw_derived_flags_match_carrier_decision": true,
+        "adaptive_carrier_rule_from_raw": true,
+        "exact_best_subset_enumeration_all_records": true,
+        "allocation_feasibility_direct": true,
+        "summary_record_counts_match_raw": true
+      },
+      "detail": {
+        "arch_paired_comparisons_per_cell": 10,
+        "raw_flags": {
+          "replication_pass": true,
+          "coordination_pass": false,
+          "independent_positive": true,
+          "independent_noninferior": false,
+          "distributed_equivalent": true
+        },
+        "arch_best_subset_records_checked": 14400
+      }
+    },
+    "drift": {
+      "checks": {
+        "carrier_is_central_native_nondistributed": true,
+        "zero_events_reconstructed_from_raw": true,
+        "summary_zero_event_totals_match_raw": true,
+        "drift_co_primary_mean_ci_and_five_condition": true,
+        "drift_primary_both_seeded_appearances": true,
+        "every_drift_secondary_mean_and_ci": true,
+        "drift_classification_exact_tree": true,
+        "all_drift_metrics": true,
+        "exact_best_subset_enumeration_all_records": true,
+        "drift_composition_uniquely_recovered": true,
+        "allocation_feasibility_direct": true,
+        "summary_record_counts_match_raw": true
+      },
+      "detail": {
+        "drift_classification": "ROBUST_AT_MODEST_DRIFT",
+        "drift_best_subset_records_checked": 108000
+      }
+    },
+    "secondary_supplement": {
+      "checks": {
+        "secondary_supplement_present": true,
+        "secondary_cells_and_arms_exact": true,
+        "secondary_csv_header_exact": true,
+        "secondary_csv_rowcount_90": true,
+        "secondary_csv_no_duplicate_keys": true,
+        "secondary_json_every_cell_arm_field": true,
+        "secondary_scenario_metrics_every_cell": true,
+        "secondary_csv_values_every_row_field": true,
+        "secondary_json_csv_agreement": true,
+        "secondary_json_entry_count_90": true
+      },
+      "detail": {
+        "secondary_json_entries": 90
+      }
+    },
+    "distributed_inspection": {
+      "checks": {
+        "distributed_no_central_solver_call": true,
+        "distributed_imports_objective_evaluator_only": true
+      },
+      "detail": {
+        "central_imports": [
+          "leontief_objective"
+        ]
+      }
+    }
+  },
+  "n_checks": 94,
+  "n_pass": 94,
+  "n_fail": 0,
+  "failed_checks": [],
+  "by_category": {
+    "git_provenance": {
+      "n_checks": 13,
+      "n_pass": 13
+    },
+    "git_provenance_and_regeneration": {
+      "n_checks": 4,
+      "n_pass": 4
+    },
+    "raw_derived_and_formula": {
+      "n_checks": 10,
+      "n_pass": 10
+    },
+    "raw_derived_structure": {
+      "n_checks": 22,
+      "n_pass": 22
+    },
+    "raw_derived": {
+      "n_checks": 43,
+      "n_pass": 43
+    },
+    "static_source_inspection": {
+      "n_checks": 2,
+      "n_pass": 2
+    }
+  },
+  "coverage": {
+    "architecture_agent_records_best_subset_enumerated": 14400,
+    "drift_agent_records_best_subset_enumerated": 108000,
+    "secondary_json_entries_reconstructed": 90,
+    "subsets_enumerated_per_record": 256
+  },
+  "verification_status": "VERIFIED"
+}
