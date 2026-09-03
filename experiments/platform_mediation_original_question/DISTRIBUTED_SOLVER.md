@@ -26,8 +26,13 @@ scenarios; the distributed solver targets this same objective value.
 Each resource owner `j` holds a single price `lambda_j` for its own resource. Each agent
 solves a local subproblem using only its own Leontief coefficients `r_i` and the prices
 it receives, and reports only its per-resource demand. Each owner updates its own price
-from the ratio of its local demand to its own capacity. No component collects the full
-set of declarations or the queue.
+from the ratio of its local demand to its own capacity. **As an algorithm**, no step
+requires collecting the full set of declarations or the queue: each owner uses only its own
+resource's aggregate demand and each agent only the prices it receives. This describes the
+information pattern of the price-mediated decomposition, not the current experimental code:
+the single-process implementation nonetheless holds the full price, demand and allocation
+arrays as global objects in one process and performs one global feasibility-repair step
+(Section 6).
 
 ### 2.1 Agent subproblem (exact primal recovery)
 
@@ -60,8 +65,12 @@ lambda_j <- clip( lambda_j * (d_j / Q_j) ** ETA , LAMBDA_FLOOR , LAMBDA_MAX ).
 Demand is bounded by the agents' upper bounds and the price is bounded by `LAMBDA_MAX`, so
 the multiplicative update cannot overflow. Raising any price lowers every agent's utility
 and therefore every demand; at sufficiently high prices every agent sits on its floors,
-whose total `sum_i mins_ij <= Q_j` is feasible, so a feasible price vector exists and the
-iteration converges to it.
+whose total `sum_i mins_ij <= Q_j` is feasible, so a feasible price vector **exists**. This
+existence argument is **not** a general convergence proof for the kinked Leontief
+subproblems. Convergence to that feasible price vector was instead **observed empirically**
+under the frozen validation conditions (Section 4: zero nonconvergences and mean 1841
+tatonnement iterations over 575 well-posed development scenarios, to the reported
+tolerances), not established as a theorem here.
 
 ### 2.3 Feasibility repair and slack fill
 
@@ -109,16 +118,19 @@ near-degenerate and highly-heterogeneous cases (both contention levels). Results
   heterogeneous 6.6e-9.
 - Mean tatonnement iterations 1841 (early stop); zero nonconvergences.
 
-## 5. Enumerated failure mode
+## 5. Enumerated zero-achievable-utility cases (undefined relative gap)
 
-The one regime the method does not reproduce is genuinely ill-posed: when floors alone
-saturate a resource that another agent also requires, that agent's achievable Leontief
-utility is zero and the central objective is unbounded below; there the canonical central
-solver itself returns a floor-violating, inaccurate solution, and the relative objective
-gap is undefined. This regime does not occur in the confirmatory experiments, where
-capacities are total demand divided by 1.3-1.9 and the unit floors never bind (0 of 2626
-binding cells on the natural Dirichlet(0.1) architecture scenarios). Such instances are
-counted and excluded from the equivalence statistics rather than reported as gaps.
+In a specific, individually enumerated set of development cases, floors alone saturate a
+resource that another agent also requires, so that agent's achievable Leontief utility is
+**zero**. Because the objective is a sum of `c_i log(u_i)`, a log-objective comparison — and
+therefore the *relative objective gap* — is **undefined** in exactly those cases (`log 0`),
+and the canonical central solver itself returns a floor-violating, inaccurate solution there.
+These specific instances are counted and excluded from the equivalence statistics rather than
+reported as gaps. This is a precise statement about those enumerated zero-utility instances; it
+is **not** a claim that one whole regime is uniquely "ill-posed." They do not occur in the
+confirmatory experiments, where capacities are total demand divided by 1.3-1.9 and the unit
+floors never bind (0 of 2626 binding cells on the natural Dirichlet(0.1) architecture
+scenarios).
 
 ## 6. Scope correction: a single-process simulation, not a deployed distributed system
 
@@ -130,12 +142,16 @@ read as a stronger claim than the evidence supports.
 What the arm establishes:
 
 - **Central-solver dispensability.** The arm reaches the same continuous Leontief objective
-  and the same aggregate task completion as the canonical central convex solver, without
-  ever calling that solver. It imports and invokes no central-optimization routine
-  (`scripts/joint_solver.py`, `oqlib/central.py`, `oqlib/central_ref.py`); this is verified
-  by source inspection and an import/call-graph test, and independently re-checked by the v2
-  verifier. The joint Leontief allocation is therefore **algorithmically decomposable** into
-  a price-mediated agent/owner iteration.
+  and the same aggregate task completion as the canonical central convex solver, without ever
+  calling that solver. The allocation procedure invokes **no central optimization solver**: it
+  never calls the canonical joint solver (`scripts/joint_solver.py`), a reduced central
+  Leontief solver, or the central reference solver, and imports no convex-optimization library
+  (cvxpy). It does import exactly one function, `leontief_objective`, from `oqlib.central`, used
+  **only as an objective evaluator** to score the distributed arm's own allocation for the
+  relative-gap statistic — never to compute the allocation. This import-versus-solve distinction
+  is verified by source inspection and an import/call-graph test, and independently re-checked by
+  the final verifier (`verify_oq_final.py`). The joint Leontief allocation is therefore
+  **algorithmically decomposable** into a price-mediated agent/owner iteration.
 
 What the arm does **not** establish:
 

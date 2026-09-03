@@ -1,7 +1,7 @@
 {
   "scope": "original_question_closure_correction_v2",
   "base_experimental_head": "1e2e1d968e9204a44567c3571c0d75f5900319cc",
-  "generated_utc": "2026-09-03T00:43:44Z",
+  "generated_utc": "2026-09-03T18:51:11Z",
   "invariants": {
     "statement": "No raw datum, mechanism, frozen rule, seed or outcome changed. The original_raw and original_manifest artifacts are byte-identical to the experimental head.",
     "verified_against": "1e2e1d968e9204a44567c3571c0d75f5900319cc",
@@ -157,8 +157,8 @@
     {
       "category": "corrected_document",
       "path": "experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md",
-      "bytes": 16193,
-      "sha256": "335f06c16679072c5c4c66254b5ea9d7aa1cd38550718c83b7dbb8543a6e3348"
+      "bytes": 16342,
+      "sha256": "0a9902e95c7305c75447eada86f0bada97ac9b08efce65bf04f435bc94526af3"
     },
     {
       "category": "corrected_document",
@@ -169,20 +169,20 @@
     {
       "category": "corrected_document",
       "path": "experiments/platform_mediation_original_question/DISTRIBUTED_SOLVER.md",
-      "bytes": 9279,
-      "sha256": "d8716dbf54159a624851af59bac14f5daf98acf39fdd6343acbf5a4baef118b6"
+      "bytes": 10785,
+      "sha256": "6d64c2dc52a2fa2ca8ece85276e24c4f053509932a3924575c229e835342dccf"
     },
     {
       "category": "corrected_document",
       "path": "experiments/platform_mediation_original_question/CORRECTIONS_AFTER_VERIFICATION.md",
-      "bytes": 8158,
-      "sha256": "45da28a1269e7f5b28c31bf00c84fc794252d71c76c20598778a2bd177483580"
+      "bytes": 8324,
+      "sha256": "cb20dbb3236834b4e2501e932225e894517f5329370f733049e22bbb48459d7d"
     },
     {
       "category": "script",
       "path": "experiments/platform_mediation_original_question/make_closure_report.py",
-      "bytes": 24195,
-      "sha256": "306d420e1ca29cf6f44956bb2b434b33fdab7a2ed9b80d85cc7751b5e457d600"
+      "bytes": 24413,
+      "sha256": "bf63dc730d6d547277675617b45347479dd3cb89bb124057488776da622dd921"
     },
     {
       "category": "script",
@@ -193,8 +193,8 @@
     {
       "category": "script",
       "path": "experiments/platform_mediation_original_question/complete_drift_secondary.py",
-      "bytes": 12575,
-      "sha256": "f48b17136f3014ec6dadad75b953dcb32b9e1c8592bf5bed3735b599ff32c24e"
+      "bytes": 12646,
+      "sha256": "61a414aee4c48ecbfc310ba92e2c5123cadfb8f4d60ef5e510b9ca12a61be3ea"
     },
     {
       "category": "script",

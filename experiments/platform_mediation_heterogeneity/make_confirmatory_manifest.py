@@ -15,6 +15,11 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+# Immutable canonical-evaluation base commit these heterogeneity experiments were built on
+# (the former platform-evaluation tip at the time; reachable in main's history). Used so this
+# provenance utility keeps working in a fresh clone after the platform-evaluation branch is
+# deleted. Overridable via --canonical-base-commit or CANONICAL_BASE_COMMIT.
+CANONICAL_BASE_DEFAULT = "bfab534bba977d5f7c40b0407b83036b38dfbf4a"
 
 ARTIFACT_GLOBS = [
     "config/confirmatory_v1.json",
@@ -58,11 +63,27 @@ def dep_versions(python):
         return {}
 
 
+def resolve_canonical_base(explicit=None):
+    """Resolve the canonical-evaluation base commit without depending on the
+    ``platform-evaluation`` branch (removed after consolidation). Priority: explicit
+    arg / ``CANONICAL_BASE_COMMIT`` env; the immutable default commit if it is reachable in
+    this repo; the branch if it still resolves; else the default string."""
+    v = explicit or os.environ.get("CANONICAL_BASE_COMMIT")
+    if v:
+        return v
+    if run(["git", "rev-parse", "--verify", "--quiet", CANONICAL_BASE_DEFAULT + "^{commit}"]):
+        return CANONICAL_BASE_DEFAULT
+    return run(["git", "rev-parse", "origin/platform-evaluation"]) or CANONICAL_BASE_DEFAULT
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--solver-python", default=os.environ.get("SOLVER_PYTHON", "python3"))
     ap.add_argument("--source-commit", default=os.environ.get("SOURCE_COMMIT"))
     ap.add_argument("--prereg-commit", default=os.environ.get("PREREG_COMMIT"))
+    ap.add_argument("--canonical-base-commit", default=None,
+                    help="canonical-evaluation base commit; defaults to the immutable recorded base "
+                         "so this works after the platform-evaluation branch is deleted")
     args = ap.parse_args()
 
     source_commit = args.source_commit or run(["git", "rev-parse", "HEAD"])
@@ -84,7 +105,7 @@ def main():
         "experiment": "platform_mediation_heterogeneity/confirmatory_v1",
         "source_commit": source_commit,
         "preregistration_commit": args.prereg_commit,
-        "canonical_base_commit": run(["git", "rev-parse", "origin/platform-evaluation"]),
+        "canonical_base_commit": resolve_canonical_base(args.canonical_base_commit),
         "config_hash": sha256(os.path.join(HERE, "config", "confirmatory_v1.json")),
         "environment": {
             "python_version": run([args.solver_python, "-c", "import platform;print(platform.python_version())"]),

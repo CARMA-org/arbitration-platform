@@ -23,9 +23,9 @@ following are byte-identical to `1e2e1d9`:
 Independent reconstruction directly from the frozen raw CSVs reproduces every headline
 mean, every 95% percentile-bootstrap CI endpoint, every five-condition flag, the carrier
 selection, the distributed-equivalence classification, all harmed-set and distributional
-statistics, and all 14,400 architecture and 12,000 drift exact best-subset counts. The
-corrections below are therefore about **public interpretation and omitted reporting**, not
-about the data or the experiment.
+statistics, and the exact best-subset counts for all 14,400 architecture and 108,000 drift
+agent records. The corrections below are therefore about **public interpretation and omitted
+reporting**, not about the data or the experiment.
 
 ## 1. Documentation defects corrected (no experimental content)
 
@@ -62,9 +62,9 @@ datum, a mechanism, a frozen rule, a seed, or an outcome.
    stale carrier can fall below equal quotas (e.g. delta 1.00: carrier 23.53 vs equal 26.73
    moderate; 17.65 vs equal 18.95 high) (Section 11-12).
 9. **Verification links** now point to the first verification commit
-   `d2d77dbe33c4a5b6f9770f225b19ee68b45f1514` and the comprehensive v2 verification branch
-   `verification/platform-original-question-closure-v2` (Section 16), replacing the `<verify>`
-   placeholder.
+   `d2d77dbe33c4a5b6f9770f225b19ee68b45f1514` and the comprehensive v2 verification commit
+   `c678a0a96aba563ceff52e4d6b889fb90db316ec` (Section 16, immutable commit URLs), replacing
+   the `<verify>` placeholder.
 10. **Comparator qualified** as "the strongest tested resource-local comparator," never
     universally strongest (Section 3).
 11. **No causal-coordination claim and no finality overreach.** The report does not assert
@@ -93,10 +93,11 @@ distributed system, not privacy, and not the absence of all cross-resource commu
 ## 2. Omitted preregistered secondary reporting, now emitted (analysis-only)
 
 The frozen protocol (Section 6) promised drift distributional outcomes, utilization, realized
-contention, and dissimilarity, but `drift_headline.json` omitted several of them. These were
-computed but not written; they are now emitted as a **post-result completion of
-preregistered secondary reporting**, reading only the frozen raw files, with no discretionary
-threshold or arm selection, by `complete_drift_secondary.py` into
+contention, and dissimilarity, but `drift_headline.json` omitted several of them. They were
+recorded in the raw data or are deterministically derivable from it under the preregistered
+analysis, but were not emitted into the original public summary; they are now emitted as a
+**post-result completion of preregistered secondary reporting**, reading only the frozen raw
+files, with no discretionary threshold or arm selection, by `complete_drift_secondary.py` into
 `results/drift_v1/preregistered_secondary_completion/` (JSON + CSV + tests). The existing
 `drift_headline.json` and `drift_response.csv` are **not** altered.
 

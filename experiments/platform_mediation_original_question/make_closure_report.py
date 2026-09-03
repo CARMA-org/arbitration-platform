@@ -30,11 +30,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCH = os.path.join(HERE, "results", "architecture_v1")
 DRIFT = os.path.join(HERE, "results", "drift_v1")
 GH = "https://github.com/CARMA-org/arbitration-platform"
-# The first independent verification (branch verification/platform-original-question-closure).
+# The first independent verification (commit d2d77db, formerly branch
+# verification/platform-original-question-closure; consolidated into main).
 FIRST_VERIFICATION_COMMIT = "d2d77dbe33c4a5b6f9770f225b19ee68b45f1514"
 # The comprehensive v2 verification lives on its own branch (stable ref link, not a commit,
 # because it is created from the correction commit this report is regenerated on).
-V2_VERIFICATION_BRANCH = "verification/platform-original-question-closure-v2"
+V2_VERIFICATION_COMMIT = "c678a0a96aba563ceff52e4d6b889fb90db316ec"
 
 
 def j(p):
@@ -286,7 +287,9 @@ def main(prereg_commit="", arch_commit="", drift_commit="", verify_commit=""):
     A("* Carrier decision: recorded in DRIFT_CARRIER_DECISION.json at the architecture result commit")
     A("* Drift result: %s/commit/%s" % (GH, drift_commit or "3204646f74901bb357f614e2f5ab4c1b276fb449"))
     A("* First independent verification: %s/commit/%s" % (GH, first_verification_commit))
-    A("* Comprehensive verification (v2): %s/tree/%s\n" % (GH, V2_VERIFICATION_BRANCH))
+    A("* Comprehensive verification (v2): %s/commit/%s" % (GH, V2_VERIFICATION_COMMIT))
+    A("* Final consolidated independent verification: see `VERIFICATION_SUMMARY_FINAL.md`, "
+      "`VERIFICATION_FINAL_AUDIT.md` and `verify_oq_final.py` in this directory\n")
 
     A("## 17. Why the question is closed at the tested scope\n")
     A("The fresh-seed replication, the coordination/materiality test against the strongest tested resource-local")

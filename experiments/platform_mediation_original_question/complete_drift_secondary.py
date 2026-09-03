@@ -3,9 +3,10 @@
 
 The frozen protocol (ORIGINAL_QUESTION_CLOSURE_PROTOCOL.md, Section 6) promised drift
 distributional outcomes, utilization, realized contention, and dissimilarity per delta and
-contention. Several of these were computed during the experiment but were not written into
-``drift_headline.json``. This script emits them AFTER the fact, as a completion of the
-preregistered secondary reporting. It:
+contention. Several of these were recorded in the raw data or are deterministically derivable
+from it under the preregistered analysis, but were not emitted into ``drift_headline.json``.
+This script emits them AFTER the fact, as a completion of the preregistered secondary
+reporting. It:
 
   * reads ONLY the frozen raw files under ``results/drift_v1/raw/``;
   * makes NO discretionary threshold and NO arm selection (every delta, contention cell,

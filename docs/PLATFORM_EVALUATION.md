@@ -1,9 +1,16 @@
 # Platform Evaluation
 
-This document describes the canonical mediation path added on the
-`platform-evaluation` branch and how to reproduce the platform evaluation. It
-updates the description of how declarations and operator policy are turned into
-enforceable multi-resource contracts and executed under contention.
+This document describes the canonical mediation path and how to reproduce the platform
+evaluation. The current, consolidated state of this work lives on `main`; the canonical
+mediation path was originally developed on the historical `platform-evaluation` branch, which
+has since been consolidated into `main` (and the branch retired). It describes how declarations
+and operator policy are turned into enforceable multi-resource contracts and executed under
+contention.
+
+For the subsequent heterogeneity, architecture and declaration-drift closure experiments and
+their independent verification, see
+[`experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md`](../experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md)
+and the repository [`README.md`](../README.md).
 
 ## Canonical mediation path
 

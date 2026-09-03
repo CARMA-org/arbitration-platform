@@ -192,7 +192,8 @@ beneficial, and how it should be governed, remain open questions rather than set
 * Carrier decision: recorded in DRIFT_CARRIER_DECISION.json at the architecture result commit
 * Drift result: https://github.com/CARMA-org/arbitration-platform/commit/3204646f74901bb357f614e2f5ab4c1b276fb449
 * First independent verification: https://github.com/CARMA-org/arbitration-platform/commit/d2d77dbe33c4a5b6f9770f225b19ee68b45f1514
-* Comprehensive verification (v2): https://github.com/CARMA-org/arbitration-platform/tree/verification/platform-original-question-closure-v2
+* Comprehensive verification (v2): https://github.com/CARMA-org/arbitration-platform/commit/c678a0a96aba563ceff52e4d6b889fb90db316ec
+* Final consolidated independent verification: see `VERIFICATION_SUMMARY_FINAL.md`, `VERIFICATION_FINAL_AUDIT.md` and `verify_oq_final.py` in this directory
 
 ## 17. Why the question is closed at the tested scope
 
