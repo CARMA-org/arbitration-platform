@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    # `platform-evaluation` is a temporary staging trigger for the consolidation candidate and
-    # is removed in the final cleanup commit once the candidate reaches `main`.
-    branches: [main, platform-evaluation]
+    branches: [main]
   pull_request:
     branches: [main]
 
