@@ -113,12 +113,14 @@ jobs:
       # --- deterministic generated-document consistency ------------------------------------
       - name: Deterministic generated-document consistency
         run: |
+          # Regenerate only the pure-Python, raw-data-deterministic documents and require
+          # byte-identical output. COMPARATOR_AUDIT.md is generated via the Java solver with
+          # randomization (not a portable byte-equality target); its integrity is instead
+          # covered by the correction-manifest hash check above.
           python experiments/platform_mediation_original_question/make_closure_report.py
-          python experiments/platform_mediation_original_question/make_comparator_audit.py
           python experiments/platform_mediation_original_question/complete_drift_secondary.py
           git diff --exit-code -- \
             experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md \
-            experiments/platform_mediation_original_question/COMPARATOR_AUDIT.md \
             experiments/platform_mediation_original_question/results/drift_v1/preregistered_secondary_completion
 
       - name: git diff --check (whitespace / conflict-marker hygiene)
