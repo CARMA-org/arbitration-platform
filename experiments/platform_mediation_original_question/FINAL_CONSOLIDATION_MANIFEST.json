@@ -1,0 +1,182 @@
+{
+  "scope": "original_question_closure_final_consolidation",
+  "generated_utc": "2026-09-03T19:04:41Z",
+  "anchors": {
+    "preregistration": "7ebf8b70366b8b68a90554a722f097d8acea3f01",
+    "result_head": "1e2e1d968e9204a44567c3571c0d75f5900319cc",
+    "correction": "601ca56752d16fe5b9364590f95ef5335331e9b5",
+    "v2_verification": "c678a0a96aba563ceff52e4d6b889fb90db316ec",
+    "old_main": "91d8ad77d2b549933b46d566e5776b67b87628ff"
+  },
+  "invariants": {
+    "no_raw_or_frozen_outcome_changed": true,
+    "immutable_mismatches": [],
+    "no_new_confirmatory_run_executed": true,
+    "confirmatory_runs_referenced": 20400,
+    "verification_is_raw_data_reconstruction_not_rerun": true
+  },
+  "n_changed_files": 18,
+  "changed_files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "classification": "ci",
+      "mutable": true,
+      "exists": true
+    },
+    {
+      "path": "README.md",
+      "classification": "documentation",
+      "mutable": false,
+      "sha256": "f90fe28a26178ff7d6b87954f30ae9fc976cbc3c8f0718c40ccd46b276fac92e",
+      "bytes": 12086
+    },
+    {
+      "path": "docs/PLATFORM_EVALUATION.md",
+      "classification": "documentation",
+      "mutable": false,
+      "sha256": "9a04a52c4eef9a8226164dda034161ba9366e0cae82716492aee23873cb6b791",
+      "bytes": 6183
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_confirmatory_manifest.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "16f8663de8a82f95d83c004404513afed1e6d0fb9643eeec9ea4f8b79371aa89",
+      "bytes": 5637
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/make_pilot_manifest.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "bdbf8b45fd1d0b6ccee7aec4ffcd1d2872ddd986aad959237f7d513c6afcdbd5",
+      "bytes": 5635
+    },
+    {
+      "path": "experiments/platform_mediation_heterogeneity/tests/test_manifest_base_resolution.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "264662a4043a516905866a156059b60f7935db896c2996745b0b101cc29f24fa",
+      "bytes": 2520
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/CORRECTIONS_AFTER_VERIFICATION.md",
+      "classification": "documentation",
+      "mutable": false,
+      "sha256": "cb20dbb3236834b4e2501e932225e894517f5329370f733049e22bbb48459d7d",
+      "bytes": 8324
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/CORRECTION_MANIFEST.json",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "d3909fdcd67385b4f286a5b256a6bc9b28589cc4599eef78725ae415f59db530",
+      "bytes": 9214
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/DISTRIBUTED_SOLVER.md",
+      "classification": "documentation",
+      "mutable": false,
+      "sha256": "6d64c2dc52a2fa2ca8ece85276e24c4f053509932a3924575c229e835342dccf",
+      "bytes": 10785
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md",
+      "classification": "documentation",
+      "mutable": false,
+      "sha256": "0a9902e95c7305c75447eada86f0bada97ac9b08efce65bf04f435bc94526af3",
+      "bytes": 16342
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/VERIFICATION_FINAL_AUDIT.md",
+      "classification": "verification",
+      "mutable": false,
+      "sha256": "93a6652f0fbc5a8ce64c85cfdd6272ffc2f611419df9f4bf464a79689bcf028c",
+      "bytes": 7080
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/VERIFICATION_REPORT_FINAL.json",
+      "classification": "verification",
+      "mutable": false,
+      "sha256": "08c926485419cf763a6139ebf6e5a51850c946ab8473a1b9149e653d719329a2",
+      "bytes": 8308
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/VERIFICATION_SUMMARY_FINAL.md",
+      "classification": "verification",
+      "mutable": false,
+      "sha256": "b745ad8fc6edaebd866d27e9e2891075d6e5d3f5cb21143861b1eda7da5c4920",
+      "bytes": 9359
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/complete_drift_secondary.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "61a414aee4c48ecbfc310ba92e2c5123cadfb8f4d60ef5e510b9ca12a61be3ea",
+      "bytes": 12646
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/make_closure_report.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "bf63dc730d6d547277675617b45347479dd3cb89bb124057488776da622dd921",
+      "bytes": 24413
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/make_final_manifest.py",
+      "classification": "provenance",
+      "mutable": false,
+      "sha256": "0e7a521105d9f1756ce17e543b7afa7518f44d9bdc2994dedb8a406fddfa46d6",
+      "bytes": 9904
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/tests/test_verify_oq_final.py",
+      "classification": "verification",
+      "mutable": false,
+      "sha256": "4f50fb5fca10368ca8d03beb8be0fca0b3c29a4e294fef1b70da1052f4501897",
+      "bytes": 15477
+    },
+    {
+      "path": "experiments/platform_mediation_original_question/verify_oq_final.py",
+      "classification": "verification",
+      "mutable": false,
+      "sha256": "b482810197df6ff7b94e3ddb753810e29659b944fc7ff4de2795479f2fe67a68",
+      "bytes": 85683
+    }
+  ],
+  "test_commands": [
+    "mvn -B test",
+    "python -m pytest tests/python -q",
+    "python -m pytest experiments/platform_mediation_heterogeneity/tests -q",
+    "python -m pytest experiments/platform_mediation_original_question/tests -q",
+    "python experiments/platform_mediation_original_question/verify_oq_final.py --candidate-rev HEAD",
+    "python experiments/platform_mediation_original_question/make_correction_manifest.py --verify",
+    "python experiments/platform_mediation_original_question/make_final_manifest.py --verify"
+  ],
+  "remote_refs_before": [
+    "# BEFORE consolidation \u2014 remote ref inventory (2026-09-03T12:32:52Z)",
+    "## refs/heads",
+    "6e44d54b6ebddb2d659b891fda135e257f6f7e07\trefs/heads/ci/platform-evaluation-bundle-repair",
+    "601ca56752d16fe5b9364590f95ef5335331e9b5\trefs/heads/correction/original-question-closure-v2",
+    "a21d013f93d54fa8f6ab9a5176fc4a5f2e98a824\trefs/heads/design/declaration-drift",
+    "f148828ba73ea7f6274af310da350c988bbc9b7f\trefs/heads/development/platform-original-question-closure",
+    "22e17ef1aedbf9eec94929e5caa7d3d2a747e5cc\trefs/heads/feature/tasks-3-and-7",
+    "91d8ad77d2b549933b46d566e5776b67b87628ff\trefs/heads/main",
+    "601ca56752d16fe5b9364590f95ef5335331e9b5\trefs/heads/platform-evaluation",
+    "073a5d6f0c1196f60ac8029bc4ee0971db8f099b\trefs/heads/platform-heterogeneity-pilot",
+    "601ca56752d16fe5b9364590f95ef5335331e9b5\trefs/heads/platform-original-question-closure",
+    "5f0fe8cf4ac450c393f9aaa7ceec4d5e84ac56ea\trefs/heads/release/v0.9",
+    "473d7079656c449ec07be14933aed7e2e9ed6ea3\trefs/heads/verification/platform-heterogeneity-pilot",
+    "d2d77dbe33c4a5b6f9770f225b19ee68b45f1514\trefs/heads/verification/platform-original-question-closure",
+    "c678a0a96aba563ceff52e4d6b889fb90db316ec\trefs/heads/verification/platform-original-question-closure-v2",
+    "## refs/tags (with peeled)",
+    "98999b2ee31da280ebff973a95acaf83e3d8775a\trefs/tags/v0.9",
+    "4411e22542313af8ecad678c13d1dbe21a996cd6\trefs/tags/v0.9^{}",
+    "## default branch",
+    "main"
+  ],
+  "remote_refs_after_intended": [
+    "main",
+    "archive/main-before-original-question-closure-20260903"
+  ],
+  "status": "CONSOLIDATED"
+}

@@ -2,12 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main, "release/**", platform-evaluation]
+    # `platform-evaluation` is a temporary staging trigger for the consolidation candidate and
+    # is removed in the final cleanup commit once the candidate reaches `main`.
+    branches: [main, platform-evaluation]
   pull_request:
+    branches: [main]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      SOLVER_PYTHON: python
     steps:
       - uses: actions/checkout@v7
         with:
@@ -27,16 +32,15 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r experiments/joint_allocation/requirements.txt
 
-      - name: Python tests
-        run: python -m pytest tests/python -q
-
+      # --- build + core suites -------------------------------------------------------------
       - name: Java build and tests
-        env:
-          SOLVER_PYTHON: python
         run: mvn -B test
 
       - name: Build solver classpath
         run: mvn -B -q dependency:build-classpath -Dmdep.outputFile=cp.txt
+
+      - name: Canonical Python tests
+        run: python -m pytest tests/python -q
 
       - name: Enforcement smoke
         run: |
@@ -51,7 +55,7 @@ jobs:
       - name: Repository claim scan
         run: python experiments/platform_mediation/claim_scan.py
 
-      - name: Results/documentation consistency
+      - name: Canonical results/documentation consistency
         run: python experiments/platform_mediation/check_consistency.py --with-manifest
 
       - name: Frozen canonical bundle reproducibility
@@ -67,3 +71,66 @@ jobs:
           git diff --exit-code -- platform_evaluation_results_bundle.zip platform_evaluation_results_bundle.sha256
           test "$(awk '{print $1}' platform_evaluation_results_bundle.sha256)" = "$expected_sha"
           sha256sum -c platform_evaluation_results_bundle.sha256
+
+      # --- experiment test suites ----------------------------------------------------------
+      - name: Heterogeneity experiment tests
+        run: python -m pytest experiments/platform_mediation_heterogeneity/tests -q
+
+      - name: Original-question experiment tests
+        run: python -m pytest experiments/platform_mediation_original_question/tests -q
+
+      - name: Secondary-completion tests
+        run: python -m pytest experiments/platform_mediation_original_question/tests/test_oq_secondary_completion.py -q
+
+      # --- comprehensive independent verification ------------------------------------------
+      - name: Final comprehensive independent verifier
+        run: |
+          out=$(mktemp -d)/VERIFICATION_REPORT_FINAL.json
+          python experiments/platform_mediation_original_question/verify_oq_final.py \
+            --candidate-rev HEAD --out "$out"
+          python -c "import json,sys; r=json.load(open('$out')); print(r['verification_status'], r['n_pass'],'/',r['n_checks']); sys.exit(0 if r['verification_status']=='VERIFIED' and r['n_fail']==0 else 1)"
+
+      # --- manifest verification -----------------------------------------------------------
+      - name: Architecture and drift manifest verification
+        run: |
+          python - <<'PY'
+          import importlib.util, os
+          root = "experiments/platform_mediation_original_question"
+          spec = importlib.util.spec_from_file_location("mkmani", os.path.join(root, "make_oq_manifest.py"))
+          m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          problems = []
+          for rel in ("results/architecture_v1/EXPERIMENT_MANIFEST.json", "results/drift_v1/EXPERIMENT_MANIFEST.json"):
+              problems += m.verify(os.path.join(root, rel))
+          assert not problems, problems
+          print("architecture + drift manifests: all hashes match")
+          PY
+
+      - name: Correction and final consolidation manifest verification
+        run: |
+          python experiments/platform_mediation_original_question/make_correction_manifest.py --verify
+          python experiments/platform_mediation_original_question/make_final_manifest.py --verify
+
+      # --- deterministic generated-document consistency ------------------------------------
+      - name: Deterministic generated-document consistency
+        run: |
+          python experiments/platform_mediation_original_question/make_closure_report.py
+          python experiments/platform_mediation_original_question/make_comparator_audit.py
+          python experiments/platform_mediation_original_question/complete_drift_secondary.py
+          git diff --exit-code -- \
+            experiments/platform_mediation_original_question/ORIGINAL_QUESTION_CLOSURE.md \
+            experiments/platform_mediation_original_question/COMPARATOR_AUDIT.md \
+            experiments/platform_mediation_original_question/results/drift_v1/preregistered_secondary_completion
+
+      - name: git diff --check (whitespace / conflict-marker hygiene)
+        run: |
+          # Check the whole consolidation range against its merge-base with the pre-promotion
+          # main tip (an ancestor of every candidate and of promoted main). Falls back to the
+          # first parent if that commit is not present.
+          old_main="91d8ad77d2b549933b46d566e5776b67b87628ff"
+          if git cat-file -e "${old_main}^{commit}" 2>/dev/null; then
+            base=$(git merge-base HEAD "$old_main")
+          else
+            base="HEAD~1"
+          fi
+          echo "checking diff $base..HEAD"
+          git diff --check "$base" HEAD
