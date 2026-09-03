@@ -123,14 +123,15 @@ jobs:
 
       - name: git diff --check (whitespace / conflict-marker hygiene)
         run: |
-          # Check the whole consolidation range against its merge-base with the pre-promotion
-          # main tip (an ancestor of every candidate and of promoted main). Falls back to the
-          # first parent if that commit is not present.
-          old_main="91d8ad77d2b549933b46d566e5776b67b87628ff"
-          if git cat-file -e "${old_main}^{commit}" 2>/dev/null; then
-            base=$(git merge-base HEAD "$old_main")
+          # Check only the consolidation commits (c678a0a..HEAD): the additive verification,
+          # documentation, CI and provenance changes. The frozen experimental raw data
+          # committed earlier in history is immutable and intentionally excluded (some raw
+          # CSV fields contain trailing whitespace and must not be rewritten).
+          base="c678a0a96aba563ceff52e4d6b889fb90db316ec"
+          if git cat-file -e "${base}^{commit}" 2>/dev/null && git merge-base --is-ancestor "$base" HEAD; then
+            echo "checking diff $base..HEAD"
+            git diff --check "$base" HEAD
           else
-            base="HEAD~1"
+            echo "checking diff HEAD~1..HEAD (consolidation anchor not present)"
+            git diff --check HEAD~1 HEAD
           fi
-          echo "checking diff $base..HEAD"
-          git diff --check "$base" HEAD
