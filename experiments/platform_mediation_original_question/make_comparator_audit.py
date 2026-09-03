@@ -211,10 +211,15 @@ def _write_md(audit):
             A("  * agent %d demand %s -> DRF %s, max-min %s"
               % (i, _fmt_alloc(ex["demand"][i], res), _fmt_alloc(ex["drf"][i], res), _fmt_alloc(ex["maxmin"][i], res)))
         A("  * differ: %s\n" % ex["differ"])
-    A("The first (perfectly mirror-symmetric) case is one where the two mechanisms coincide; the second and third")
-    A("show them diverging, because DRF's dominant-share coupling redistributes across resources while the")
-    A("independent fill does not. DRF's dominant-share coupling is therefore not the same as separate local")
-    A("progress filling.\n")
+    coincide = [ex["name"] for ex in audit["hand_examples"] if not ex["differ"]]
+    diverge = [ex["name"] for ex in audit["hand_examples"] if ex["differ"]]
+    A("Among the constructed examples, the mechanisms coincide on %s and diverge on %s, because DRF's"
+      % (" and ".join(coincide), " and ".join(diverge)))
+    A("dominant-share coupling redistributes across resources while the independent fill does not. Both the")
+    A("first (mirror-symmetric) and third (three-way symmetric specialists) constructed cases coincide; only")
+    A("the second (asymmetric) case diverges. That single asymmetric divergence, together with the 120-of-120")
+    A("randomized distinctness result in 3.1, establishes the mechanisms as distinct; DRF's dominant-share")
+    A("coupling is therefore not the same as separate local progress filling.\n")
     A("## 4. Separable weighted-log Leontief relaxation (structural control)\n")
     A("The separable relaxation drops the cross-resource utility consensus from the weighted-log Leontief")
     A("objective, leaving each resource owner to maximize sum_i w_i log(x_ir) over the agents that require the")

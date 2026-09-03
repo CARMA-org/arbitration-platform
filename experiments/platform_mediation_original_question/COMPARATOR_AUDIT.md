@@ -60,10 +60,12 @@ max 0.3081; maximum L-infinity distance 71 units. Queue-order completion differe
   * agent 2 demand (COM=1, MEM=1, API=8) -> DRF (COM=1, MEM=1, API=4), max-min (COM=1, MEM=1, API=4)
   * differ: False
 
-The first (perfectly mirror-symmetric) case is one where the two mechanisms coincide; the second and third
-show them diverging, because DRF's dominant-share coupling redistributes across resources while the
-independent fill does not. DRF's dominant-share coupling is therefore not the same as separate local
-progress filling.
+Among the constructed examples, the mechanisms coincide on mirror_heterogeneous_symmetric_capacity and three_specialists and diverge on heavy_plus_balanced, because DRF's
+dominant-share coupling redistributes across resources while the independent fill does not. Both the
+first (mirror-symmetric) and third (three-way symmetric specialists) constructed cases coincide; only
+the second (asymmetric) case diverges. That single asymmetric divergence, together with the 120-of-120
+randomized distinctness result in 3.1, establishes the mechanisms as distinct; DRF's dominant-share
+coupling is therefore not the same as separate local progress filling.
 
 ## 4. Separable weighted-log Leontief relaxation (structural control)
 

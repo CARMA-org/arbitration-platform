@@ -119,3 +119,47 @@ gap is undefined. This regime does not occur in the confirmatory experiments, wh
 capacities are total demand divided by 1.3-1.9 and the unit floors never bind (0 of 2626
 binding cells on the natural Dirichlet(0.1) architecture scenarios). Such instances are
 counted and excluded from the equivalence statistics rather than reported as gaps.
+
+## 6. Scope correction: a single-process simulation, not a deployed distributed system
+
+This correction is documentation-only; it changes no code, parameter, mechanism, seed or
+result (`oqlib/distributed.py` is unchanged). It clarifies exactly what the
+`distributed_price_leontief` arm does and does not establish, so the closure report is not
+read as a stronger claim than the evidence supports.
+
+What the arm establishes:
+
+- **Central-solver dispensability.** The arm reaches the same continuous Leontief objective
+  and the same aggregate task completion as the canonical central convex solver, without
+  ever calling that solver. It imports and invokes no central-optimization routine
+  (`scripts/joint_solver.py`, `oqlib/central.py`, `oqlib/central_ref.py`); this is verified
+  by source inspection and an import/call-graph test, and independently re-checked by the v2
+  verifier. The joint Leontief allocation is therefore **algorithmically decomposable** into
+  a price-mediated agent/owner iteration.
+
+What the arm does **not** establish:
+
+- **It is a single-process simulation, not a deployed distributed system.** The tatonnement
+  runs in one Python process. Although the algorithm is written so that each owner updates
+  only from its own resource's local demand and each agent responds only to the prices it
+  receives, the implementation holds the full price, demand and allocation **arrays as global
+  objects in one process**. There is no network, no separate trust domain, no message loss,
+  no asynchrony, and no adversarial participant. The `message_count` and `iterations`
+  statistics describe the idealized message pattern of the algorithm, not messages actually
+  sent over any transport.
+- **The feasibility repair is a single global scalar.** Section 2.3's repair rescales every
+  agent's utility by one global factor `s` found by bisection. Computing `s` requires knowing
+  every resource's total demand at once; it is a **global** operation, not a purely
+  resource-local one. It is negligible in the experiment (a converged tatonnement leaves only
+  a vanishing overshoot, so `s` is at or near 1), but it means the run is not free of all
+  cross-resource, cross-agent coordination even in principle.
+- **No privacy, decentralization-of-authority, or communication-free claim.** The arm does
+  not demonstrate privacy of declarations, does not decentralize installation or enforcement
+  (the resulting integer contracts are still installed and enforced by the same platform
+  runtime through the identical `installContracts` path as every other arm), and does not
+  show the absence of all cross-resource communication. It shows only that the *computation*
+  of the allocation can be decomposed away from a central convex optimizer.
+
+In short: the distributed arm answers "does the joint Leontief outcome require the central
+convex solver?" (no) and not "can this be run as a private, deployed, fully decentralized
+system?" (untested here).
